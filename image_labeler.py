@@ -11,6 +11,18 @@ def label_images(csv_path, trip_folder):
 	device = "cuda" if torch.cuda.is_available() else "cpu"
 	model, preprocess = clip.load("ViT-B/32", device=device)
 
+	# # Define candidate labels
+	# concepts = [
+	#     "a single bird", "a flock of birds", "a flower", "a blooming flower", "a green plant", "a tree", 
+	#     "a mountain range", "a snowy mountain", "a lake", "a calm lake", "a scenic landscape",
+	#     "a person", "a group of people", "a waterfall", "a dense forest", "an insect", "a wild animal", 
+	#     "a domestic cat", "a domestic dog", "a night sky", "stars", "the Milky Way", 
+	#     "a galaxy", "a nebula", "a star cluster", "an astrophotography image", "the moon", 
+	#     "the sun", "a solar eclipse", "Andromeda galaxy", "Orion nebula", "deep sky object",
+	#     "a sunrise", "a sunset", "a cityscape", "a modern building", "a historical monument", 
+	#     "a food dish", "a traditional meal", "a campsite"
+	# ]
+
 	# Define candidate labels
 	concepts = [
 		# Nature and people
@@ -24,7 +36,7 @@ def label_images(csv_path, trip_folder):
 		# Other scenes
 		"a sunrise", "a sunset", "a cityscape", "a building", "a monument", "a food dish"
 	]
-
+	
 	text_tokens = clip.tokenize(concepts).to(device)
 
 	updated_rows = []
@@ -36,15 +48,15 @@ def label_images(csv_path, trip_folder):
 	col_idx = get_column_indices(header)
 
 	# Ensure required columns exist, or append them
-	for new_col in ["detected_objects", "species_tags"]:
-		if new_col not in col_idx:
-			header.append(new_col)
-			col_idx[new_col] = len(header) - 1
+	for col in ["detected_objects", "species_tags"]:
+		if col not in col_idx:
+			header.append(col)
+			col_idx[col] = len(header) - 1
 
 	updated_rows.append(header)
 
 	for row in rows[1:]:
-		image_path = os.path.join(trip_folder, row[col_idx['local_path']])
+		image_path = os.path.join(trip_folder, row[col_idx["local_path"]])
 		try:
 			image = preprocess(Image.open(image_path).convert("RGB")).unsqueeze(0).to(device)
 			with torch.no_grad():
@@ -72,10 +84,10 @@ def label_images(csv_path, trip_folder):
 						species.append(label)
 					else:
 						objects.append(label)
-
+				
 				row += ["; ".join(objects), "; ".join(species)]
 
-		except Exception as e:
+		except Exception:
 			# Fallback if image can't be processed
 			row += ["", ""]
 
