@@ -1,0 +1,11 @@
+torch
+clip
+piexif
+exifread
+geopy
+folium
+face_recognition
+transformers
+Pillow
+numpy
+google-cloud-storage
