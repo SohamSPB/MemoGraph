@@ -1,64 +1,110 @@
-import os
-import csv
-from geopy.geocoders import Nominatim
-from time import sleep
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+location_resolver.py
 
-def resolve_location(lat, lon, geolocator):
+Reverse-geocodes GPS coordinates in labels.csv and fills the
+`location_inferred` column. Falls back to the trip folder name when
+coordinates are missing or geocoding fails.
+
+Writes to <trip_folder>/MemoGraph/labels.csv and logs to
+<trip_folder>/MemoGraph/logs/location_resolver.log
+"""
+
+import os
+import time
+from geopy.geocoders import Nominatim
+
+from scripts.utils.utils_io import (
+	ensure_memograph_folder,
+	read_csv_dict,
+	write_csv_dict,
+	backup_csv,
+	ensure_dir,
+)
+from scripts.utils.utils_log import init_log, log
+import memograph_config as CFG
+
+def infer_trip_name_from_path(trip_folder: str) -> str:
+	"""Use the folder's basename as a human hint for fallback locations."""
+	return os.path.basename(trip_folder).replace("_", " ")
+
+def resolve_location_from_gps(lat: float, lon: float, geolocator: Nominatim) -> str | None:
+	"""Return address string or None if reverse geocoding fails."""
 	try:
-		location = geolocator.reverse((lat, lon), language='en', timeout=10)
+		location = geolocator.reverse((lat, lon), language="en", timeout=10)
 		if location:
 			return location.address
-	except:
-		return None
+	except Exception as e:
+		# We'll log the failure above.
+		pass
 	return None
 
-def infer_trip_name_from_path(csv_path):
-	# Use the folder name where CSV is located as trip hint
-	folder = os.path.dirname(csv_path)
-	trip_name = os.path.basename(folder).replace("_", " ")
-	return trip_name
+def fill_location(trip_folder: str) -> None:
+	memo_dir = ensure_memograph_folder(trip_folder, CFG.MEMOGRAPH_FOLDER_NAME)
+	logs_dir = os.path.join(memo_dir, "logs")
+	ensure_dir(logs_dir)
+	log_path = os.path.join(logs_dir, "location_resolver.log") if CFG.LOG_TO_FILE else None
 
-def fill_location(csv_path, trip_name_hint=None):
-	geolocator = Nominatim(user_agent="photo_manager_location")
+	init_log(log_path, "location_resolver.py")
 
-	if not trip_name_hint:
-		trip_name_hint = infer_trip_name_from_path(csv_path)
+	labels_csv = os.path.join(memo_dir, "labels.csv")
+	if not os.path.exists(labels_csv):
+		log(f"ERROR: labels.csv not found at {labels_csv}", log_path)
+		return
 
-	rows = []
-	with open(csv_path, "r", newline='') as f:
-		reader = csv.reader(f)
-		headers = next(reader)
+	rows = read_csv_dict(labels_csv)
+	if not rows:
+		log("ERROR: labels.csv is empty.", log_path)
+		return
 
-		col_index = {name: idx for idx, name in enumerate(headers)}
+	# Ensure required fields exist
+	first = rows[0]
+	required = {"gps_lat", "gps_lon", "location_inferred"}
+	if not required.issubset(first.keys()):
+		log(f"ERROR: labels.csv missing columns: {required - set(first.keys())}", log_path)
+		return
 
-		gps_lat_idx = col_index.get("gps_lat")
-		gps_lon_idx = col_index.get("gps_lon")
-		location_idx = col_index.get("location_inferred")
+	# Backup
+	backup_csv(labels_csv, max_backups=CFG.MAX_BACKUPS, log_path=log_path)
 
-		for row in reader:
-			lat = row[gps_lat_idx]
-			lon = row[gps_lon_idx]
-			location_inferred = row[location_idx]
+	trip_hint = infer_trip_name_from_path(trip_folder)
+	geolocator = Nominatim(user_agent="memograph_location_resolver")
 
-			if location_inferred.strip() == "":
-				if lat != "" and lon != "":
-					loc = resolve_location(float(lat), float(lon), geolocator)
-					if loc:
-						row[location_idx] = loc
-					else:
-						row[location_idx] = trip_name_hint
-					sleep(1)  # Respect Nominatim limits
+	updated = 0
+	for i, r in enumerate(rows, 1):
+		current_loc = (r.get("location_inferred") or "").strip()
+		lat_raw = (r.get("gps_lat") or "").strip()
+		lon_raw = (r.get("gps_lon") or "").strip()
+
+		if current_loc:
+			continue
+
+		if lat_raw and lon_raw:
+			try:
+				lat = float(lat_raw)
+				lon = float(lon_raw)
+				addr = resolve_location_from_gps(lat, lon, geolocator)
+				if addr:
+					r["location_inferred"] = addr
+					updated += 1
+					log(f"[{i}/{len(rows)}] Resolved -> {addr[:80]}...", log_path)
 				else:
-					row[location_idx] = trip_name_hint
+					r["location_inferred"] = trip_hint
+					log(f"[{i}/{len(rows)}] Reverse geocoding failed, fallback -> {trip_hint}", log_path)
+			except ValueError:
+				r["location_inferred"] = trip_hint
+				log(f"[{i}/{len(rows)}] Invalid GPS values, fallback -> {trip_hint}", log_path)
+			time.sleep(getattr(CFG, "NOMINATIM_SLEEP_S", 1.0))  # be nice to Nominatim
+		else:
+			r["location_inferred"] = trip_hint
 
-			rows.append(row)
+	write_csv_dict(labels_csv, rows, first.keys())
+	log(f"Done. Updated {updated} rows. Saved to {labels_csv}", log_path)
 
-	with open(csv_path, "w", newline='') as f:
-		writer = csv.writer(f)
-		writer.writerow(headers)
-		writer.writerows(rows)
-
-# Example usage
 if __name__ == "__main__":
-	csv_path = "data/trips/test_trip/labels.csv"
-	fill_location(csv_path)
+	import argparse
+	p = argparse.ArgumentParser(description="Fill location_inferred via reverse geocoding.")
+	p.add_argument("--trip-folder", required=True, help="Trip folder path (e.g. data/trips/test_trip)")
+	args = p.parse_args()
+	fill_location(args.trip_folder)
