@@ -6,19 +6,10 @@ from PIL import Image
 
 # Predefined species lists (expand as needed)
 species_prompts = {
-	"birds": [
-		"Sparrow", "Pigeon", "Eagle", "Vulture", "Kingfisher", "Bulbul", "Indian Roller", 
-		"Crow", "Peacock", "Parrot", "Owl", "Woodpecker", "Hornbill", "Duck"
-	],
-	"plants": [
-		"Rose", "Lotus", "Tulsi", "Bamboo", "Ficus", "Fern", "Banana plant", "Sunflower"
-	],
-	"insects": [
-		"Butterfly", "Bee", "Dragonfly", "Ant", "Beetle", "Grasshopper"
-	],
-	"animals": [
-		"Dog", "Cat", "Elephant", "Tiger", "Leopard", "Horse", "Cow", "Goat", "Sheep", "Yak", "Deer"
-	]
+	"birds": ["Sparrow", "Pigeon", "Eagle", "Vulture", "Kingfisher", "Bulbul", "Indian Roller", "Crow", "Peacock", "Parrot", "Owl", "Woodpecker", "Hornbill", "Duck"],
+	"plants": ["Rose", "Lotus", "Tulsi", "Bamboo", "Ficus", "Fern", "Banana plant", "Sunflower"],
+	"insects": ["Butterfly", "Bee", "Dragonfly", "Ant", "Beetle", "Grasshopper"],
+	"animals": ["Dog", "Cat", "Elephant", "Tiger", "Leopard", "Horse", "Cow", "Goat", "Sheep", "Yak", "Deer"]
 }
 
 # Flatten species list for CLIP
@@ -42,11 +33,11 @@ def detect_species(image_path):
 		text_features /= text_features.norm(dim=-1, keepdim=True)
 
 		similarity = (100.0 * image_features @ text_features.T).squeeze(0)
-		best_idx = similarity.argmax().item()
-		best_match = all_species[best_idx]
-		confidence = similarity[best_idx].item()
+		confidences = similarity.tolist()
 
-	return best_match, confidence
+	matches = [(all_species[i], conf) for i, conf in enumerate(confidences) if conf > 20.0]
+	matches.sort(key=lambda x: -x[1])
+	return [match for match, _ in matches]
 
 def process_csv(csv_path, image_folder):
 	updated_rows = []
@@ -55,39 +46,30 @@ def process_csv(csv_path, image_folder):
 		reader = csv.DictReader(f)
 		fieldnames = reader.fieldnames
 
+		# Safety check: Remove None and deduplicate
+		fieldnames = [f for f in fieldnames if f is not None]
 		if "species_tags" not in fieldnames:
 			fieldnames.append("species_tags")
 
 		for row in reader:
-			caption = row.get("caption", "").lower()
-			species_tag = ""
+			# Clean keys: remove any unexpected ones
+			clean_row = {k: v for k, v in row.items() if k in fieldnames and k is not None}
+			species_tags = []
 
-			# Check if caption contains relevant keywords
-			if any(kw in caption for kw in ["bird", "flower", "plant", "tree", "insect", "animal", "dog", "cat"]):
-				image_path = os.path.join(image_folder, row['local_path'])
+			caption = clean_row.get("caption", "").lower()
+
+			if any(kw in caption for kw in ["bird", "flower", "plant", "tree", "insect", "animal", "dog", "cat", "forest"]):
+				image_path = os.path.join(image_folder, clean_row.get('local_path', ''))
 				if os.path.exists(image_path):
 					try:
-						match, conf = detect_species(image_path)
-						# Set threshold to avoid wrong matches (adjust as needed)
-						if conf > 20.0:
-							species_tag = match
-						else:
-							# Fallback to generic
-							if "bird" in caption:
-								species_tag = "bird"
-							elif "flower" in caption or "plant" in caption or "tree" in caption:
-								species_tag = "plant"
-							elif "insect" in caption:
-								species_tag = "insect"
-							elif "animal" in caption or "dog" in caption or "cat" in caption:
-								species_tag = "animal"
+						tags = detect_species(image_path)
+						species_tags = tags[:3] if tags else []
 					except Exception as e:
 						print("Failed to process", image_path, e)
 
-			row["species_tags"] = species_tag
-			updated_rows.append(row)
+			clean_row["species_tags"] = ", ".join(species_tags)
+			updated_rows.append(clean_row)
 
-	# Write back to CSV
 	with open(csv_path, "w", newline='', encoding='utf-8') as f:
 		writer = csv.DictWriter(f, fieldnames=fieldnames)
 		writer.writeheader()
