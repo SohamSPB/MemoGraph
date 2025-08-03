@@ -1,63 +1,91 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+trip_day_assigner.py
+
+Assigns consecutive day numbers to rows in labels.csv based on
+the earliest valid `datetime_original`.
+
+Writes results back to <trip_folder>/MemoGraph/labels.csv and
+logs to <trip_folder>/MemoGraph/logs/trip_day_assigner.log
+"""
+
 import os
-import csv
 from datetime import datetime
 
-def infer_trip_name_from_path(csv_path):
-	folder = os.path.dirname(csv_path)
-	trip_name = os.path.basename(folder).replace("_", " ")
-	return trip_name
+from scripts.utils.utils_io import (
+	ensure_memograph_folder,
+	read_csv_dict,
+	write_csv_dict,
+	backup_csv,
+	ensure_dir,
+)
+from scripts.utils.utils_log import init_log, log
+import memograph_config as CFG
 
-def assign_days(csv_path):
-	rows = []
-	with open(csv_path, "r", newline='') as f:
-		reader = csv.reader(f)
-		headers = next(reader)
+def assign_days(trip_folder: str) -> None:
+	memo_dir = ensure_memograph_folder(trip_folder, CFG.MEMOGRAPH_FOLDER_NAME)
+	logs_dir = os.path.join(memo_dir, "logs")
+	ensure_dir(logs_dir)
+	log_path = os.path.join(logs_dir, "trip_day_assigner.log") if CFG.LOG_TO_FILE else None
 
-		col_index = {name: idx for idx, name in enumerate(headers)}
-		dt_idx = col_index.get("datetime_original")
-		day_idx = col_index.get("day_number")
+	init_log(log_path, "trip_day_assigner.py")
 
-		datetimes = []
-
-		for row in reader:
-			dt_raw = row[dt_idx].strip()
-			if dt_raw != "":
-				try:
-					dt = datetime.strptime(dt_raw, "%Y:%m:%d %H:%M:%S")
-					datetimes.append((dt, row))
-				except:
-					datetimes.append((None, row))
-			else:
-				datetimes.append((None, row))
-
-	# Find the earliest date as trip start
-	valid_dates = [dt for dt, _ in datetimes if dt is not None]
-
-	if len(valid_dates) == 0:
-		print("No valid datetime found in CSV.")
+	labels_csv = os.path.join(memo_dir, "labels.csv")
+	if not os.path.exists(labels_csv):
+		log(f"ERROR: labels.csv not found at {labels_csv}", log_path)
 		return
 
-	trip_start = min(valid_dates)
+	rows = read_csv_dict(labels_csv)
+	if not rows:
+		log("ERROR: labels.csv has no rows.", log_path)
+		return
 
-	# Assign day numbers
-	for dt, row in datetimes:
+	# ensure required columns exist
+	if "datetime_original" not in rows[0] or "day_number" not in rows[0]:
+		log("ERROR: Missing columns 'datetime_original' or 'day_number' in labels.csv", log_path)
+		return
+
+	backup_csv(labels_csv, max_backups=CFG.MAX_BACKUPS, log_path=log_path)
+
+	# collect datetimes
+	parsed = []
+	for r in rows:
+		raw = (r.get("datetime_original") or "").strip()
+		if not raw:
+			parsed.append((None, r))
+			continue
+		try:
+			dt = datetime.strptime(raw, "%Y:%m:%d %H:%M:%S")
+			parsed.append((dt, r))
+		except Exception:
+			log(f"Warning: invalid datetime_original '{raw}' for {r.get('local_path')}", log_path)
+			parsed.append((None, r))
+
+	valid = [dt for dt, _ in parsed if dt is not None]
+	if not valid:
+		log("ERROR: No valid datetime_original values found.", log_path)
+		return
+
+	trip_start = min(valid)
+	log(f"Trip start date: {trip_start.strftime('%Y-%m-%d')}", log_path)
+
+	# assign
+	updated = 0
+	for dt, r in parsed:
 		if dt is None:
-			row[day_idx] = ""
+			r["day_number"] = ""
 		else:
-			day_number = (dt.date() - trip_start.date()).days + 1
-			row[day_idx] = str(day_number)
-		rows.append(row)
+			day_num = (dt.date() - trip_start.date()).days + 1
+			r["day_number"] = str(day_num)
+			updated += 1
 
-	# Write back
-	with open(csv_path, "w", newline='') as f:
-		writer = csv.writer(f)
-		writer.writerow(headers)
-		writer.writerows(rows)
+	write_csv_dict(labels_csv, rows, rows[0].keys())
+	log(f"Updated {updated} rows with day_number. Saved: {labels_csv}", log_path)
 
-	trip_name = infer_trip_name_from_path(csv_path)
-	print("Trip day numbers assigned for", trip_name)
-
-# Example usage
 if __name__ == "__main__":
-	csv_path = "data/trips/test_trip/labels.csv"
-	assign_days(csv_path)
+	import argparse
+	p = argparse.ArgumentParser(description="Assign day numbers to labels.csv inside MemoGraph")
+	p.add_argument("--trip-folder", required=True, help="Trip folder path (e.g. data/trips/test_trip)")
+	args = p.parse_args()
+	assign_days(args.trip_folder)
