@@ -16,12 +16,11 @@ import time
 from geopy.geocoders import Nominatim
 
 from scripts.utils.utils_io import (
-	ensure_memograph_folder,
 	read_csv_dict,
 	write_csv_dict,
-	backup_csv,
 	ensure_dir,
 )
+from memograph_config import ensure_memograph_folder
 from scripts.utils.utils_log import init_log, log
 import memograph_config as CFG
 
@@ -41,9 +40,7 @@ def resolve_location_from_gps(lat: float, lon: float, geolocator: Nominatim) -> 
 	return None
 
 def fill_location(trip_folder: str) -> None:
-	memo_dir = ensure_memograph_folder(trip_folder, CFG.MEMOGRAPH_FOLDER_NAME)
-	logs_dir = os.path.join(memo_dir, "logs")
-	ensure_dir(logs_dir)
+	memo_dir, logs_dir = ensure_memograph_folder(trip_folder)
 	log_path = os.path.join(logs_dir, "location_resolver.log") if CFG.LOG_TO_FILE else None
 
 	init_log(log_path, "location_resolver.py")
@@ -64,9 +61,6 @@ def fill_location(trip_folder: str) -> None:
 	if not required.issubset(first.keys()):
 		log(f"ERROR: labels.csv missing columns: {required - set(first.keys())}", log_path)
 		return
-
-	# Backup
-	backup_csv(labels_csv, max_backups=CFG.MAX_BACKUPS, log_path=log_path)
 
 	trip_hint = infer_trip_name_from_path(trip_folder)
 	geolocator = Nominatim(user_agent="memograph_location_resolver")

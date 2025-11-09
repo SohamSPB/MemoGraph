@@ -20,10 +20,10 @@ from datetime import datetime
 from collections import defaultdict
 
 from scripts.utils.utils_io import (
-	ensure_memograph_folder,
 	read_csv_dict,
 	ensure_dir,
 )
+from memograph_config import ensure_memograph_folder
 from scripts.utils.utils_log import init_log, log
 import memograph_config as CFG
 
@@ -94,9 +94,7 @@ def generate_day_paragraph(date, rows, day_number):
 # Main blog generation
 # -----------------------------
 def generate_blog(trip_folder):
-	memo_dir = ensure_memograph_folder(trip_folder, CFG.MEMOGRAPH_FOLDER_NAME)
-	logs_dir = os.path.join(memo_dir, "logs")
-	ensure_dir(logs_dir)
+	memo_dir, logs_dir = ensure_memograph_folder(trip_folder)
 	log_path = os.path.join(logs_dir, "blog_generator.log") if CFG.LOG_TO_FILE else None
 
 	init_log(log_path, "blog_generator.py")

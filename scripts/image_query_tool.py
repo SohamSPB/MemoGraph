@@ -15,7 +15,8 @@ import csv
 import argparse
 from datetime import datetime
 
-from scripts.utils.utils_io import ensure_memograph_folder, read_csv_dict, write_csv_dict, ensure_dir
+from scripts.utils.utils_io import read_csv_dict, write_csv_dict, ensure_dir
+from memograph_config import ensure_memograph_folder
 from scripts.utils.utils_log import init_log, log
 import memograph_config as CFG
 
@@ -118,8 +119,8 @@ def query_images(csv_path, log_path, **filters):
 
 if __name__ == "__main__":
 	args = parse_args()
-	memo_dir = ensure_memograph_folder(args.trip_folder, CFG.MEMOGRAPH_FOLDER_NAME)
-	log_path = os.path.join(memo_dir, "logs", "query_images.log")
+	memo_dir, logs_dir = ensure_memograph_folder(args.trip_folder)
+	log_path = os.path.join(logs_dir, "query_images.log")
 
 	init_log(log_path, "query_images.py")
 	csv_path = os.path.join(memo_dir, "labels.csv")

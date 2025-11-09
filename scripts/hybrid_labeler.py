@@ -27,7 +27,8 @@ import torch
 from PIL import Image
 
 # Local imports
-from scripts.utils.utils_io import read_csv_dict, write_csv_dict, ensure_memograph_folder
+from scripts.utils.utils_io import read_csv_dict, write_csv_dict
+from memograph_config import ensure_memograph_folder
 from scripts.utils.utils_log import init_log, log
 import memograph_config as CFG
 
@@ -144,8 +145,8 @@ def merge_labels(*label_lists, topk=5):
 def main():
 	args = parse_args()
 	trip_folder = args.trip_folder
-	memo_dir = ensure_memograph_folder(trip_folder, CFG.MEMOGRAPH_FOLDER_NAME)
-	log_path = os.path.join(memo_dir, "logs", "hybrid_labeler.log")
+	memo_dir, logs_dir = ensure_memograph_folder(trip_folder)
+	log_path = os.path.join(logs_dir, "hybrid_labeler.log")
 	init_log(log_path, "hybrid_labeler.py")
 
 	if not os.path.exists(args.csv):

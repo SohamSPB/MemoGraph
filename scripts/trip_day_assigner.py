@@ -14,19 +14,16 @@ import os
 from datetime import datetime
 
 from scripts.utils.utils_io import (
-	ensure_memograph_folder,
 	read_csv_dict,
 	write_csv_dict,
-	backup_csv,
 	ensure_dir,
 )
+from memograph_config import ensure_memograph_folder
 from scripts.utils.utils_log import init_log, log
 import memograph_config as CFG
 
 def assign_days(trip_folder: str) -> None:
-	memo_dir = ensure_memograph_folder(trip_folder, CFG.MEMOGRAPH_FOLDER_NAME)
-	logs_dir = os.path.join(memo_dir, "logs")
-	ensure_dir(logs_dir)
+	memo_dir, logs_dir = ensure_memograph_folder(trip_folder)
 	log_path = os.path.join(logs_dir, "trip_day_assigner.log") if CFG.LOG_TO_FILE else None
 
 	init_log(log_path, "trip_day_assigner.py")
@@ -45,8 +42,6 @@ def assign_days(trip_folder: str) -> None:
 	if "datetime_original" not in rows[0] or "day_number" not in rows[0]:
 		log("ERROR: Missing columns 'datetime_original' or 'day_number' in labels.csv", log_path)
 		return
-
-	backup_csv(labels_csv, max_backups=CFG.MAX_BACKUPS, log_path=log_path)
 
 	# collect datetimes
 	parsed = []

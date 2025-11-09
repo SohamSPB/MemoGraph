@@ -21,7 +21,7 @@ Follow these steps to set up your local environment.
 
 ### 1. Prerequisites
 
-- **Python 3.8+**
+- **Python 3.12.3** (exact version used during development)
 - **CMake:** Required for one of the Python dependencies (`dlib`).
 
   **Linux:**
@@ -58,11 +58,15 @@ python -m venv .venv
 .\.venv\Scripts\activate
 ```
 
+### 3. Install Dependencies
+
 Install all the required packages from `requirements.txt`.
 
 ```bash
 pip install -r requirements.txt
 ```
+
+**Note:** The exact versions of the packages used during development are listed in `requirements.txt` to ensure compatibility.
 
 ## Usage
 
@@ -81,6 +85,19 @@ The main pipeline is executed through the `run_all.py` script.
     ```
 
 3.  **Check the output:** All generated files (CSV, logs, blog, map) will be placed in a `MemoGraph` folder inside your trip directory.
+
+## Parallel Execution and Resource Monitoring
+
+MemoGraph supports parallel execution for computationally intensive steps (face detection, image labeling, caption generation, species detection).
+
+To enable parallel execution, set the environment variable `MEMOGRAPH_PARALLEL_EXECUTION` to `true`:
+
+```bash
+export MEMOGRAPH_PARALLEL_EXECUTION=true
+python run_all.py data/trips/my_awesome_trip
+```
+
+When running in parallel mode, the pipeline also monitors CPU, RAM, and GPU usage, logging the data to `data/trips/<trip_folder>/MemoGraph/logs/resource_usage.csv`. This helps in understanding the resource consumption of different pipeline stages.
 
 ## Configuration
 

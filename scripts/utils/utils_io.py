@@ -18,19 +18,6 @@ def ensure_parent_dir(path: str) -> None:
 	if parent:
 		os.makedirs(parent, exist_ok=True)
 
-def ensure_memograph_folder(trip_folder: str, subfolder_name: str = "MemoGraph") -> str:
-	"""
-	Ensure we have a dedicated MemoGraph folder inside the trip_folder.
-
-	Returns
-	-------
-	str
-		The absolute path to the MemoGraph folder.
-	"""
-	memo_dir = os.path.join(trip_folder, subfolder_name)
-	ensure_dir(memo_dir)
-	return memo_dir
-
 def read_csv_dict(csv_path: str) -> List[Dict[str, str]]:
 	"""Read a CSV file into a list of dict rows. Returns [] if file does not exist."""
 	if not os.path.exists(csv_path):

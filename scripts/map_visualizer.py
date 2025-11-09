@@ -16,10 +16,10 @@ import folium
 from folium.plugins import MarkerCluster
 
 from scripts.utils.utils_io import (
-	ensure_memograph_folder,
 	read_csv_dict,
 	ensure_dir
 )
+from memograph_config import ensure_memograph_folder
 from scripts.utils.utils_log import init_log, log
 import memograph_config as CFG
 
@@ -55,9 +55,7 @@ def create_map(points, output_path):
 
 
 def visualize_map(trip_folder):
-	memo_dir = ensure_memograph_folder(trip_folder, CFG.MEMOGRAPH_FOLDER_NAME)
-	logs_dir = os.path.join(memo_dir, "logs")
-	ensure_dir(logs_dir)
+	memo_dir, logs_dir = ensure_memograph_folder(trip_folder)
 	log_path = os.path.join(logs_dir, "map_visualizer.log") if CFG.LOG_TO_FILE else None
 
 	init_log(log_path, "map_visualizer.py")

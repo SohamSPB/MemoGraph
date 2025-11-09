@@ -1,0 +1,20 @@
+1. Investigate memory usage and resource checks in the codebase.
+2. Analyze `run_all.py` and `face_detector.py` to identify the source of the memory overload.
+3. Examine `memograph_config.py` for resource limit configurations.
+4. Propose and implement a solution to prevent memory-related crashes.
+    - DONE: Set multiprocessing start method to 'spawn' in `run_all.py` and `face_detector.py` to fix CUDA error.
+    - DONE: Lowered `PARALLEL_WORKERS` to 2, `FACE_DETECTION_BATCH_SIZE` to 4, and `MIN_AVAILABLE_GPU_MEM_MB` to 1024 in `memograph_config.py`.
+    - DONE: Moved `multiprocessing.set_start_method('spawn', force=True)` to `run_all.py` for global effect.
+    - DONE: Added image resizing in `face_detector.py` to reduce memory usage.
+    - DONE: Removed `backup_csv` calls from all parallel scripts to prevent race conditions.
+    - DONE: Standardized `ensure_memograph_folder` usage across all scripts.
+    - DONE: Removed `ensure_memograph_folder` from `utils_io.py` to avoid confusion.
+    - DONE: Lowered `FACE_DETECTION_BATCH_SIZE` to 2 in `memograph_config.py`.
+5. Activate the `.venv` virtual environment.
+6. Run the `run_all.py` script in parallel mode with the implemented safeguards.
+7. Monitor the execution to ensure stability and performance. If it crashes, check the logs in `data/trips/2025_Annapurna_Nepal/MemoGraph/logs/`.
+8. Added resource monitoring to the `run_all.py` script.
+    - The resource monitoring is done by collecting data in the main process and writing it to a CSV file at the end.
+    - The parallel steps are the most resource-intensive, with high RAM and GPU usage.
+    - The sequential steps are lightweight and mostly I/O bound.
+    - The execution times for each step are available in the logs.

@@ -19,12 +19,11 @@ import exifread
 
 # --- Local utils ---
 from scripts.utils.utils_io import (
-	ensure_memograph_folder,
 	read_csv_dict,
 	write_csv_dict,
-	backup_csv,
 	ensure_dir,
 )
+from memograph_config import ensure_memograph_folder
 from scripts.utils.utils_log import init_log, log
 import memograph_config as CFG
 
@@ -127,9 +126,7 @@ def scan_images(trip_folder: str) -> None:
 	- If an existing labels.csv exists, it is backed up first (max N backups).
 	- Uses utils_log for file + console logging.
 	"""
-	memo_dir = ensure_memograph_folder(trip_folder, CFG.MEMOGRAPH_FOLDER_NAME)
-	logs_dir = os.path.join(memo_dir, "logs")
-	ensure_dir(logs_dir)
+	memo_dir, logs_dir = ensure_memograph_folder(trip_folder)
 
 	labels_csv = os.path.join(memo_dir, "labels.csv")
 	log_path = os.path.join(logs_dir, "image_scanner.log") if CFG.LOG_TO_FILE else None
@@ -138,10 +135,6 @@ def scan_images(trip_folder: str) -> None:
 	log(f"Trip folder: {trip_folder}", log_path)
 	log(f"MemoGraph dir: {memo_dir}", log_path)
 	log("Starting image scan...", log_path)
-
-	# Backup if exists
-	if os.path.exists(labels_csv):
-		backup_csv(labels_csv, max_backups=CFG.MAX_BACKUPS, log_path=log_path)
 
 	rows_out = []
 	total_files = 0

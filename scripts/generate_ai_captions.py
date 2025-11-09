@@ -15,19 +15,15 @@ from PIL import Image
 from transformers import BlipProcessor, BlipForConditionalGeneration
 
 from scripts.utils.utils_io import (
-	ensure_memograph_folder,
 	read_csv_dict,
 	write_csv_dict,
-	backup_csv,
-	ensure_dir
 )
+from memograph_config import ensure_memograph_folder
 from scripts.utils.utils_log import init_log, log
 import memograph_config as CFG
 
 def generate_ai_captions(trip_folder):
-	memo_dir = ensure_memograph_folder(trip_folder, CFG.MEMOGRAPH_FOLDER_NAME)
-	logs_dir = os.path.join(memo_dir, "logs")
-	ensure_dir(logs_dir)
+	memo_dir, logs_dir = CFG.ensure_memograph_folder(trip_folder)
 	log_path = os.path.join(logs_dir, "generate_ai_captions.log") if CFG.LOG_TO_FILE else None
 
 	init_log(log_path, "generate_ai_captions.py")
@@ -37,7 +33,6 @@ def generate_ai_captions(trip_folder):
 		log(f"ERROR: labels.csv not found at {csv_path}", log_path)
 		return
 
-	backup_csv(csv_path, CFG.MAX_BACKUPS, log_path)
 	rows = read_csv_dict(csv_path)
 	if not rows:
 		log("No rows found in CSV.", log_path)
@@ -76,7 +71,9 @@ def generate_ai_captions(trip_folder):
 
 if __name__ == "__main__":
 	import argparse
+	import multiprocessing
 	p = argparse.ArgumentParser(description="Generate AI captions for images.")
 	p.add_argument("--trip-folder", required=True, help="Trip folder (e.g. data/trips/test_trip)")
 	args = p.parse_args()
+
 	generate_ai_captions(args.trip_folder)

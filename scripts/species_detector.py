@@ -14,7 +14,8 @@ import torch
 import clip
 from PIL import Image
 
-from scripts.utils.utils_io import read_csv_dict, write_csv_dict, ensure_memograph_folder
+from scripts.utils.utils_io import read_csv_dict, write_csv_dict
+from memograph_config import ensure_memograph_folder
 from scripts.utils.utils_log import init_log, log
 import memograph_config as CFG
 
@@ -88,10 +89,12 @@ def process_species(csv_path, trip_folder, log_path):
 
 
 if __name__ == "__main__":
+	import multiprocessing
 	trip_folder = "data/trips/test_trip"
-	memo_dir = ensure_memograph_folder(trip_folder, CFG.MEMOGRAPH_FOLDER_NAME)
+	memo_dir, logs_dir = ensure_memograph_folder(trip_folder)
 	csv_path = os.path.join(memo_dir, "labels.csv")
-	log_path = os.path.join(memo_dir, "logs", "species_labeler.log")
+	log_path = os.path.join(logs_dir, "species_labeler.log")
 
 	init_log(log_path, "species_labeler.py")
+
 	process_species(csv_path, trip_folder, log_path)

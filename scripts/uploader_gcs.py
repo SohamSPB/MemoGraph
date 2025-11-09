@@ -13,7 +13,8 @@ import os
 import shutil
 from google.cloud import storage
 
-from scripts.utils.utils_io import read_csv_dict, write_csv_dict, append_csv_dict, ensure_dir, ensure_memograph_folder
+from scripts.utils.utils_io import read_csv_dict, write_csv_dict, append_csv_dict, ensure_dir
+from memograph_config import ensure_memograph_folder
 from scripts.utils.utils_log import init_log, log
 import memograph_config as CFG
 
@@ -86,9 +87,9 @@ def upload_and_backup(csv_path, trip_folder, log_path):
 
 if __name__ == "__main__":
 	trip_folder = "data/trips/test_trip"
-	memo_dir = ensure_memograph_folder(trip_folder, CFG.MEMOGRAPH_FOLDER_NAME)
+	memo_dir, logs_dir = ensure_memograph_folder(trip_folder)
 	csv_path = os.path.join(memo_dir, "labels.csv")
-	log_path = os.path.join(memo_dir, "logs", "cloud_uploader.log")
+	log_path = os.path.join(logs_dir, "cloud_uploader.log")
 
 	init_log(log_path, "cloud_uploader.py")
 	upload_and_backup(csv_path, trip_folder, log_path)

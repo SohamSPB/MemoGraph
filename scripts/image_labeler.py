@@ -15,19 +15,15 @@ import clip
 from PIL import Image
 
 from scripts.utils.utils_io import (
-	ensure_memograph_folder,
 	read_csv_dict,
 	write_csv_dict,
-	backup_csv,
-	ensure_dir
 )
+from memograph_config import ensure_memograph_folder
 from scripts.utils.utils_log import init_log, log
 import memograph_config as CFG
 
 def label_images(trip_folder):
-	memo_dir = ensure_memograph_folder(trip_folder, CFG.MEMOGRAPH_FOLDER_NAME)
-	logs_dir = os.path.join(memo_dir, "logs")
-	ensure_dir(logs_dir)
+	memo_dir, logs_dir = CFG.ensure_memograph_folder(trip_folder)
 	log_path = os.path.join(logs_dir, "image_labeler.log") if CFG.LOG_TO_FILE else None
 
 	init_log(log_path, "image_labeler.py")
@@ -37,7 +33,6 @@ def label_images(trip_folder):
 		log(f"ERROR: labels.csv not found at {csv_path}", log_path)
 		return
 
-	backup_csv(csv_path, CFG.MAX_BACKUPS, log_path)
 	rows = read_csv_dict(csv_path)
 	if not rows:
 		log("No rows found in CSV.", log_path)
@@ -96,7 +91,9 @@ def label_images(trip_folder):
 
 if __name__ == "__main__":
 	import argparse
+	import multiprocessing
 	p = argparse.ArgumentParser(description="Label images using CLIP.")
 	p.add_argument("--trip-folder", required=True, help="Trip folder (e.g. data/trips/test_trip)")
 	args = p.parse_args()
+
 	label_images(args.trip_folder)
