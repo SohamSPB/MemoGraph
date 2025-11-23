@@ -128,6 +128,7 @@ You can customize the behavior of the scripts by editing `memograph_config.py`. 
 - CSV headers
 - Logging and backup options
 - Image size and parallelism knobs (e.g., `MAX_IMAGE_SIZE`, `FACE_DETECTION_BATCH_SIZE`, `FACE_DETECTION_PARALLEL_WORKERS`, `CAPTION_PARALLEL_WORKERS`).
+- Optional face recognition settings (`ENABLE_FACE_RECOGNITION`, `FACE_GALLERY_PATH`, `FACE_RECOGNITION_THRESHOLD`) that allow you to recognise known faces in images after you build a face gallery from reference photos.
 
 The CSV schema includes an `image_type` column used for high-level content
 classification (e.g., natural photo, document scan, meme/graphic, screenshot,
@@ -153,6 +154,15 @@ These are documented in more detail in `working.txt` and `task.txt`, and are use
 MemoGraph also produces a first-pass human-readable trip blog (`blog.md`) and a structured day summary (`trip_summary.json`) for each run. These files can be:
 - Used as-is for quick trip overviews.
 - Fed into an external LLM (see `blog_generation_prompt.md`) if you want to generate a longer, more narrative travel blog using MemoGraph’s captions, locations, and species as input.
+
+For even richer downstream processing, you can build a per-trip `blog_context.json` via:
+
+```bash
+python -m scripts.build_blog_context data/trips/my_awesome_trip
+```
+
+This aggregates per-day times, locations, themes (mountains/roads/temples/markets/food/stays/astro/wildlife), CLIP labels, BLIP captions, YOLO objects, Places365 scene tags, and species into a single JSON file that is ideal for feeding into external text-generation models.
+
 
 ## Location Propagation and Overview Page
 

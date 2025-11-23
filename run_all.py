@@ -30,6 +30,7 @@ import scripts.image_scanner as image_scanner
 import scripts.trip_day_assigner as trip_day_assigner
 import scripts.location_resolver as location_resolver
 import scripts.face_detector as face_detector
+import scripts.face_recognizer as face_recognizer
 import scripts.image_labeler as image_labeler
 import scripts.caption_filler as caption_filler
 import scripts.species_detector as species_detector
@@ -130,10 +131,20 @@ def run_pipeline(trip_folder: str, parallel: bool):
 		# --- CORE PROCESSING (PARALLEL OR SEQUENTIAL) ---
 		analysis_steps = {
 			"Faces": face_detector.process_faces,
-			"Labels": image_labeler.label_images,
-			"Captions": caption_filler.fill_captions,
-			"AI Captions": generate_ai_captions.generate_ai_captions,
 		}
+
+		# Optionally recognise known people in images that contain faces,
+		# using a gallery built from models/faces/known/* (see build_face_gallery.py).
+		if getattr(CFG, "ENABLE_FACE_RECOGNITION", False):
+			analysis_steps["Face Recognition"] = face_recognizer.recognise_faces
+
+		analysis_steps.update(
+			{
+				"Labels": image_labeler.label_images,
+				"Captions": caption_filler.fill_captions,
+				"AI Captions": generate_ai_captions.generate_ai_captions,
+			}
+		)
 
 		# Top-level "parallel" mode now means: allow internal parallelism inside
 		# each step (threads/processes within scripts), but run the high-level

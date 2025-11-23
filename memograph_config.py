@@ -96,3 +96,14 @@ ENABLE_BIRD_MODEL = True
 BIRD_MODEL_DIR = os.path.join("models", "birds", "Birds-Classifier-EfficientNetB2")
 # Number of bird species to keep per image when using the specialist model.
 BIRD_TOPK = 3
+
+# -----------------------------
+# Face recognition (optional)
+# -----------------------------
+# When enabled, an additional step will try to recognise known people in
+# images that contain faces, using a gallery of face encodings built from
+# reference photos under models/faces/known/ (see build_face_gallery.py).
+ENABLE_FACE_RECOGNITION = False
+FACE_GALLERY_PATH = os.path.join("models", "faces", "face_gallery.pkl")
+# Lower threshold = stricter matches (fewer, more confident).
+FACE_RECOGNITION_THRESHOLD = 0.6

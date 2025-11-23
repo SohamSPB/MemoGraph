@@ -94,9 +94,26 @@ For a given trip_folder (e.g. data/trips/2025_Annapurna_Nepal):
        markets/bazaars, temples/monasteries, food/tea breaks, stays,
        astro/night-sky, wildlife).
      - Per-image summaries (time, location, caption/caption_ai, species_tags,
-       detected_objects, image_type, faces_detected).
+       detected_objects, image_type, faces_detected, plus optional YOLO
+       objects and Places365 scene tags when the corresponding models are
+       available under models/yolo and models/places.
    - Writes <trip>/MemoGraph/blog_context.json, designed to be fed into an
      external text-generation model to produce a more natural, narrative blog.
+
+7) Face recognition (optional)
+   - build_face_gallery.build_face_gallery(known_root, gallery_path):
+     - Scans models/faces/known/<PersonName>/ for reference photos.
+     - Uses face_recognition to extract clean face encodings for each person.
+     - Writes a gallery pickle to CFG.FACE_GALLERY_PATH
+       (default models/faces/face_gallery.pkl).
+   - face_recognizer.recognise_faces(trip_folder):
+     - Loads the gallery and labels.csv for the trip.
+     - For rows where faces_detected indicates faces, re-runs encoding and
+       matches against the gallery using FACE_RECOGNITION_THRESHOLD.
+     - Writes recognised names into the people_tags column in labels.csv.
+   - Controlled via memograph_config:
+     - ENABLE_FACE_RECOGNITION = True/False
+     - FACE_GALLERY_PATH, FACE_RECOGNITION_THRESHOLD.
 
 6) map_visualizer.create_map(points, map_path)
    - Produces the final interactive map (trip_map.html) after all fields

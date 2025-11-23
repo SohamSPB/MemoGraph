@@ -238,7 +238,9 @@
         - Additional heuristics for fixing obviously broken place names or duplicated phrases in captions.
         - Optional separate "short_title" field for ultra-compact labels, derived from `caption_ai`, for use in tight UI elements.
         - More varied per-day intro sentences (avoid repeating the same pattern across days).
-        - Even richer use of CLIP labels to talk about food, markets, temples/forts, and stays in blog paragraphs.
+        - Even richer use of CLIP labels, YOLO detections, and Places365 scene
+          tags to talk about food, markets, temples/forts, homestays, roads,
+          and other experiences in blog paragraphs.
     - Planned model families and sources (to be explored and integrated later or handed off to external LLMs using blog_generation_prompt.md):
         - Flowers/plants:
             - Hugging Face image classification models trained on datasets like Oxford 102 Flowers, PlantCLEF, or PlantNet-derived corpora.
@@ -254,6 +256,109 @@
         - Landscapes/biomes:
             - Scene classification models such as ResNet/ViT trained on Places365 or similar scene datasets.
             - CLIP-based zero-shot prompts for labels like "snowy mountain", "cold desert", "Himalayan landscape", "urban cityscape", "tea plantation".
+
+17. FUTURE / OPTIONAL: Face recognition on known people
+    - Goal:
+        - Allow MemoGraph to recognise specific known people (family, friends)
+          in trip images, not just detect that a face is present.
+        - Store recognised names in people_tags so they can be used later in
+          queries and blog/map narratives.
+    - Current implementation (first pass):
+        - Config knobs in memograph_config.py:
+            - ENABLE_FACE_RECOGNITION (default False).
+            - FACE_GALLERY_PATH (default models/faces/face_gallery.pkl).
+            - FACE_RECOGNITION_THRESHOLD (default 0.6).
+        - Gallery builder:
+            - scripts/build_face_gallery.py:
+                - Expects per-person reference photos under
+                  models/faces/known/<PersonName>/.
+                - Uses face_recognition to extract clean encodings when a
+                  single clear face is present in each image.
+                - Writes encodings + labels to FACE_GALLERY_PATH.
+        - Recogniser:
+            - scripts/face_recognizer.py:
+                - Loads the gallery and walks labels.csv for a trip.
+                - For rows with faces_detected, detects faces again and
+                  compares encodings to the gallery.
+                - Writes recognised person names into people_tags (e.g.
+                  "Alice; Bob") when distances are below the configured
+                  threshold.
+        - Integration in run_all.py:
+            - If ENABLE_FACE_RECOGNITION is True and a valid gallery exists,
+              run_all inserts a "Face Recognition" step immediately after
+              "Faces" in the core analysis sequence.
+    - Future refinements (open):
+        - Store and reuse face locations from face_detector to avoid
+          re-detecting faces in face_recognizer.
+        - Add simple clustering for unknown faces to group "Person X (trip
+          only)" clusters for manual labelling and later gallery extension.
+        - Improve threshold tuning and per-person calibration for better
+          precision/recall on larger archives.
+
+18. FUTURE: Offline LLM blog generation + interactive web app
+    - Goal:
+        - Use locally-run text models (LLMs) together with MemoGraph’s
+          blog_context.json to generate longer, more natural travel blogs
+          without relying on external APIs.
+        - Build a small web app to explore trips: browse photos, view them
+          on maps, and run rich searches (birds, plants, landscapes, people,
+          specific species, themes like "snowy mountains", etc.).
+    - Offline LLM integration:
+        - Target models:
+            - Small instruction-tuned LLMs in the 3–4B range (e.g. Phi-3
+              mini, Llama-3.2-3B Instruct) running in 4-bit quantisation on
+              a GTX 1650-class GPU, or on CPU if needed.
+        - Runtime:
+            - Use a local runner such as Ollama or llama.cpp to host the
+              model and expose a simple HTTP/text-generation interface.
+        - Inputs:
+            - Use MemoGraph’s blog_context.json as the primary input:
+                - Per-day times, locations, activities, themes.
+                - Per-image captions, CLIP labels, YOLO objects,
+                  Places365 scenes, and species.
+        - Output:
+            - A richer blog (e.g. blog_llm.md) that can be viewed alongside
+              the template-based blog.md.
+    - Web app / search UI:
+        - Backend (e.g. FastAPI):
+            - Load labels.csv (or a cached SQLite DB) for each trip.
+            - Provide JSON endpoints for:
+                - /api/photos: list/filter photos with fields such as
+                  image_name, local_path, gps_lat/lon, captions,
+                  species_tags, detected_objects, image_type, faces_detected,
+                  people_tags, YOLO/Places tags.
+                - /api/map_points: same data focused on coordinates for map
+                  markers.
+            - Optional: SQLite FTS or simple LIKE filters over caption,
+              caption_ai, species_tags, detected_objects, location_inferred,
+              and ocr_text.
+        - Frontend:
+            - Gallery view:
+                - Grid of thumbnails with captions, tags, and quick filters.
+            - Map view:
+                - Leaflet/folium-style map with markers for GPS-tagged
+                  photos; clicking a marker shows a thumbnail and key tags.
+        - Search features:
+            - Birds/plants/landscapes/species:
+                - Use species_tags + detected_objects + image_type to filter
+                  for queries like "bird", "plant", "landscape", "snow".
+            - Specific species (e.g. "crow"):
+                - Match against species_tags and caption/caption_ai text.
+            - Selfies vs group photos:
+                - Extend face_detector to add a faces_count column and
+                  filter where faces_count == 1 (selfies) vs >= 2 (groups).
+            - People search ("my mother", "Alice"):
+                - Use people_tags populated by face_recognizer; allow free
+                  text match on person labels.
+            - Astro / night sky:
+                - Filter where CLIP/Places tags and captions mention galaxy,
+                  nebula, Milky Way, star cluster, night sky.
+        - Optional semantic search:
+            - Store CLIP image embeddings for each row (already available in
+              image_labeler) and support fuzzy queries like "snowy mountain
+              pass", "horse statue near monastery", "night sky over valley"
+              by embedding the text with CLIP and ranking images by cosine
+              similarity.
             - A dedicated scene/biome classifier could write tags like "snow_biome", "cold_desert", "river_valley", "tea_estate" into `detected_objects` or a new `biome_tags` field.
         - Image type (natural vs text/meme/graphic):
             - Document/text detectors (e.g., models trained for document classification or screenshot vs photo).
