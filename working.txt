@@ -75,15 +75,28 @@ For a given trip_folder (e.g. data/trips/2025_Annapurna_Nepal):
      combine_captions_for_day, clean_species_list) to produce smoother daily
      summaries from caption/caption_ai fields.
    - Builds per-day paragraphs that:
-     - Use start/end times and locations.
+     - Use start/end times and locations (shortened for readability).
      - Derive coarse themes (mountains, water, towns, temples/monuments,
-       markets, food, stays, astro, wildlife) from detected_objects +
-       captions + image_type.
+       markets, food, stays, astro, wildlife, roads/trails) from
+       detected_objects + captions + image_type.
      - Mention wildlife using cleaned, biological species names while
        filtering out non-biological tags like "galaxy" and "nebula".
+     - Use varied intro/scene phrases so days do not all start with the
+       exact same sentence.
    - The resulting blog is intentionally template-based and deterministic so
      it can be used both as a quick summary and as input to external LLMs
      (see blog_generation_prompt.md) for richer rewrites.
+
+6) build_blog_context.build_blog_context(trip_folder)
+   - Reads <trip>/MemoGraph/labels.csv and builds a richer JSON description:
+     - Per-day start/end times and shortened locations.
+     - Per-day themes and simple activity strings (e.g. mountain roads,
+       markets/bazaars, temples/monasteries, food/tea breaks, stays,
+       astro/night-sky, wildlife).
+     - Per-image summaries (time, location, caption/caption_ai, species_tags,
+       detected_objects, image_type, faces_detected).
+   - Writes <trip>/MemoGraph/blog_context.json, designed to be fed into an
+     external text-generation model to produce a more natural, narrative blog.
 
 6) map_visualizer.create_map(points, map_path)
    - Produces the final interactive map (trip_map.html) after all fields
