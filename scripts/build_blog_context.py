@@ -438,9 +438,27 @@ def _build_day_context(day_rows: List[Dict[str, Any]], date_str: str, day_number
         full_img_path = os.path.join(trip_folder, r.get("local_path", ""))
         extras = _analyze_image_extras(full_img_path)
 
+        # Faces count (optional column)
+        try:
+            faces_count_val = str(r.get("faces_count", "")).strip()
+            faces_count = int(faces_count_val) if faces_count_val else 0
+        except ValueError:
+            faces_count = 0
+
+        # GPS
+        try:
+            lat = float(r.get("gps_lat")) if str(r.get("gps_lat") or "").strip() else None
+        except Exception:
+            lat = None
+        try:
+            lon = float(r.get("gps_lon")) if str(r.get("gps_lon") or "").strip() else None
+        except Exception:
+            lon = None
+
         images_ctx.append(
             {
                 "image_name": r.get("image_name"),
+                "local_path": r.get("local_path"),
                 "time": r["_dt"].strftime("%Y-%m-%d %H:%M:%S"),
                 "location_full": r.get("location_inferred", ""),
                 "location_short": _shorten_location(r.get("location_inferred", "")),
@@ -450,6 +468,9 @@ def _build_day_context(day_rows: List[Dict[str, Any]], date_str: str, day_number
                 "detected_objects": detected,
                 "image_type": r.get("image_type"),
                 "faces_detected": r.get("faces_detected"),
+                "faces_count": faces_count,
+                "gps_lat": lat,
+                "gps_lon": lon,
                 "yolo_objects": extras.get("yolo_objects", []),
                 "ocr_text": extras.get("ocr_text", []),
                 "places_scenes": extras.get("places_scenes", []),
