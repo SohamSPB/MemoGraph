@@ -269,3 +269,44 @@
         4. Use the existing comparison tools (`compare_resolutions.py`, `compare_stats.py`, `compare_labels_variants.py`) to:
             - Validate that specialist models improve accuracy without causing regressions in performance.
             - Decide which combinations of `MAX_IMAGE_SIZE` and specialist models are appropriate for daily runs vs offline analysis.
+17. GPS propagation and overview page (DONE, first version)
+    - Goal:
+        - Ensure that photos taken near in time to a geotagged image also appear on the map, even if they lack EXIF GPS.
+        - Provide a unified HTML view where all trip photos are visible (either on the map or in a sidebar).
+    - Implemented behavior:
+        - `location_resolver.fill_location`:
+            - Walks labels.csv in chronological order.
+            - When an image has no GPS but is within a configurable time window of the previous geotagged image, copies that GPS.
+            - The window is controlled by a config knob in `memograph_config.py` (e.g. `GPS_PROPAGATION_MAX_MINUTES`, default ~15 minutes).
+            - This is logged so future agents can see when GPS was inferred vs read from EXIF.
+        - Early map preview:
+            - After location resolution (including propagation), `run_all.py` generates an initial `trip_map.html` so the user can open a basic map while faces/captions/species are still running.
+        - Final map + overview page:
+            - At the end of the pipeline, `map_visualizer.create_map` is called again to rebuild `trip_map.html` with captions/species/image_type.
+            - `map_visualizer.create_overview_page(trip_folder)` builds `trip_overview.html`, which:
+                - Embeds the map on the left.
+                - Shows all photos without GPS in a right-hand sidebar as cards (lazy-loaded thumbnails).
+                - Uses coarse tags (people, birds, plants_flowers, insects, animals, landscapes, astro, plus `image_type` values) to annotate sidebar images.
+                - Exposes a chip-style filter bar so the user can filter sidebar images by tags (OR semantics; "Clear filters" shows all).
+    - Future refinements:
+        - Expose `GPS_PROPAGATION_MAX_MINUTES` more prominently in the config section of README/working notes so it is easy to tune by trip type (slow hikes vs fast drives).
+        - Optionally log a separate column (e.g. `gps_inferred`) in `labels.csv` to distinguish EXIF GPS from propagated GPS.
+18. UI templates, theming, and scalability (PARTIALLY DONE, more to do)
+    - DONE (first pass):
+        - Created a reusable CSS theme at `templates/memograph_ui.css` with a Material-like dark UI (app bar, sidebar, cards, chips, buttons).
+        - `map_visualizer.create_overview_page` now:
+            - Copies `templates/memograph_ui.css` into `<trip>/MemoGraph` as `memograph_ui.css`.
+            - Links it from `trip_overview.html` so all overview pages share a consistent look.
+            - Uses `loading="lazy"` for sidebar thumbnails to avoid loading all full-sized images at once.
+        - Documented the existence of the template/theme in `working.txt` and `README.md` so future agents know where to tweak UI.
+    - FUTURE (not yet implemented, suggested steps):
+        1. Thumbnail generation:
+            - Add a small utility that creates physical thumbnails (e.g. 256px longest side) in `<trip>/MemoGraph/thumbnails/`.
+            - Update `trip_overview.html` (and optionally map popups) to use these thumbnails instead of full-sized originals for better performance on trips with 1000+ photos.
+        2. Pagination / "load more":
+            - For very large numbers of sidebar images, consider splitting into pages or adding a "Load more" button that appends more cards via simple JavaScript.
+        3. HTML templates:
+            - Move more of the HTML shell into template files under `templates/` (e.g. `overview_template.html`, `map_shell.html`) to make UI changes easier.
+            - Use simple placeholder replacement to inject trip-specific data at generation time.
+        4. Extended filters:
+            - Optionally extend tag-based filters to the map layer (e.g. hide/show markers for only birds/landscapes) using the same tag definitions used in the sidebar.

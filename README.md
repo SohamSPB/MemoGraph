@@ -150,6 +150,23 @@ The repository includes helper scripts for comparing runs and configurations:
 
 These are documented in more detail in `working.txt` and `task.txt`, and are useful when deciding which resolution (e.g. 256, 512, 1024) gives acceptable accuracy for your models.
 
+## Location Propagation and Overview Page
+
+- **GPS propagation:**  
+  `location_resolver.py` can infer GPS coordinates for photos that lack EXIF GPS by copying the last known coordinates from nearby-in-time images in the same trip. The time window is controlled by a config knob in `memograph_config.py` (e.g., `GPS_PROPAGATION_MAX_MINUTES`, default around 15 minutes). This helps fill in locations for images taken shortly before/after a geotagged photo on the same hike/drive.
+
+- **Early map preview:**  
+  After location resolution (including propagation), `run_all.py` calls `map_visualizer.create_map` once to generate an initial `trip_map.html` so you can open a basic map while heavier AI steps (faces, captions, species, etc.) continue in the background.
+
+- **Final map and overview:**  
+  At the end of the pipeline, the map is regenerated with full captions/species/image_type data. In addition, `map_visualizer.create_overview_page` builds a `trip_overview.html` file that:
+  - Embeds the map on the left.
+  - Shows non-geotagged photos in a right-hand sidebar as cards (lazy-loaded thumbnails).
+  - Derives simple tags per image (e.g., people, birds, plants_flowers, insects, animals, landscapes, astro and the image_type categories).
+  - Provides a chip-style filter bar so you can interactively filter sidebar photos by these tags.
+
+This ensures that every photo in a trip is visible somewhere (on the map if it has GPS, or in the sidebar if it does not), and that you can still explore large trips while processing is ongoing.
+
 ## Bird Species Model (optional)
 
 MemoGraph can optionally use a specialist bird classifier (in addition to CLIP

@@ -208,8 +208,47 @@ For a given trip_folder (e.g. data/trips/2025_Annapurna_Nepal):
 
 10. Species gating to avoid false positives (added)
 --------------------------------------------------
-- species_detector.py now:
-  - Builds a coarse text string from detected_objects + caption + caption_ai for each image.
-  - Only runs CLIP species matching when that text contains biological hints (bird/animal/plant/insect and related terms).
-  - If no such hints are found (e.g. pure galaxy/nebula images), species detection is skipped and existing tags are preserved.
-  - This prevents unrealistic species predictions (e.g. Peacock/Owl on space photos) and relies on image_labeler + captions to indicate when biological species are present.
+  - species_detector.py now:
+    - Builds a coarse text string from detected_objects + caption + caption_ai for each image.
+    - Only runs CLIP species matching when that text contains biological hints (bird/animal/plant/insect and related terms).
+    - If no such hints are found (e.g. pure galaxy/nebula images), species detection is skipped and existing tags are preserved.
+    - This prevents unrealistic species predictions (e.g. Peacock/Owl on space photos) and relies on image_labeler + captions to indicate when biological species are present.
+
+11. GPS propagation and inferred locations (added)
+--------------------------------------------------
+- Purpose:
+  - Many phones/cameras intermittently miss GPS for some photos in a trip, even though nearby images are geotagged.
+  - To avoid fragmenting the map and leaving large gaps, we infer GPS for images taken close in time to a geotagged photo.
+
+- Behavior:
+  - location_resolver.fill_location(trip_folder):
+    - Reads datetime_original and GPS fields from labels.csv.
+    - Walks rows in chronological order and, when it finds an image without GPS but within a configured time window of the previous geotagged image, copies that previous GPS.
+    - The time window is controlled by a config knob in memograph_config.py (e.g. GPS_PROPAGATION_MAX_MINUTES, default ~15).
+  - Effect:
+    - Images taken a few minutes before/after a geotagged shot will appear on the map at a sensible location.
+    - location_inferred is then filled using the real or propagated GPS coordinates, so downstream text (blog/map popups) remains consistent.
+
+12. Overview page, tags, and UI templates (added)
+-------------------------------------------------
+- Overview page:
+  - After the final map is generated, run_all.py calls map_visualizer.create_overview_page(trip_folder).
+  - This produces trip_overview.html, which:
+    - Embeds trip_map.html on the left side.
+    - Shows all photos without GPS coordinates in a right-hand sidebar as card-style thumbnails.
+    - Uses lazy-loading (img loading="lazy") so large trips are more responsive.
+
+- Tags and filters:
+  - For each non-GPS image, the overview builder infers a small set of tags based on:
+    - detected_objects, species_tags, image_type, faces_detected, and captions.
+  - Typical tags include:
+    - people, birds, plants_flowers, insects, animals, landscapes, astro, plus image_type categories (natural_photo, document_scan, meme_or_graphic, screenshot, chart_or_plot).
+  - At the top of the sidebar, a filter bar renders each tag as a chip-like toggle:
+    - Clicking a chip shows only images that have that tag (OR semantics across chips).
+    - A "Clear filters" action resets to showing all sidebar images.
+
+- UI templates and theming:
+  - A reusable CSS theme is stored under templates/memograph_ui.css.
+  - map_visualizer.create_overview_page copies this file into <trip>/MemoGraph as memograph_ui.css and links it from trip_overview.html.
+  - The CSS defines a dark, Material-style look (app bar, cards, chips, buttons) applied to the overview layout.
+  - This template-based approach makes it easier to tweak colors/spacing/animations once and have all future trips use the updated styles.
