@@ -31,6 +31,7 @@ from scripts.utils.utils_io import read_csv_dict, write_csv_dict
 from memograph_config import ensure_memograph_folder
 from scripts.utils.utils_log import init_log, log
 import memograph_config as CFG
+from scripts.utils.utils_image import resize_image
 
 # ---- CLIP (OpenAI) ----
 try:
@@ -113,7 +114,9 @@ def clip_classify_image(model, preprocess, text_pack, image_path, device, topk=5
 	concepts, text_features = text_pack
 	try:
 		with torch.no_grad():
-			image = preprocess(Image.open(image_path).convert("RGB")).unsqueeze(0).to(device)
+			image = Image.open(image_path).convert("RGB")
+			image = resize_image(image)
+			image = preprocess(image).unsqueeze(0).to(device)
 			image_features = model.encode_image(image)
 			image_features = image_features / image_features.norm(dim=-1, keepdim=True)
 			logits = 100.0 * image_features @ text_features.T

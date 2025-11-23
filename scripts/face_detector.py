@@ -23,12 +23,7 @@ from scripts.utils.utils_io import (
 from memograph_config import ensure_memograph_folder
 from scripts.utils.utils_log import init_log, log
 import memograph_config as CFG
-
-def _resize_image(image, max_size=1024):
-	"""Resize image to a max size, preserving aspect ratio."""
-	if max(image.size) > max_size:
-		image.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
-	return image
+from scripts.utils.utils_image import resize_image
 
 def _process_batch(batch_rows, trip_folder, batch_num, log_path, use_cnn_model=False):
 	"""Helper function to detect faces for a batch of rows."""
@@ -40,7 +35,7 @@ def _process_batch(batch_rows, trip_folder, batch_num, log_path, use_cnn_model=F
 		if os.path.exists(img_full_path):
 			try:
 				with Image.open(img_full_path) as img:
-					img = _resize_image(img.convert("RGB"))
+					img = resize_image(img.convert("RGB"))
 					image = np.array(img)
 				
 				model = "cnn" if use_cnn_model else "hog"
@@ -79,30 +74,44 @@ def process_faces(trip_folder):
 	is_parallel = os.environ.get("MEMOGRAPH_PARALLEL_EXECUTION", "false").lower() == "true"
 
 	if is_parallel:
-		log(f"Running face detection in PARALLEL (CNN model) with batch size {CFG.FACE_DETECTION_BATCH_SIZE}...", log_path)
-		
-		# Split rows into batches
+		# In parallel pipeline runs, we avoid creating a large nested process pool by
+		# default. Instead we iterate batches sequentially with the CNN model (GPU)
+		# unless FACE_DETECTION_PARALLEL_WORKERS is explicitly increased.
 		batches = [rows[i:i + CFG.FACE_DETECTION_BATCH_SIZE] for i in range(0, len(rows), CFG.FACE_DETECTION_BATCH_SIZE)]
 		updated_rows = []
 
-		with concurrent.futures.ProcessPoolExecutor(max_workers=CFG.PARALLEL_WORKERS) as executor:
-			# Submit each batch to the executor
-			future_to_batch = {
-				executor.submit(_process_batch, batch, trip_folder, i, log_path, use_cnn_model=True): i 
-				for i, batch in enumerate(batches, 1)
-			}
-			
-			for future in concurrent.futures.as_completed(future_to_batch):
-				batch_num = future_to_batch[future]
-				try:
-					processed_batch = future.result()
-					updated_rows.extend(processed_batch)
-					faces_in_batch = sum(1 for row in processed_batch if row.get("faces_detected") == 1)
-					log(f"Batch {batch_num} completed. Found {faces_in_batch} faces.", log_path)
-				except Exception as e:
-					log(f"Batch {batch_num} generated an exception: {e}", log_path)
-		
-		# Sort updated_rows to maintain original order, just in case
+		if getattr(CFG, "FACE_DETECTION_PARALLEL_WORKERS", 1) and CFG.FACE_DETECTION_PARALLEL_WORKERS > 1:
+			log(
+				f"Running face detection in PARALLEL (CNN model) with "
+				f"{CFG.FACE_DETECTION_PARALLEL_WORKERS} workers and batch size {CFG.FACE_DETECTION_BATCH_SIZE}...",
+				log_path,
+			)
+			with concurrent.futures.ProcessPoolExecutor(max_workers=CFG.FACE_DETECTION_PARALLEL_WORKERS) as executor:
+				future_to_batch = {
+					executor.submit(_process_batch, batch, trip_folder, i, log_path, use_cnn_model=True): i
+					for i, batch in enumerate(batches, 1)
+				}
+
+				for future in concurrent.futures.as_completed(future_to_batch):
+					batch_num = future_to_batch[future]
+					try:
+						processed_batch = future.result()
+						updated_rows.extend(processed_batch)
+						faces_in_batch = sum(1 for row in processed_batch if row.get("faces_detected") == 1)
+						log(f"Batch {batch_num} completed. Found {faces_in_batch} faces.", log_path)
+					except Exception as e:
+						log(f"Batch {batch_num} generated an exception: {e}", log_path)
+		else:
+			log(
+				f"Running face detection in SEQUENTIAL (CNN model) mode with batch size {CFG.FACE_DETECTION_BATCH_SIZE}...",
+				log_path,
+			)
+			for i, batch in enumerate(batches, 1):
+				processed_batch = _process_batch(batch, trip_folder, i, log_path, use_cnn_model=True)
+				updated_rows.extend(processed_batch)
+				faces_in_batch = sum(1 for row in processed_batch if row.get("faces_detected") == 1)
+				log(f"Batch {i} completed. Found {faces_in_batch} faces.", log_path)
+
 		updated_rows.sort(key=lambda r: r.get('image_name', ''))
 		rows = updated_rows
 		total_faces_found = sum(1 for row in rows if row.get("faces_detected") == 1)

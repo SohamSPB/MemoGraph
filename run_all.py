@@ -17,6 +17,7 @@ import time
 import psutil
 import csv
 import subprocess
+import shutil
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
 import memograph_config as CFG
@@ -123,40 +124,25 @@ def run_pipeline(trip_folder: str, parallel: bool):
 			"AI Captions": generate_ai_captions.generate_ai_captions,
 		}
 
-		if parallel:
-			logger.info("--- Starting PARALLEL analysis steps ---")
-			start_time_parallel = time.time()
-			
-			backup_csv(csv_path, max_backups=CFG.MAX_BACKUPS, log_path=log_path)
+		# Top-level "parallel" mode now means: allow internal parallelism inside
+		# each step (threads/processes within scripts), but run the high-level
+		# steps sequentially to avoid race conditions on labels.csv.
+		logger.info("--- Starting analysis steps (%s top-level) ---", "PARALLEL" if parallel else "SEQUENTIAL")
 
-			with ProcessPoolExecutor(max_workers=CFG.PARALLEL_WORKERS) as executor:
-				futures = {executor.submit(func, trip_folder): name for name, func in analysis_steps.items()}
-				futures[executor.submit(species_detector.process_species, csv_path, trip_folder, log_path)] = "Species"
+		# Always back up the CSV once before core analysis steps.
+		backup_csv(csv_path, max_backups=CFG.MAX_BACKUPS, log_path=log_path)
 
-				while any(not f.done() for f in futures):
-					resource_data.append(("PARALLEL", *get_resource_usage(main_process)))
-					time.sleep(1)
-
-				for future in as_completed(futures):
-					step_name = futures[future]
-					try:
-						future.result()
-						logger.info(f"[OK] Parallel step '{step_name}' completed.")
-					except Exception as e:
-						logger.error(f"[FAIL] Parallel step '{step_name}' failed: {e}", exc_info=True)
-			logger.info(f"PARALLEL steps finished in {time.time() - start_time_parallel:.2f} seconds.")
-		else:
-			logger.info("--- Starting SEQUENTIAL analysis steps ---")
-			all_sequential_steps = {**analysis_steps, "Species": species_detector.process_species}
-			for name, func in all_sequential_steps.items():
-				start_time_seq = time.time()
-				logger.info(f"--- Running Step: {name} ---")
-				if name == "Species":
-					func(csv_path, trip_folder, log_path)
-				else:
-					func(trip_folder)
-				logger.info(f"Step '{name}' finished in {time.time() - start_time_seq:.2f} seconds.")
-				resource_data.append((name, *get_resource_usage(main_process)))
+		all_steps = {**analysis_steps, "Species": species_detector.process_species}
+		for name, func in all_steps.items():
+			start_time_step = time.time()
+			logger.info(f"--- Running Step: {name} ---")
+			if name == "Species":
+				func(csv_path, trip_folder, log_path)
+			else:
+				func(trip_folder)
+			elapsed = time.time() - start_time_step
+			logger.info(f"Step '{name}' finished in {elapsed:.2f} seconds.")
+			resource_data.append((name, *get_resource_usage(main_process)))
 
 		# --- SEQUENTIAL POST-PROCESSING ---
 		start_time = time.time()
@@ -197,10 +183,28 @@ def run_pipeline(trip_folder: str, parallel: bool):
 
 if __name__ == "__main__":
 	if len(sys.argv) < 2:
-		print("Usage: python run_all.py <trip_folder_path>")
+		print("Usage: python run_all.py <trip_folder_path> [--reset | --reset-only]")
 		sys.exit(1)
 	
 	parallel_mode = os.environ.get('MEMOGRAPH_PARALLEL_EXECUTION', 'false').lower() == 'true'
 
 	trip_folder_path = sys.argv[1]
+	args = sys.argv[2:]
+	reset_requested = "--reset" in args
+	reset_only = "--reset-only" in args
+
+	if reset_requested or reset_only:
+		# Remove the MemoGraph folder for this trip so the pipeline
+		# can regenerate labels.csv and all artifacts from scratch.
+		memo_dir = os.path.join(trip_folder_path, CFG.MEMOGRAPH_FOLDER_NAME)
+		if os.path.isdir(memo_dir):
+			print(f"Reset requested: removing existing MemoGraph folder at {memo_dir}")
+			shutil.rmtree(memo_dir)
+		else:
+			print(f"No MemoGraph folder to reset at {memo_dir}")
+
+	if reset_only:
+		# Only clean existing data; do not start the pipeline.
+		sys.exit(0)
+
 	run_pipeline(trip_folder_path, parallel_mode)

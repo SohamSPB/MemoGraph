@@ -18,16 +18,59 @@ from scripts.utils.utils_io import read_csv_dict, write_csv_dict
 from memograph_config import ensure_memograph_folder
 from scripts.utils.utils_log import init_log, log
 import memograph_config as CFG
+from scripts.utils.utils_image import resize_image
 
 # ------------------------------
 # Species prompts
 # ------------------------------
 species_prompts = {
-	"birds": ["Sparrow", "Pigeon", "Eagle", "Vulture", "Kingfisher", "Bulbul",
-			  "Indian Roller", "Crow", "Peacock", "Parrot", "Owl", "Woodpecker", "Hornbill", "Duck"],
-	"plants": ["Rose", "Lotus", "Tulsi", "Bamboo", "Ficus", "Fern", "Banana plant", "Sunflower"],
-	"insects": ["Butterfly", "Bee", "Dragonfly", "Ant", "Beetle", "Grasshopper"],
-	"animals": ["Dog", "Cat", "Elephant", "Tiger", "Leopard", "Horse", "Cow", "Goat", "Sheep", "Yak", "Deer"]
+	"birds": [
+		"Sparrow",
+		"Pigeon",
+		"Eagle",
+		"Vulture",
+		"Kingfisher",
+		"Bulbul",
+		"Indian Roller",
+		"Crow",
+		"Peacock",
+		"Parrot",
+		"Owl",
+		"Woodpecker",
+		"Hornbill",
+		"Duck",
+	],
+	"plants": [
+		"Rose",
+		"Lotus",
+		"Tulsi",
+		"Bamboo",
+		"Ficus",
+		"Fern",
+		"Banana plant",
+		"Sunflower",
+	],
+	"insects": [
+		"Butterfly",
+		"Bee",
+		"Dragonfly",
+		"Ant",
+		"Beetle",
+		"Grasshopper",
+	],
+	"animals": [
+		"Dog",
+		"Cat",
+		"Elephant",
+		"Tiger",
+		"Leopard",
+		"Horse",
+		"Cow",
+		"Goat",
+		"Sheep",
+		"Yak",
+		"Deer",
+	],
 }
 
 all_species = [item for sublist in species_prompts.values() for item in sublist]
@@ -35,7 +78,9 @@ all_species = [item for sublist in species_prompts.values() for item in sublist]
 
 def detect_species(image_path, model, preprocess, device):
 	"""Detect species using CLIP by comparing image features with text prompts."""
-	image = preprocess(Image.open(image_path).convert("RGB")).unsqueeze(0).to(device)
+	image = Image.open(image_path).convert("RGB")
+	image = resize_image(image)
+	image = preprocess(image).unsqueeze(0).to(device)
 	text = clip.tokenize(all_species).to(device)
 
 	with torch.no_grad():
@@ -52,7 +97,12 @@ def detect_species(image_path, model, preprocess, device):
 
 
 def process_species(csv_path, trip_folder, log_path):
-	"""Updates CSV with detected species tags."""
+	"""Updates CSV with detected species tags.
+
+	This function refines any coarse species tags that may already be present
+	(from image_labeler) but does not erase them when it cannot make a confident
+	prediction.
+	"""
 	rows = read_csv_dict(csv_path)
 	if not rows:
 		log("No rows found in CSV.", log_path)
@@ -69,18 +119,24 @@ def process_species(csv_path, trip_folder, log_path):
 
 		if not os.path.exists(image_path):
 			log(f"Missing image: {image_path}", log_path)
-			row["species_tags"] = ""
+			# Preserve any existing coarse species tags from image_labeler
+			row["species_tags"] = row.get("species_tags", "")
 			updated_rows.append(row)
 			continue
 
 		try:
 			tags = detect_species(image_path, model, preprocess, device)
 			species_tags = tags[:3]
-			row["species_tags"] = ", ".join(species_tags)
-			log(f"{os.path.basename(image_path)} → {row['species_tags']}", log_path)
+			if species_tags:
+				# Only override if we have confident species predictions; otherwise
+				# keep whatever coarse tags were already present.
+				row["species_tags"] = ", ".join(species_tags)
+			else:
+				row["species_tags"] = row.get("species_tags", "")
+			log(f"{os.path.basename(image_path)} -> {row.get('species_tags', '')}", log_path)
 		except Exception as e:
 			log(f"Failed to process {image_path} - {e}", log_path)
-			row["species_tags"] = ""
+			row["species_tags"] = row.get("species_tags", "")
 
 		updated_rows.append(row)
 
@@ -90,6 +146,7 @@ def process_species(csv_path, trip_folder, log_path):
 
 if __name__ == "__main__":
 	import multiprocessing
+
 	trip_folder = "data/trips/test_trip"
 	memo_dir, logs_dir = ensure_memograph_folder(trip_folder)
 	csv_path = os.path.join(memo_dir, "labels.csv")
@@ -98,3 +155,4 @@ if __name__ == "__main__":
 	init_log(log_path, "species_labeler.py")
 
 	process_species(csv_path, trip_folder, log_path)
+

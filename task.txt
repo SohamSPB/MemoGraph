@@ -18,3 +18,175 @@
     - The parallel steps are the most resource-intensive, with high RAM and GPU usage.
     - The sequential steps are lightweight and mostly I/O bound.
     - The execution times for each step are available in the logs.
+9. Parallel + GPU usage mapping (for future debugging / AI agents):
+    - SEQUENTIAL (CPU, in main process): `image_scanner.py`, `trip_day_assigner.py`, `location_resolver.py`, `blog_generator.py`, `map_visualizer.py`.
+    - PARALLEL top-level steps (run via `ProcessPoolExecutor(max_workers=PARALLEL_WORKERS)` in `run_all.py` when `MEMOGRAPH_PARALLEL_EXECUTION=true`):
+        - `face_detector.process_faces` (GPU via `face_recognition` CNN when parallel, CPU HOG when sequential).
+        - `image_labeler.label_images` (GPU if available via CLIP, otherwise CPU).
+        - `caption_filler.fill_captions` (GPU/CPU via BLIP; now limited by `CAPTION_PARALLEL_WORKERS` threads).
+        - `generate_ai_captions.generate_ai_captions` (GPU/CPU via BLIP, sequential inside its process).
+        - `species_detector.process_species` (GPU if available via CLIP, otherwise CPU).
+10. Additional safeguards added to reduce freezes:
+    - New config knobs in `memograph_config.py`:
+        - `FACE_DETECTION_PARALLEL_WORKERS` (default `1`) to avoid a large nested process pool inside `face_detector.py` when the pipeline itself already runs in parallel.
+        - `CAPTION_PARALLEL_WORKERS` (default `2`) to cap the number of concurrent BLIP captioning threads.
+    - In `face_detector.py`, parallel mode now uses:
+        - Sequential CNN batches by default (GPU-friendly but non-nested), or
+        - A small inner `ProcessPoolExecutor(max_workers=FACE_DETECTION_PARALLEL_WORKERS)` only if explicitly increased in config.
+    - In `caption_filler.py`, the `ThreadPoolExecutor` size is now limited by `CAPTION_PARALLEL_WORKERS` instead of using all available cores.
+    - These settings should be tuned conservatively on laptops (keep workers low, batch sizes small) to avoid CPU/GPU/memory freeze; check `MemoGraph/logs/resource_usage.csv` and per-step logs if the agent crashes.
+11. Per-step heaviness and image resizing (current observations):
+    - From `resource_usage.csv` on a sample trip:
+        - STEP 1 (scan images) briefly spikes CPU (~90%) but with modest RAM, then finishes quickly.
+        - STEP 2 (assign days) is light and fast.
+        - STEP 3 (location resolver) is moderate CPU but stable RAM.
+        - PARALLEL phase steadily increases RAM from ~450MB up to several GB while GPU usage stays high and flat, indicating the heavy work is in the CLIP/BLIP/face-detection steps and their batching/concurrency.
+        - Steps 9–10 (blog + map) are lightweight.
+    - Practical tuning guidelines:
+        - For face detection (CNN/HOG) you can usually process small batches (2–8 images) safely; larger batches risk spikes in memory, especially on GPU.
+        - For CLIP-based label/species detection and BLIP-based captioning, even 1–2 concurrent images per worker can be heavy; keep `CAPTION_PARALLEL_WORKERS` low and consider lowering `PARALLEL_WORKERS` if freezes occur.
+        - If the machine stalls or becomes unresponsive, reduce concurrency before reducing batch size (fewer workers first, then smaller batches).
+    - Image resizing before models:
+        - `face_detector.py` already resizes images to a max dimension of 1024px before running face detection.
+        - `image_labeler.py`, `species_detector.py`, `caption_filler.py`, and `generate_ai_captions.py` now also resize each image to a maximum of 1024px (preserving aspect ratio) before passing it to CLIP/BLIP transforms.
+        - This downsampling reduces per-image memory usage and makes it safer to handle higher-resolution photos in all model-based steps.
+12. Resolution-sensitivity experiment for model robustness (face/label/species checks):
+    - Configuration:
+        - Use `MAX_IMAGE_SIZE` in `memograph_config.py` to control the longest side of images sent to models.
+        - Keep `PARALLEL_WORKERS`, `FACE_DETECTION_BATCH_SIZE`, `FACE_DETECTION_PARALLEL_WORKERS`, and `CAPTION_PARALLEL_WORKERS` at safe values (e.g. 2, 2, 1, 2) to avoid freezes during experiments.
+    - Procedure for a given trip (e.g. `data/trips/2025_Annapurna_Nepal`):
+        1. Delete/clean the existing `MemoGraph` folder under the trip (it will be recreated on the next run).
+        2. Set `MAX_IMAGE_SIZE = 256` in `memograph_config.py`.
+        3. Activate the venv and run in parallel mode:\
+           `.\.venv\Scripts\Activate.ps1` then\
+           `$env:MEMOGRAPH_PARALLEL_EXECUTION = 'true'` then\
+           `python run_all.py data/trips/2025_Annapurna_Nepal`.
+        4. After completion, rename the output folder to `MemoGraph_256`.
+        5. Set `MAX_IMAGE_SIZE = 512`, rerun the pipeline the same way, and rename the new `MemoGraph` folder to `MemoGraph_512`.
+        6. Set `MAX_IMAGE_SIZE = 1024`, rerun again, and rename the final `MemoGraph` folder to `MemoGraph_1024`.
+    - Comparison logic (what to check across `MemoGraph_256/512/1024`):
+        - Load each `labels.csv` and compare per-image fields:
+            - `faces_detected`: if values match across all three resolutions for an image, face detection is resolution-robust for that case.
+            - `species_tags`: if values match across resolutions, CLIP-based species detection is stable at lower resolutions.
+            - `detected_objects` and caption fields will typically vary more with resolution and randomness, but large discrepancies may indicate that a higher resolution is beneficial.
+        - If, for a given model/task, low resolutions (e.g. 256 or 512) produce the same or acceptably similar results as 1024, defaulting to the lower `MAX_IMAGE_SIZE` is likely safe and will reduce memory/compute.
+    - Current sample results (Annapurna test trip):
+        - Number of images: 11.
+        - `faces_detected`: mostly consistent, but at least one image (`IMG20240816111741.jpg`) had missing value at 256 vs `0` at higher resolutions (likely due to CSV initialization rather than true detection differences).
+        - `species_tags`: identical across 256/512/1024 for all images in this test, suggesting species detection is robust to downscaling to 256.
+        - `detected_objects`: showed some variation across resolutions (expected for CLIP zero-shot on heavily downsampled images).
+    - A helper script `scripts/compare_resolutions.py` is available to quickly summarize differences across variants (defaulting to `MemoGraph_256`, `MemoGraph_512`, `MemoGraph_1024`) for a given trip:
+        - Example: `python -m scripts.compare_resolutions data/trips/2025_Annapurna_Nepal`
+        - It reports, for common images, whether fields like `faces_detected`, `species_tags`, `detected_objects`, `caption`, and `caption_ai` are identical or where the first mismatches occur.
+    - This experiment and notes allow future agents to continue or repeat the analysis even if a run crashes mid-way.
+13. CLIP-based species prompts and current species pipeline behavior:
+    - `species_detector.py` uses CLIP in a zero-shot way: the `species_prompts` dictionary defines the only species names that CLIP can choose from when filling `species_tags`.
+        - If a photo contains a species (e.g. a Sparrow) that is listed in `species_prompts["birds"]`, CLIP can match against that name and we may see `"Sparrow"` in `species_tags` (subject to the confidence threshold).
+        - If we never mention a species name in `species_prompts` at all, CLIP cannot output that exact name; at best it will still indicate a coarse category like `"a bird"` via `image_labeler` or via captions, but `species_detector` will not invent unseen species names.
+        - If `species_prompts` were empty, `species_detector` would always return an empty list of matches and `species_tags` would remain whatever coarse text came from `image_labeler` (or blank if nothing was set earlier).
+    - Recent changes to the coarse + fine species flow:
+        - `image_labeler.py`:
+            - Now keeps all top CLIP labels (including `"a bird"`, `"an insect"`, etc.) in `detected_objects` instead of removing them.
+            - Extracts coarse species-like labels into `species_tags` as a first pass (e.g. `"a bird; a flower"`), so that CSVs always contain at least a generic indication of animals/plants present.
+        - `species_detector.py`:
+            - No longer wipes out existing `species_tags` on failure; it only overwrites them when it has confident CLIP-based species matches from `species_prompts`.
+            - When it cannot make a confident prediction, it preserves any coarse tags already present (e.g. `"a bird"` from `image_labeler`) so information is not lost.
+    - To improve true species recognition in the future:
+        - Expand `species_prompts` with more realistic/common species names for your trips, or
+        - Plug in specialized bird/insect/animal/plant models that take the coarse `"bird"/"insect"/"animal"/"plant"` hints from `detected_objects`/captions and then predict fine-grained species, merging those results back into `species_tags`.
+        - This work is not yet implemented, but the current pipeline structure and notes here are meant to support continuing in that direction.
+14. FUTURE (not yet implemented): Integrate iNaturalist-style specialist species models
+    - Goal:
+        - Move beyond CLIP + `species_prompts` to real fine-grained species recognition for birds/insects/plants/animals.
+        - Use coarse labels from `image_labeler`/captions (`"a bird"`, `"a flower"`, `"a dog"`, etc.) to decide when to call specialist models.
+    - Recommended data/model sources (to be done later, outside this repo):
+        - iNaturalist datasets (e.g. iNat2017/2018/2019) and associated pretrained models:
+            - Publicly available from research/model zoo projects (e.g. PyTorch/timm, some GitHub repos, or model cards that explicitly say "pretrained on iNaturalist").
+            - Typically free for research and personal use; check each model’s license if you plan commercial use.
+        - For birds:
+            - Look for models trained on the "birds" subset of iNaturalist (often labeled as iNat-birds) or other open bird classifiers.
+        - For plants/insects/mammals:
+            - Similar iNat-based models or curated open-source checkpoints.
+    - Planned folder structure for models (once downloaded):
+        - `models/birds/`:
+            - `bird_model.pth` (PyTorch weights for bird classifier).
+            - `bird_labels.json` (mapping from class index to species name, e.g. `"0": "Passer domesticus (House sparrow)"`).
+        - Later, optionally:
+            - `models/insects/insect_model.pth`, `models/insects/insect_labels.json`
+            - `models/plants/plant_model.pth`, `models/plants/plant_labels.json`
+            - `models/animals/animal_model.pth`, `models/animals/animal_labels.json`
+    - Future code changes (high-level plan):
+        1. Add config entries in `memograph_config.py` for specialist models:
+            - `ENABLE_BIRD_MODEL = False` (default off until models are available).
+            - `BIRD_MODEL_PATH = "models/birds/bird_model.pth"`
+            - `BIRD_LABELS_PATH = "models/birds/bird_labels.json"`
+            - (Later, similar flags/paths for insects, plants, animals.)
+        2. Create `scripts/species_models.py` to encapsulate model loading and inference:
+            - `load_bird_model()`:
+                - Loads weights from `BIRD_MODEL_PATH`.
+                - Moves model to `cuda` if available, else CPU.
+                - Caches the model so it is only loaded once per run.
+            - `predict_bird_species(image)`:
+                - Accepts a PIL image (already resized via `resize_image`).
+                - Runs preprocessing and forward pass on the bird model.
+                - Returns top-k species names and confidence scores using `bird_labels.json`.
+            - (Later, add `predict_insect_species`, `predict_plant_species`, etc.)
+        3. Extend `scripts/species_detector.py` to route images to specialist models:
+            - For each CSV row:
+                - Inspect `detected_objects` and/or `caption` / `caption_ai` to detect coarse categories (`"bird"`, `"insect"`, `"animal"`, `"plant"`).
+                - If `ENABLE_BIRD_MODEL` is True and any bird keyword is present:
+                    - Call `predict_bird_species(image)` and use the top predictions to populate/augment `species_tags`.
+                - Similarly, route to insect/plant/animal models when enabled and indicated by coarse labels.
+            - Keep the existing CLIP + `species_prompts` classifier as a fallback when no specialist model is enabled or available.
+            - Never erase existing `species_tags` if specialist models/CLIP fail; only refine/append with more specific names.
+        4. Preprocessing alignment:
+            - Ensure that specialist models use the same resized image (via `resize_image` and a small model-specific transform) so memory stays under control.
+            - Consider using `MAX_IMAGE_SIZE` or a separate `MAX_SPECIES_IMAGE_SIZE` if models prefer a different size.
+        5. Evaluation and comparison:
+            - Use `scripts/compare_resolutions.py` and custom checks to compare `species_tags` before and after enabling specialist models.
+            - Validate that adding the bird model improves species detail (e.g., from `"a bird"` to `"House sparrow"`) without unacceptable performance or memory regressions.
+    - This section is intentionally left as a "future work" roadmap; implementation is deferred until after other pipeline changes are stable and you have chosen specific iNaturalist (or similar) models to integrate.
+15. FUTURE (not yet implemented): Robustness, incremental saving, and pause/resume
+    - Goals:
+        - Avoid losing work when processing large batches of images (e.g. 750 photos) if a script or OS crashes mid-run.
+        - Support re-running scripts as an implicit "resume" so that already-processed rows are skipped automatically.
+        - Keep CSVs stable and comparable across resolutions/runs by enforcing a consistent row order.
+    - Planned improvements (general pattern for heavy scripts like `face_detector`, `image_labeler`, `caption_filler`, `generate_ai_captions`, `species_detector`):
+        1. Sort images deterministically at the start:
+            - DONE: `image_scanner.py` now collects all image paths, sorts them by relative path, and writes `labels.csv` in that stable order.
+            - All downstream scripts should preserve this ordering unless they have a deliberate reason to re-sort (e.g. face_detector’s batch-based processing, which should restore original order after parallel execution).
+        2. Idempotent row processing ("skip already processed"):
+            - For each script, define what it means for a row to be "done":
+                - `face_detector`: `faces_detected` is `"0"` or `"1"`.
+                - `image_labeler`: `detected_objects` is non-empty.
+                - `caption_filler`: `caption` (and optionally `caption_samples`) is non-empty.
+                - `generate_ai_captions`: `caption_ai` is non-empty.
+                - `species_detector`: `species_tags` is non-empty.
+            - At the beginning of each script’s main loop, skip rows that already have the target fields populated, so re-running the script naturally resumes on only the missing/empty entries.
+        3. Optional explicit "done" flags:
+            - Add boolean/marker columns to `labels.csv` such as `faces_done`, `labels_done`, `caption_done`, `caption_ai_done`, `species_done`.
+            - Scripts would:
+                - Only process rows where their `*_done` flag is false/empty.
+                - Set the corresponding flag to true once a row is successfully updated.
+            - This makes pause/resume behavior clearer than inferring from empty strings, at the cost of extra columns.
+        4. Periodic incremental saving during long loops:
+            - DONE (for captioning scripts):
+                - `caption_filler.py` now:
+                    - Skips rows that already have a `caption` so it can be safely re-run to resume work.
+                    - Writes back to `labels.csv` incrementally:
+                        - In parallel mode: after every 10 completed futures.
+                        - In sequential mode: after every 10 processed rows.
+                - `generate_ai_captions.py` now:
+                    - Skips rows that already have `caption_ai` so it can resume where it left off.
+                    - Flushes `labels.csv` after every 10 processed rows.
+            - Future extension:
+                - Apply the same "skip processed rows + periodic save" pattern to other heavy scripts (`face_detector`, `image_labeler`, `species_detector`) to gain the same robustness benefits.
+        5. Simple pause/resume workflow:
+            - With "skip processed rows" + periodic saving in place, the pause/resume story becomes:
+                - Pause: if the script or OS stops, whatever has already been written to `labels.csv` is preserved.
+                - Resume: re-running the same script picks up only those rows that are still empty/marked as not done.
+            - No external state file is required; the CSV itself becomes the source of truth about which rows are processed.
+        6. Ordering and comparability across runs:
+            - Because `image_scanner` writes rows in a sorted order and downstream scripts preserve row order, resolution comparisons (e.g. `MemoGraph_256/512/1024`) remain meaningful.
+            - `scripts/compare_resolutions.py` relies on `image_name` keys; stable ordering and idempotent updates help ensure that comparisons reflect real model differences rather than ordering artefacts.
+    - This robustness work is deferred until after current performance/memory tuning and basic functionality are stable, but the structure here should guide future implementations.

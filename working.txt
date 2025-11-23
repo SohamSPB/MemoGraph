@@ -1,0 +1,158 @@
+WORKING NOTES FOR MEMOGRAPH PIPELINE
+====================================
+
+This file summarizes how the MemoGraph pipeline is structured, key tuning
+options, and operational patterns (resetting, resuming, comparing runs). It
+is meant as a quick reference for future work.
+
+1. Pipeline entrypoint and modes
+--------------------------------
+- Main entry: run_all.py
+  - Usage:
+    - Sequential: python run_all.py <trip_folder>
+    - Parallel:   set MEMOGRAPH_PARALLEL_EXECUTION=true, then python run_all.py <trip_folder>
+    - Reset + rerun: python run_all.py <trip_folder> --reset
+
+- With --reset:
+  - Before running, run_all.py removes <trip_folder>/MemoGraph if it exists.
+  - This forces a full rebuild of labels.csv, captions, species tags, blog,
+    map, and logs using the current code and configuration.
+
+2. High-level step flow
+-----------------------
+For a given trip_folder (e.g. data/trips/2025_Annapurna_Nepal):
+
+1) image_scanner.scan_images(trip_folder)
+   - Scans trip_folder for image files matching CFG.IMAGE_EXTENSIONS.
+   - Collects all paths, sorts them by relative path for deterministic order.
+   - Extracts EXIF (datetime_original, device_model, gps_lat, gps_lon).
+   - Writes <trip_folder>/MemoGraph/labels.csv using CFG.CSV_HEADERS.
+
+2) trip_day_assigner.assign_days(trip_folder)
+   - Uses datetime_original to compute day_number per image.
+
+3) location_resolver.fill_location(trip_folder)
+   - Converts GPS coordinates into location_inferred (strings).
+
+4) Core analysis (parallel or sequential):
+   - face_detector.process_faces(trip_folder)
+     - Uses face_recognition (CNN/HOG) to set faces_detected (0/1).
+     - Batches sized via CFG.FACE_DETECTION_BATCH_SIZE.
+     - Avoids heavy nested process pools unless CFG.FACE_DETECTION_PARALLEL_WORKERS > 1.
+   - image_labeler.label_images(trip_folder)
+     - Uses CLIP with a curated concept list to populate detected_objects.
+     - Also writes coarse species-like tags (e.g. "a bird", "a flower") into species_tags.
+   - caption_filler.fill_captions(trip_folder)
+     - Uses BLIP to generate multiple captions per image.
+     - Updates caption + caption_samples.
+     - Respects CFG.CAPTION_PARALLEL_WORKERS for thread count.
+     - Skips rows that already have caption and periodically flushes CSV.
+   - generate_ai_captions.generate_ai_captions(trip_folder)
+     - Uses BLIP to generate single AI captions.
+     - Updates caption_ai.
+     - Skips rows that already have caption_ai and flushes CSV periodically.
+   - species_detector.process_species(csv_path, trip_folder, log_path)
+     - Uses CLIP with species_prompts (small list of species names) to refine species_tags.
+     - Only overwrites species_tags when it has confident matches; otherwise, keeps coarse tags.
+
+5) blog_generator.generate_blog(trip_folder)
+   - Builds blog.md and trip_summary.json inside MemoGraph.
+
+6) map_visualizer.create_map(points, map_path)
+   - Produces an interactive map (trip_map.html).
+
+7) Resource logging
+   - run_all.py records CPU/RAM/GPU usage and writes MemoGraph/logs/resource_usage.csv.
+
+3. Image resolution and performance knobs
+-----------------------------------------
+- MAX_IMAGE_SIZE (memograph_config.py)
+  - Global maximum size (longest side) for images sent to models (CLIP/BLIP/face recognition).
+  - Lower values (e.g. 256 or 512):
+    - Reduce memory and speed up processing.
+    - May slightly change CLIP/BLIP outputs.
+  - Higher values (e.g. 1024):
+    - Better detail for models.
+    - Heavier on CPU/GPU and RAM.
+
+- Parallelism knobs (memograph_config.py):
+  - PARALLEL_WORKERS: number of top-level analysis steps run in parallel in run_all.py.
+  - FACE_DETECTION_BATCH_SIZE: images per batch in face_detector.
+  - FACE_DETECTION_PARALLEL_WORKERS: inner process workers inside face_detector (default 1).
+  - CAPTION_PARALLEL_WORKERS: thread count for BLIP captioning (caption_filler).
+
+- Resource thresholds:
+  - MIN_AVAILABLE_RAM_MB / MIN_AVAILABLE_GPU_MEM_MB:
+    - Used by utils_resources.check_resources before enabling parallel mode.
+
+4. Robustness, resume behavior, and incremental saving
+------------------------------------------------------
+- Stable ordering:
+  - image_scanner writes labels.csv in a sorted order by relative path.
+
+- Captioning scripts:
+  - caption_filler.py:
+    - Skips rows where caption is already non-empty.
+    - In parallel mode, flushes labels.csv after ~10 completed futures.
+    - In sequential mode, flushes after every 10 processed rows.
+  - generate_ai_captions.py:
+    - Skips rows where caption_ai is already non-empty.
+    - Flushes labels.csv after every 10 processed rows.
+
+- Practical effect:
+  - You can stop a run (e.g. crash/power loss) and rerun caption_filler or
+    generate_ai_captions; they will only process missing captions and
+    preserve prior work.
+  - At most ~10 images’ worth of new captions are lost if a run ends abruptly.
+
+- Future pattern (not yet applied to all steps):
+  - Apply similar "skip processed rows + periodic flush" to face_detector,
+    image_labeler, and species_detector.
+  - Optionally add *_done flag columns (faces_done, labels_done, etc.) to
+    make pause/resume semantics explicit.
+
+5. Resolution comparison workflow
+---------------------------------
+- To compare behavior at different MAX_IMAGE_SIZE values for a given trip:
+  - Run pipeline at MAX_IMAGE_SIZE=256, then rename MemoGraph to MemoGraph_256.
+  - Run at 512, rename to MemoGraph_512.
+  - Run at 1024, rename to MemoGraph_1024.
+
+- Use scripts/compare_resolutions.py:
+  - Example: python -m scripts.compare_resolutions data/trips/2025_Annapurna_Nepal
+  - Reports whether fields like faces_detected, species_tags, detected_objects,
+    caption, caption_ai match across variants and where they first diverge.
+
+6. Species detection (current & future)
+---------------------------------------
+- Current:
+  - Coarse labels:
+    - image_labeler uses CLIP to add "a bird", "an insect", "a dog", etc. to
+      detected_objects and species_tags.
+  - Fine-grained labels (limited):
+    - species_detector uses CLIP + species_prompts (hard-coded list of species
+      names) to optionally refine species_tags when confident.
+    - Cannot output names that are not in species_prompts.
+
+- Future (not implemented here, but planned in task.txt):
+  - Use coarse tags (bird/insect/animal/plant) as triggers to call specialist
+    models (e.g. iNaturalist-based bird classifiers) stored under models/.
+  - Merge those predictions into species_tags while preserving coarse tags as
+    fallback.
+
+7. Resetting and reprocessing trip data
+---------------------------------------
+- When models or configuration improve and you want to regenerate all outputs:
+  - Use: python run_all.py <trip_folder> --reset
+  - This deletes <trip_folder>/MemoGraph and runs the full pipeline again.
+  - Existing manual variants (MemoGraph_256/512/1024) are not touched.
+
+8. Suggested next improvements (high level)
+-------------------------------------------
+- Extend "skip processed + periodic save" to:
+  - face_detector, image_labeler, species_detector.
+- Add explicit *_done columns for clarity if desired.
+- Integrate specialist species models and route images based on coarse tags.
+- Add a "safe laptop profile" and "full performance profile" in config or
+  via environment variables for quick mode switching.
+

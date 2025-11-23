@@ -21,6 +21,7 @@ from scripts.utils.utils_io import (
 from memograph_config import ensure_memograph_folder
 from scripts.utils.utils_log import init_log, log
 import memograph_config as CFG
+from scripts.utils.utils_image import resize_image
 
 def label_images(trip_folder):
 	memo_dir, logs_dir = CFG.ensure_memograph_folder(trip_folder)
@@ -63,7 +64,9 @@ def label_images(trip_folder):
 			continue
 
 		try:
-			image = preprocess(Image.open(img_path).convert("RGB")).unsqueeze(0).to(device)
+			image = Image.open(img_path).convert("RGB")
+			image = resize_image(image)
+			image = preprocess(image).unsqueeze(0).to(device)
 			with torch.no_grad():
 				img_features = model.encode_image(image)
 				txt_features = model.encode_text(text_tokens)
@@ -74,14 +77,33 @@ def label_images(trip_folder):
 			topk = similarity[0].topk(5)
 			top_labels = [concepts[i] for i in topk.indices.cpu().numpy()]
 
-			species_keywords = ["bird", "flower", "insect", "animal", "cat", "dog", "plant", "galaxy", "nebula", "Milky Way", "stars", "astrophotography", "star cluster"]
-			species = [l for l in top_labels if any(k.lower() in l.lower() for k in species_keywords)]
-			objects = [l for l in top_labels if l not in species]
+			# Coarse species categories (kept in both detected_objects and species_tags).
+			species_keywords = [
+				"bird",
+				"flower",
+				"insect",
+				"animal",
+				"cat",
+				"dog",
+				"plant",
+				"galaxy",
+				"nebula",
+				"milky way",
+				"stars",
+				"astrophotography",
+				"star cluster",
+			]
+			species = [l for l in top_labels if any(k in l.lower() for k in species_keywords)]
 
-			r["detected_objects"] = "; ".join(objects)
-			r["species_tags"] = "; ".join(species)
+			# Keep all top labels in detected_objects so the CSV always reflects
+			# what CLIP saw (including birds, insects, etc.).
+			r["detected_objects"] = "; ".join(top_labels)
+			# Store coarse categories in species_tags; more detailed species
+			# detection can refine/override this later.
+			if species:
+				r["species_tags"] = "; ".join(species)
 			updated += 1
-			log(f"[{i}] {os.path.basename(img_path)} -> {objects + species}", log_path)
+			log(f"[{i}] {os.path.basename(img_path)} -> {top_labels}", log_path)
 		except Exception as e:
 			log(f"[{i}] Failed on {img_path}: {e}", log_path)
 

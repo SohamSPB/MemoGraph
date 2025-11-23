@@ -37,6 +37,9 @@ LOG_TO_FILE = True
 # Image Settings
 # -----------------------------
 IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".tiff", ".png", ".jfif")
+# Maximum image size (in pixels) for the longest side before feeding into models.
+# Lower values reduce memory/compute at the cost of some detail.
+MAX_IMAGE_SIZE = 256
 
 # -----------------------------
 # MemoGraph Folder
@@ -60,10 +63,18 @@ def ensure_memograph_folder(trip_folder):
 MIN_AVAILABLE_RAM_MB = 2048  # e.g., 2GB
 MIN_AVAILABLE_GPU_MEM_MB = 1024 # e.g., 1GB
 
-# Number of parallel processes to use for tasks.
-# Set to None to use the number of CPU cores.
+# Number of parallel processes to use for top-level analysis steps in run_all.py.
+# Keep this small to avoid overloading CPU/GPU.
 PARALLEL_WORKERS = 2
 
-# Batch size for face detection to control memory usage
+# Batch size for face detection to control memory usage.
 FACE_DETECTION_BATCH_SIZE = 2
 
+# Maximum number of worker processes used *inside* face_detector when running
+# in parallel mode. Set to 1 to avoid nested process pools and reduce the risk
+# of system freezes. Increase cautiously if you have plenty of headroom.
+FACE_DETECTION_PARALLEL_WORKERS = 1
+
+# Maximum number of concurrent images to caption in BLIP-based caption_filler.
+# This controls the ThreadPoolExecutor size and limits GPU/CPU pressure.
+CAPTION_PARALLEL_WORKERS = 2

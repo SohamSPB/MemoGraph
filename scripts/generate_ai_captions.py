@@ -21,6 +21,7 @@ from scripts.utils.utils_io import (
 from memograph_config import ensure_memograph_folder
 from scripts.utils.utils_log import init_log, log
 import memograph_config as CFG
+from scripts.utils.utils_image import resize_image
 
 def generate_ai_captions(trip_folder):
 	memo_dir, logs_dir = CFG.ensure_memograph_folder(trip_folder)
@@ -46,7 +47,19 @@ def generate_ai_captions(trip_folder):
 	model.eval()
 
 	updated = 0
+
+	def _row_has_ai_caption(row):
+		return bool(row.get("caption_ai"))
+
+	def _flush():
+		write_csv_dict(csv_path, rows, rows[0].keys())
+		log("Incremental save: AI captions flushed to CSV.", log_path)
+
 	for i, r in enumerate(rows, 1):
+		# Skip rows that already have an AI caption (resume-friendly).
+		if _row_has_ai_caption(r):
+			continue
+
 		img_path = os.path.join(trip_folder, r.get("local_path", ""))
 		if not os.path.exists(img_path):
 			log(f"[{i}] Missing image: {img_path}", log_path)
@@ -54,6 +67,7 @@ def generate_ai_captions(trip_folder):
 
 		try:
 			raw_image = Image.open(img_path).convert("RGB")
+			raw_image = resize_image(raw_image)
 			inputs = processor(raw_image, return_tensors="pt").to(device)
 			with torch.no_grad():
 				output = model.generate(**inputs, max_length=40)
@@ -63,7 +77,11 @@ def generate_ai_captions(trip_folder):
 			updated += 1
 		except Exception as e:
 			log(f"[{i}] Failed to caption {img_path}: {e}", log_path)
-			r["caption_ai"] = ""
+			# Leave any existing caption_ai value intact to avoid erasing progress.
+
+		# Periodic incremental save.
+		if i % 10 == 0:
+			_flush()
 
 	write_csv_dict(csv_path, rows, rows[0].keys())
 	log(f"AI captioning complete. Updated {updated} rows. Saved: {csv_path}", log_path)

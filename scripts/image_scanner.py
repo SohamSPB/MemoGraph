@@ -140,44 +140,45 @@ def scan_images(trip_folder: str) -> None:
 	total_files = 0
 	processed = 0
 
+	# Collect and sort all candidate image files to ensure deterministic ordering.
+	image_files = []
 	for root, _, files in os.walk(trip_folder):
 		for file in files:
 			if file.lower().endswith(CFG.IMAGE_EXTENSIONS):
-				total_files += 1
+				full_path = os.path.join(root, file)
+				rel_path = os.path.relpath(full_path, trip_folder)
+				image_files.append((rel_path, full_path))
 
-	for root, _, files in os.walk(trip_folder):
-		for file in files:
-			if not file.lower().endswith(CFG.IMAGE_EXTENSIONS):
-				continue
+	# Sort by relative path (which effectively sorts by folder + filename)
+	image_files.sort(key=lambda x: x[0])
+	total_files = len(image_files)
 
-			full_path = os.path.join(root, file)
-			rel_path = os.path.relpath(full_path, trip_folder)
+	for rel_path, full_path in image_files:
+		processed += 1
+		log(f"Scanning [{processed}/{total_files}]: {rel_path}", log_path)
 
-			processed += 1
-			log(f"Scanning [{processed}/{total_files}]: {rel_path}", log_path)
+		md5sum = get_md5(full_path)
+		exif_dict = get_exif_piexif(full_path)
 
-			md5sum = get_md5(full_path)
-			exif_dict = get_exif_piexif(full_path)
+		if not exif_dict or "Exif" not in exif_dict or piexif.ExifIFD.DateTimeOriginal not in exif_dict["Exif"]:
+			datetime_original, device_model, gps_lat, gps_lon = extract_exif_fallback(full_path)
+		else:
+			datetime_original = get_datetime(exif_dict)
+			device_model = get_device_model(exif_dict)
+			gps_lat, gps_lon = get_gps(exif_dict)
 
-			if not exif_dict or "Exif" not in exif_dict or piexif.ExifIFD.DateTimeOriginal not in exif_dict["Exif"]:
-				datetime_original, device_model, gps_lat, gps_lon = extract_exif_fallback(full_path)
-			else:
-				datetime_original = get_datetime(exif_dict)
-				device_model = get_device_model(exif_dict)
-				gps_lat, gps_lon = get_gps(exif_dict)
-
-			# Build row by field order
-			default_map = {h: "" for h in CFG.CSV_HEADERS}
-			default_map.update({
-				"image_name": file,
-				"local_path": rel_path,
-				"md5sum": md5sum,
-				"datetime_original": datetime_original,
-				"device_model": device_model,
-				"gps_lat": gps_lat if gps_lat is not None else "",
-				"gps_lon": gps_lon if gps_lon is not None else "",
-			})
-			rows_out.append(default_map)
+		# Build row by field order
+		default_map = {h: "" for h in CFG.CSV_HEADERS}
+		default_map.update({
+			"image_name": os.path.basename(full_path),
+			"local_path": rel_path,
+			"md5sum": md5sum,
+			"datetime_original": datetime_original,
+			"device_model": device_model,
+			"gps_lat": gps_lat if gps_lat is not None else "",
+			"gps_lon": gps_lon if gps_lon is not None else "",
+		})
+		rows_out.append(default_map)
 
 	# write
 	write_csv_dict(labels_csv, rows_out, CFG.CSV_HEADERS)
