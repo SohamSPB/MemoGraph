@@ -22,35 +22,48 @@ import os
 import json
 from datetime import datetime
 from collections import defaultdict, Counter
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 
+import memograph_config as CFG
 from memograph_config import ensure_memograph_folder
 from scripts.utils.utils_io import read_csv_dict
 
 # Optional dependencies for richer image analysis (YOLO + OCR + Places365).
-try:
-    from ultralytics import YOLO  # type: ignore
-    _YOLO_AVAILABLE = True
-except Exception:
+_EXTRAS_ENABLED = getattr(CFG, "BLOG_CONTEXT_INCLUDE_EXTRAS", False)
+
+if _EXTRAS_ENABLED:
+    try:
+        from ultralytics import YOLO  # type: ignore
+        _YOLO_AVAILABLE = True
+    except Exception:
+        YOLO = None  # type: ignore
+        _YOLO_AVAILABLE = False
+
+    try:
+        import easyocr  # type: ignore
+        _EASYOCR_AVAILABLE = True
+    except Exception:
+        easyocr = None  # type: ignore
+        _EASYOCR_AVAILABLE = False
+
+    try:
+        import torch
+        import torchvision.transforms as T
+        from torchvision import models as tv_models
+        _PLACES_AVAILABLE = True
+    except Exception:
+        torch = None  # type: ignore
+        T = None  # type: ignore
+        tv_models = None  # type: ignore
+        _PLACES_AVAILABLE = False
+else:
     YOLO = None  # type: ignore
-    _YOLO_AVAILABLE = False
-
-try:
-    import easyocr  # type: ignore
-    _EASYOCR_AVAILABLE = True
-except Exception:
     easyocr = None  # type: ignore
-    _EASYOCR_AVAILABLE = False
-
-try:
-    import torch
-    import torchvision.transforms as T
-    from torchvision import models as tv_models
-    _PLACES_AVAILABLE = True
-except Exception:
     torch = None  # type: ignore
     T = None  # type: ignore
     tv_models = None  # type: ignore
+    _YOLO_AVAILABLE = False
+    _EASYOCR_AVAILABLE = False
     _PLACES_AVAILABLE = False
 
 _yolo_model = None
@@ -70,6 +83,18 @@ def _parse_datetime(value: str):
         except ValueError:
             continue
     return None
+
+
+def _safe_float(value: Any) -> Optional[float]:
+    try:
+        if value is None:
+            return None
+        s = str(value).strip()
+        if not s:
+            return None
+        return float(s)
+    except (ValueError, TypeError):
+        return None
 
 
 def _get_yolo_model():
@@ -285,7 +310,7 @@ def _split_species(species: List[str]) -> Dict[str, List[str]]:
     return {"animals": sorted(set(animals)), "plants": sorted(set(plants))}
 
 
-def _analyze_image_extras(image_path: str) -> Dict[str, Any]:
+def _analyze_image_extras(image_path: str, include_extras: bool) -> Dict[str, Any]:
     """
     Run optional detectors (YOLO + OCR) on a single image.
 
@@ -294,6 +319,9 @@ def _analyze_image_extras(image_path: str) -> Dict[str, Any]:
         - ocr_text: list of short text snippets detected on the image (if any)
     """
     extras: Dict[str, Any] = {"yolo_objects": [], "ocr_text": [], "places_scenes": []}
+
+    if not include_extras:
+        return extras
 
     # YOLO: detect objects and keep a small set of labels.
     model = _get_yolo_model()
@@ -360,7 +388,13 @@ def _analyze_image_extras(image_path: str) -> Dict[str, Any]:
     return extras
 
 
-def _build_day_context(day_rows: List[Dict[str, Any]], date_str: str, day_number: int, trip_folder: str) -> Dict[str, Any]:
+def _build_day_context(
+    day_rows: List[Dict[str, Any]],
+    date_str: str,
+    day_number: int,
+    trip_folder: str,
+    include_extras: bool,
+) -> Dict[str, Any]:
     """Build a structured context dict for a single day."""
     # Parse datetimes for ordering within the day.
     for r in day_rows:
@@ -436,7 +470,7 @@ def _build_day_context(day_rows: List[Dict[str, Any]], date_str: str, day_number
         img_species = [p.strip() for p in img_species_raw.split(",") if p.strip()]
 
         full_img_path = os.path.join(trip_folder, r.get("local_path", ""))
-        extras = _analyze_image_extras(full_img_path)
+        extras = _analyze_image_extras(full_img_path, include_extras)
 
         # Faces count (optional column)
         try:
@@ -454,6 +488,13 @@ def _build_day_context(day_rows: List[Dict[str, Any]], date_str: str, day_number
             lon = float(r.get("gps_lon")) if str(r.get("gps_lon") or "").strip() else None
         except Exception:
             lon = None
+
+        quality_score = _safe_float(r.get("quality_score"))
+        exposure_score = _safe_float(r.get("exposure_score"))
+        contrast_score = _safe_float(r.get("contrast_score"))
+        sharpness_score = _safe_float(r.get("sharpness_score"))
+        noise_score = _safe_float(r.get("noise_score"))
+        color_balance_score = _safe_float(r.get("color_balance_score"))
 
         images_ctx.append(
             {
@@ -475,6 +516,13 @@ def _build_day_context(day_rows: List[Dict[str, Any]], date_str: str, day_number
                 "yolo_objects": extras.get("yolo_objects", []),
                 "ocr_text": extras.get("ocr_text", []),
                 "places_scenes": extras.get("places_scenes", []),
+                "quality_score": quality_score,
+                "exposure_score": exposure_score,
+                "contrast_score": contrast_score,
+                "sharpness_score": sharpness_score,
+                "noise_score": noise_score,
+                "color_balance_score": color_balance_score,
+                "quality_notes": r.get("quality_notes"),
             }
         )
 
@@ -499,7 +547,7 @@ def _build_day_context(day_rows: List[Dict[str, Any]], date_str: str, day_number
     return day_ctx
 
 
-def build_blog_context(trip_folder: str) -> str:
+def build_blog_context(trip_folder: str, include_extras: bool | None = None) -> str:
     """Main entrypoint: build blog_context.json for the given trip."""
     memo_dir, logs_dir = ensure_memograph_folder(trip_folder)
     csv_path = os.path.join(memo_dir, "labels.csv")
@@ -524,8 +572,11 @@ def build_blog_context(trip_folder: str) -> str:
         raise RuntimeError("No valid datetime_original values; cannot build per-day context.")
 
     days_out: List[Dict[str, Any]] = []
+    if include_extras is None:
+        include_extras = getattr(CFG, "BLOG_CONTEXT_INCLUDE_EXTRAS", False)
+
     for idx, date_key in enumerate(sorted(per_day.keys()), start=1):
-        ctx = _build_day_context(per_day[date_key], date_key, idx, trip_folder)
+        ctx = _build_day_context(per_day[date_key], date_key, idx, trip_folder, include_extras)
         if ctx:
             days_out.append(ctx)
 
@@ -544,7 +595,20 @@ if __name__ == "__main__":
 
     p = argparse.ArgumentParser(description="Build structured blog_context.json for a MemoGraph trip.")
     p.add_argument("trip_folder", help="Trip folder (e.g. data/trips/2025_Annapurna_Nepal)")
+    p.add_argument(
+        "--include-extras",
+        dest="include_extras",
+        action="store_true",
+        help="Enable expensive YOLO/OCR/Places analysis when building context.",
+    )
+    p.add_argument(
+        "--skip-extras",
+        dest="include_extras",
+        action="store_false",
+        help="Disable YOLO/OCR/Places analysis even if enabled in config.",
+    )
+    p.set_defaults(include_extras=None)
     args = p.parse_args()
 
-    out = build_blog_context(args.trip_folder)
+    out = build_blog_context(args.trip_folder, include_extras=args.include_extras)
     print(f"Blog context written to: {out}")

@@ -156,6 +156,24 @@ TEMPLATE = """<!DOCTYPE html>
       transition: transform 150ms ease, background 150ms ease;
     }
     .preset-buttons button:hover { transform: translateY(-1px); background: rgba(94,234,212,0.3); }
+    .preset-buttons button.active {
+      background: rgba(94,234,212,0.4);
+      color: #041226;
+    }
+    .quality-pill {
+      border: 1px solid rgba(94,234,212,0.25);
+      background: rgba(56,189,248,0.18);
+      color: var(--text);
+      padding: 6px 16px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: background 150ms ease, transform 150ms ease;
+    }
+    .quality-pill.active {
+      background: linear-gradient(120deg, var(--accent), var(--accent-2));
+      color: #041021;
+      transform: translateY(-1px);
+    }
     .custom-presets {
       display: flex;
       gap: 8px;
@@ -482,6 +500,7 @@ TEMPLATE = """<!DOCTYPE html>
     <div class="preset-toolbar">
       <div style="min-width:120px;">Quick filters:</div>
       <div class="preset-buttons" id="presetButtons"></div>
+      <button class="quality-pill" id="bestQualityBtn">Best Balanced</button>
       <div class="custom-presets">
         <select id="customPresetSelect"></select>
         <button id="applyPresetBtn">Apply</button>
@@ -547,6 +566,7 @@ TEMPLATE = """<!DOCTYPE html>
     const applyPresetBtn = document.getElementById('applyPresetBtn');
     const savePresetBtn = document.getElementById('savePresetBtn');
     const deletePresetBtn = document.getElementById('deletePresetBtn');
+    const bestQualityBtn = document.getElementById('bestQualityBtn');
 
     const lightbox = document.getElementById('lightbox') || (function() {
       const div = document.createElement('div');
@@ -610,6 +630,7 @@ TEMPLATE = """<!DOCTYPE html>
     let lightboxMapMarker = null;
     let latestDetailText = "";
     let currentFullSrc = "";
+    let bestOnly = false;
 
     tripNameEl.textContent = TRIP_NAME;
     backBtn.onclick = () => { window.location.href = MASTER_BASE; };
@@ -617,6 +638,11 @@ TEMPLATE = """<!DOCTYPE html>
       filtersCollapsed = !filtersCollapsed;
       filtersWrapper.classList.toggle('collapsed', filtersCollapsed);
       filterToggle.textContent = filtersCollapsed ? 'Show Filters' : 'Hide Filters';
+    };
+    bestQualityBtn.onclick = () => {
+      bestOnly = !bestOnly;
+      bestQualityBtn.classList.toggle('active', bestOnly);
+      render();
     };
     const closeLightbox = () => {
       lightbox.classList.remove('show');
@@ -733,19 +759,30 @@ TEMPLATE = """<!DOCTYPE html>
       return true;
     }
 
+    function matchesQuality(img) {
+      if (!bestOnly) return true;
+      const score = Number(img.quality_score || 0);
+      const sharpness = Number(img.sharpness_score || 0);
+      const exposure = Number(img.exposure_score || 0);
+      return score >= 0.7 && sharpness >= 0.4 && exposure >= 0.5;
+    }
+
     function render() {
       const term = searchInput.value.trim().toLowerCase();
-      const result = images.filter(img => matchesFilters(img, term));
-      filteredImages = result;
+      const result = images.filter(img => matchesFilters(img, term) && matchesQuality(img));
+      const ordered = bestOnly
+        ? [...result].sort((a, b) => Number(b.quality_score || 0) - Number(a.quality_score || 0))
+        : result;
+      filteredImages = ordered;
 
       galleryEl.innerHTML = '';
-      if (!result.length) {
+      if (!ordered.length) {
         const empty = document.createElement('div');
         empty.className = 'empty-state';
         empty.textContent = 'No photos match your filters.';
         galleryEl.appendChild(empty);
       } else {
-        result.forEach((img, idx) => {
+        ordered.forEach((img, idx) => {
           const card = document.createElement('div');
           card.className = 'card';
           const thumb = document.createElement('div');
@@ -768,7 +805,16 @@ TEMPLATE = """<!DOCTYPE html>
 
           const meta = document.createElement('div');
           meta.className = 'meta';
-          meta.textContent = `Day ${img.day_number} · ${img.date} · ${img.location_short || '—'}`;
+          const qualityScore = Number(img.quality_score || 0);
+          const metaBits = [
+            `Day ${img.day_number}`,
+            img.date,
+            img.location_short || '-'
+          ];
+          if (qualityScore) {
+            metaBits.push(`Quality ${(qualityScore * 100).toFixed(0)}%`);
+          }
+          meta.textContent = metaBits.filter(Boolean).join(' • ');
           card.appendChild(meta);
 
           const tagsWrap = document.createElement('div');
@@ -785,6 +831,7 @@ TEMPLATE = """<!DOCTYPE html>
           const fc = Number(img.faces_count || 0);
           if (fc === 1) pushTag('selfie');
           if (fc >= 2) pushTag('group');
+          if (img.quality_notes) pushTag(`quality: ${img.quality_notes}`);
 
           card.appendChild(tagsWrap);
           card.onclick = () => openLightbox(idx);
@@ -792,7 +839,7 @@ TEMPLATE = """<!DOCTYPE html>
         });
       }
 
-      renderMap(result);
+      renderMap(ordered);
       renderFilmstrip();
     }
 
@@ -918,6 +965,23 @@ TEMPLATE = """<!DOCTYPE html>
       if (img.yolo_objects && img.yolo_objects.length) {
         metaEntries.push(`<strong>YOLO:</strong> ${img.yolo_objects.join(', ')}`);
       }
+      const qualityScore = Number(img.quality_score || 0);
+      if (qualityScore) {
+        const note = img.quality_notes ? ` (${img.quality_notes})` : "";
+        metaEntries.push(`<strong>Quality:</strong> ${(qualityScore * 100).toFixed(0)}%${note}`);
+      }
+      const subMetrics = [];
+      const exposureScore = Number(img.exposure_score || 0);
+      if (exposureScore) subMetrics.push(`Exposure ${(exposureScore * 100).toFixed(0)}%`);
+      const contrastScore = Number(img.contrast_score || 0);
+      if (contrastScore) subMetrics.push(`Contrast ${(contrastScore * 100).toFixed(0)}%`);
+      const sharpnessScore = Number(img.sharpness_score || 0);
+      if (sharpnessScore) subMetrics.push(`Sharpness ${(sharpnessScore * 100).toFixed(0)}%`);
+      const noiseScore = Number(img.noise_score || 0);
+      if (noiseScore) subMetrics.push(`Noise ${(noiseScore * 100).toFixed(0)}%`);
+      if (subMetrics.length) {
+        metaEntries.push(`<strong>Balance metrics:</strong> ${subMetrics.join(' · ')}`);
+      }
       if (img.gps_lat != null && img.gps_lon != null) {
         const link = `https://maps.google.com/?q=${img.gps_lat},${img.gps_lon}`;
         metaEntries.push(`<strong>Map:</strong> <a href="${link}" target="_blank">Open location</a>`);
@@ -928,6 +992,8 @@ TEMPLATE = """<!DOCTYPE html>
         img.location_full || img.location_short ? `Location: ${img.location_full || img.location_short}` : "",
         img.time ? `Captured: ${img.time}` : "",
         img.device_model ? `Device: ${img.device_model}` : "",
+        qualityScore ? `Quality: ${(qualityScore * 100).toFixed(0)}%` : "",
+        img.quality_notes ? `Quality notes: ${img.quality_notes}` : "",
         img.species_tags && img.species_tags.length ? `Species: ${img.species_tags.join(', ')}` : "",
         img.detected_objects && img.detected_objects.length ? `Objects: ${img.detected_objects.join(', ')}` : ""
       ].filter(Boolean).join('\n');

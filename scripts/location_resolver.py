@@ -102,7 +102,7 @@ def _propagate_gps_for_nearby_images(rows, log_path: str | None = None) -> None:
 				row["gps_lat"] = src_lat
 				row["gps_lon"] = src_lon
 				log(
-					f"[GPS propagate] {row.get('image_name')} <- {src.get('image_name')} (Δt ≈ {delta_min:.1f} min)",
+					f"[GPS propagate] {row.get('image_name')} <- {src.get('image_name')} (delta_t ~= {delta_min:.1f} min)",
 					log_path,
 				)
 

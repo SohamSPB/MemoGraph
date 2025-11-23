@@ -123,10 +123,11 @@ the script named in parentheses):
 7. BLIP AI captions (`generate_ai_captions.py`)
 8. Species tags (CLIP + optional bird model) (`species_detector.py`)
 9. Image type classification (CLIP prompts) (`image_type_detector.py`)
-10. Blog + summary (`blog_generator.py`)
-11. Final map + overview page (`map_visualizer.py`)
-12. `blog_context.json` builder (`build_blog_context.py`)
-13. Static Leaflet gallery/map web app + thumbnails (`build_webapp.py`)
+10. Image quality scoring (histogram/exposure/sharpness/noise heuristics) (`image_quality.py`)
+11. Blog + summary (`blog_generator.py`)
+12. Final map + overview page (`map_visualizer.py`)
+13. `blog_context.json` builder (`build_blog_context.py`)
+14. Static Leaflet gallery/map web app + thumbnails (`build_webapp.py`)
 
 Every run writes a complete `MemoGraph` folder containing `labels.csv`, `blog.md`,
 `trip_summary.json`, `trip_map.html`, `trip_overview.html`, `blog_context.json`,
@@ -153,6 +154,9 @@ You can customize the behavior of the scripts by editing `memograph_config.py`. 
 - Logging and backup options
 - Image size and parallelism knobs (e.g., `MAX_IMAGE_SIZE`, `FACE_DETECTION_BATCH_SIZE`, `FACE_DETECTION_PARALLEL_WORKERS`, `CAPTION_PARALLEL_WORKERS`).
 - Optional face recognition settings (`ENABLE_FACE_RECOGNITION`, `FACE_GALLERY_PATH`, `FACE_RECOGNITION_THRESHOLD`) that allow you to recognise known faces in images after you build a face gallery from reference photos.
+- Image quality + context extras:
+  - `ENABLE_IMAGE_QUALITY` + related knobs to control thumbnail-sized histogram analysis.
+  - `BLOG_CONTEXT_INCLUDE_EXTRAS` to decide whether `build_blog_context` should run expensive YOLO/OCR/Places passes (default `False` to keep runs fast; override with CLI flags when needed).
 
 The CSV schema includes an `image_type` column used for high-level content
 classification (e.g., natural photo, document scan, meme/graphic, screenshot,
@@ -180,10 +184,11 @@ MemoGraph also produces:
 - A first-pass human-readable trip blog (`blog.md`)
 - A structured day summary (`trip_summary.json`)
 - A rich context file (`blog_context.json`, generated automatically by `run_all.py`) that aggregates per-day themes/activities plus per-image captions, CLIP/YOLO/Places tags, species, faces, etc.
+  - Heavy extras (YOLO detections, OCR text, Places365 scenes) are **disabled by default** to keep runs fast; set `BLOG_CONTEXT_INCLUDE_EXTRAS = True` in `memograph_config.py` or call `python -m scripts.build_blog_context <trip> --include-extras` when you specifically need them.
 
 These files can be:
 - Used as-is for quick trip overviews.
-- Fed into an external LLM (see `blog_generation_prompt.md`) if you want to generate a longer, more narrative travel blog using MemoGraph’s captions, locations, and species as input.
+- Fed into an external LLM (see `blog_generation_prompt.md`) if you want to generate a longer, more narrative travel blog using MemoGraph's captions, locations, and species as input.
 - Regenerated manually when needed via:
 
 ```bash
@@ -233,8 +238,9 @@ The current static viewer covers the basics (search, filters, lightbox, map, mul
 - Expanded EXIF/metadata: surface shutter/ISO/f-stop/device sensor info (requires parsing EXIF and extending `blog_context.json`).
 - Share/export affordances: quick buttons to download filtered metadata CSVs, copy shareable file paths, or open the original folder.
 - Smarter map clustering: switch from simple lat/lon rounding to a Leaflet clustering plugin and keep marker groups in sync with filter chips.
-- Cross-trip search: load a compact manifest on the hub so you can search for themes/species/people (e.g., “Bulbul”, “snow”, “Mom”) and jump directly into the relevant trip/photo.
-- Semantic search ideas: optionally store CLIP embeddings to support fuzzy queries like “snowy yak on a mountain pass” without pre-defined tags.
+- Cross-trip search: load a compact manifest on the hub so you can search for themes/species/people (e.g., "Bulbul", "snow", "Mom") and jump directly into the relevant trip/photo.
+- Semantic search ideas: optionally store CLIP embeddings to support fuzzy queries like "snowy yak on a mountain pass" without pre-defined tags.
+- Quality-aware browsing: leverage the new per-image quality metrics (exposure/color/contrast/sharpness/noise) to highlight the most balanced photos in the UI.
 
 ## Bird Species Model (optional)
 

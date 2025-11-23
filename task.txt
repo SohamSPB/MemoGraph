@@ -503,3 +503,11 @@
         - [ ] Extend the master hub with cross-trip search (species/tags/person names) so users can jump from the landing page straight into the relevant trip/photo anchor.
         - [ ] Optional: persist CLIP embeddings per photo so the web app (or a future backend) can power semantic search like "snowy yak on a mountain road" without manual tags.
         - [ ] Continue UX testing of the bottom filmstrip and keyboard shortcuts across mobile/tablet breakpoints; ensure thumbnails remain large enough and the strip snaps edge-to-edge.
+
+20. Image quality metrics + lighter blog_context defaults (Nov 21 update)
+    - Added `scripts/image_quality.py` plus config knobs (`ENABLE_IMAGE_QUALITY`, `QUALITY_MAX_SIZE`, etc.) so every pipeline run records brightness/exposure/color balance/contrast/sharpness/noise metrics per photo (`quality_score`, `quality_notes`).
+        - `build_webapp.py` now surfaces these fields: gallery cards show a quality percentage, the preset toolbar has a “Best Balanced” toggle that sorts by score, and the lightbox metadata panel lists detailed sub-metrics.
+    - Heavy blog_context extras (YOLO object detection, EasyOCR text scraping, Places365 scene classification) are now *opt-in*:
+        - Config: `BLOG_CONTEXT_INCLUDE_EXTRAS = False` by default to keep `run_all.py` fast.
+        - CLI overrides: `python -m scripts.build_blog_context <trip> --include-extras` toggles them on for ad-hoc runs; `--skip-extras` forces them off even if config enables them.
+        - When extras are disabled the script skips loading the large YOLO/Places models altogether, avoiding the long “Using CPU. Note: This module is much faster with a GPU.” slowdowns unless explicitly requested.

@@ -36,6 +36,7 @@ import scripts.caption_filler as caption_filler
 import scripts.species_detector as species_detector
 import scripts.generate_ai_captions as generate_ai_captions
 import scripts.image_type_detector as image_type_detector
+import scripts.image_quality as image_quality
 import scripts.blog_generator as blog_generator
 import scripts.map_visualizer as map_visualizer
 import scripts.build_blog_context as build_blog_context
@@ -161,6 +162,7 @@ def run_pipeline(trip_folder: str, parallel: bool):
 			**analysis_steps,
 			"Species": species_detector.process_species,
 			"Image Type": image_type_detector.detect_image_types,
+			"Image Quality": image_quality.evaluate_image_quality,
 		}
 		for name, func in all_steps.items():
 			start_time_step = time.time()
@@ -197,7 +199,10 @@ def run_pipeline(trip_folder: str, parallel: bool):
 
 		start_time = time.time()
 		logger.info("--- STEP 11: Building Blog Context ---")
-		build_blog_context.build_blog_context(trip_folder)
+		build_blog_context.build_blog_context(
+			trip_folder,
+			include_extras=getattr(CFG, "BLOG_CONTEXT_INCLUDE_EXTRAS", False),
+		)
 		logger.info(f"STEP 11 finished in {time.time() - start_time:.2f} seconds.")
 		resource_data.append(("STEP 11 (blog_context)", *get_resource_usage(main_process)))
 

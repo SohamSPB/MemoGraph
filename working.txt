@@ -95,7 +95,7 @@ For a given trip_folder (e.g. data/trips/2025_Annapurna_Nepal):
      photos without GPS coordinates in a sidebar so the user can still see
      them in the same page.
 
-7) build_blog_context.build_blog_context(trip_folder)
+7) build_blog_context.build_blog_context(trip_folder, include_extras=False)
    - Reads <trip>/MemoGraph/labels.csv and builds a richer JSON description:
      - Per-day start/end times and shortened locations.
      - Per-day themes and simple activity strings (e.g. mountain roads,
@@ -105,6 +105,10 @@ For a given trip_folder (e.g. data/trips/2025_Annapurna_Nepal):
        detected_objects, image_type, faces_detected, plus optional YOLO
        objects and Places365 scene tags when the corresponding models are
        available under models/yolo and models/places.
+   - Heavy extras (YOLO, EasyOCR, Places365) are gated by
+     `BLOG_CONTEXT_INCLUDE_EXTRAS` (default False). Command line:
+       `python -m scripts.build_blog_context <trip> --include-extras`
+     enables them on demand; `--skip-extras` forces them off.
    - Writes <trip>/MemoGraph/blog_context.json, designed to be fed into an
      external text-generation model to produce a more natural, narrative blog.
 
@@ -127,6 +131,9 @@ For a given trip_folder (e.g. data/trips/2025_Annapurna_Nepal):
        buttons, device info, faces/species/objects/scene tags, and a mini-map.
        A filmstrip is permanently docked across the bottom so you can scrub like a
        native photo app.
+      - Quality-aware browsing: a “Best Balanced” toggle filters/sorts by the new
+        `quality_score`, gallery cards show the percentage, and lightbox metadata
+        lists exposure/contrast/sharpness/noise sub-metrics + human-readable notes.
      - Map: Leaflet map shows only the filtered GPS-tagged photos with
        captions + thumbnails inside popups, plus quick previews when multiple
        shots share the same rounded lat/lon (coarse clustering).

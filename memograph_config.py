@@ -22,7 +22,9 @@ CSV_HEADERS = [
 	"image_name", "local_path", "md5sum", "datetime_original", "device_model",
 	"gps_lat", "gps_lon", "location_inferred", "day_number",
 	"detected_objects", "species_tags", "faces_detected", "faces_count", "people_tags",
-	"caption", "caption_ai", "notes", "image_type"
+	"caption", "caption_samples", "caption_ai", "notes", "image_type",
+	"quality_score", "exposure_score", "color_balance_score",
+	"contrast_score", "sharpness_score", "noise_score", "quality_notes"
 ]
 
 # -----------------------------
@@ -45,6 +47,14 @@ MAX_IMAGE_SIZE = 256
 # Thumbnails live under <trip>/MemoGraph/thumbnails and default to 320px.
 THUMBNAIL_MAX_SIZE = 320
 THUMBNAIL_SUBDIR = "thumbnails"
+
+# Quality analysis
+ENABLE_IMAGE_QUALITY = True
+QUALITY_MAX_SIZE = 512
+QUALITY_LIGHTING_TARGET = 0.5  # desired brightness mid-point (0-1 scale)
+
+# Blog context extras (YOLO / OCR / Places365) are heavy; disable by default.
+BLOG_CONTEXT_INCLUDE_EXTRAS = False
 
 # -----------------------------
 # MemoGraph Folder
