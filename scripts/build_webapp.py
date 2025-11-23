@@ -251,9 +251,16 @@ TEMPLATE = """<!DOCTYPE html>
       opacity: 1;
       pointer-events: auto;
     }
+    .lightbox-shell {
+      width: min(1280px, 96vw);
+      height: min(900px, 96vh);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
     .lightbox-content {
-      width: min(1200px, 90vw);
-      max-height: 90vh;
+      width: 100%;
+      flex: 1;
       background: var(--card);
       border-radius: 24px;
       padding: 24px;
@@ -261,6 +268,7 @@ TEMPLATE = """<!DOCTYPE html>
       grid-template-columns: 2fr 1fr;
       gap: 18px;
       position: relative;
+      min-height: 60vh;
     }
     .lightbox-img-wrap {
       position: relative;
@@ -317,15 +325,19 @@ TEMPLATE = """<!DOCTYPE html>
       font-size: 0.95rem;
     }
     .filmstrip {
-      margin-top: 14px;
+      width: 100%;
+      background: rgba(5,8,18,0.9);
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,0.08);
+      padding: 10px 16px;
       display: flex;
-      gap: 8px;
+      gap: 12px;
       overflow-x: auto;
-      padding-bottom: 6px;
+      align-items: center;
     }
     .filmstrip img {
-      width: 72px;
-      height: 54px;
+      width: 100px;
+      height: 70px;
       object-fit: cover;
       border-radius: 8px;
       cursor: pointer;
@@ -340,11 +352,20 @@ TEMPLATE = """<!DOCTYPE html>
     @media (max-width: 1024px) {
       .main { grid-template-columns: 1fr; }
       .map-pane { height: 360px; position: relative; top: 0; }
+      .lightbox-shell {
+        width: min(640px, 96vw);
+        height: min(850px, 96vh);
+      }
       .lightbox-content {
         grid-template-columns: 1fr;
-        max-height: 95vh;
+        max-height: 90vh;
       }
       .lightbox-img-wrap img { height: 45vh; }
+      .filmstrip {
+        width: 100%;
+        flex-wrap: nowrap;
+        justify-content: flex-start;
+      }
     }
   </style>
 </head>
@@ -423,20 +444,22 @@ TEMPLATE = """<!DOCTYPE html>
       div.className = 'lightbox';
       div.id = 'lightbox';
       div.innerHTML = `
-        <div class="lightbox-content">
-          <button class="lightbox-close" id="lightboxClose">Close ✕</button>
-          <div class="lightbox-img-wrap">
-            <img id="lightboxImage" src="" alt="">
-            <div class="lightbox-nav">
-              <button id="navPrev">◀</button>
-              <button id="navNext">▶</button>
+        <div class="lightbox-shell">
+          <div class="lightbox-content">
+            <button class="lightbox-close" id="lightboxClose">Close ✕</button>
+            <div class="lightbox-img-wrap">
+              <img id="lightboxImage" src="" alt="">
+              <div class="lightbox-nav">
+                <button id="navPrev">◀</button>
+                <button id="navNext">▶</button>
+              </div>
+            </div>
+            <div class="lightbox-meta">
+              <h3 id="lightboxTitle">Photo details</h3>
+              <ul id="lightboxMeta"></ul>
             </div>
           </div>
-          <div class="lightbox-meta">
-            <h3 id="lightboxTitle">Photo details</h3>
-            <ul id="lightboxMeta"></ul>
-            <div class="filmstrip" id="filmstrip"></div>
-          </div>
+          <div class="filmstrip" id="filmstrip"></div>
         </div>`;
       document.body.appendChild(div);
       return div;

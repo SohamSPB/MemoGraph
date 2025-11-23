@@ -121,8 +121,9 @@ For a given trip_folder (e.g. data/trips/2025_Annapurna_Nepal):
         landscapes, etc.); toggling chips narrows the gallery/map results. Filters
         can be collapsed/expanded via a toolbar button.
       - Gallery: displays thumbnails with captions + tags; all images respond
-        to search/chip filters and now show the full-resolution photo + metadata
-        inside a lightbox when clicked (with prev/next arrows and a filmstrip).
+        to search/chip filters and show the full-resolution photo + metadata
+        inside a lightbox when clicked (with prev/next arrows and a filmstrip
+        docked along the bottom).
       - Map: Leaflet map shows only the filtered GPS-tagged photos with
         captions + thumbnails inside popups.
       - Header: shows the trip name and a back button that jumps to the master

@@ -212,7 +212,7 @@ This aggregates per-day times, locations, themes (mountains/roads/temples/market
   `build_webapp.py` reads `blog_context.json`, generates thumbnails in `MemoGraph/thumbnails`, and emits a single-page app with:
   - A search box that scans captions, AI captions, species tags, detected_objects, Places tags, and locations.
   - Chip filters constructed from CLIP/YOLO/Places tags (birds, plants, landscapes, astro, etc.) that can be collapsed if you want more screen space.
-  - A thumbnail gallery that loads the generated JPEG thumbnails first (falls back to originals if needed) and opens a full-size lightbox (metadata + prev/next + filmstrip) when you click a photo.
+  - A thumbnail gallery that loads the generated JPEG thumbnails first (falls back to originals if needed) and opens a full-size lightbox (metadata + prev/next + filmstrip stretched across the bottom) when you click a photo.
   - A right-hand Leaflet map whose markers show the same filtered photos with captions + thumbnails in popups.
   - Header includes a back button to the trips hub and shows the current trip name so you always know which dataset you’re viewing.
   - All assets are local; no external backend is required to browse processed trips.
