@@ -25,11 +25,22 @@ from scripts.utils.utils_log import init_log, log
 import memograph_config as CFG
 from scripts.utils.utils_image import resize_image
 
+def _row_has_face(row):
+	"""Return True if this row already has a faces_detected value (0 or 1)."""
+	val = str(row.get("faces_detected", "")).strip()
+	return val in {"0", "1"}
+
 def _process_batch(batch_rows, trip_folder, batch_num, log_path, use_cnn_model=False):
 	"""Helper function to detect faces for a batch of rows."""
 	updated_rows = []
 	log(f"Processing batch {batch_num} with {len(batch_rows)} images...", log_path)
 	for i, row in enumerate(batch_rows, 1):
+		# Skip work if this row already has a faces_detected value so that
+		# re-running the script can cheaply resume incomplete work.
+		if _row_has_face(row):
+			updated_rows.append(row)
+			continue
+
 		img_full_path = os.path.join(trip_folder, row.get("local_path", ""))
 		face_flag = 0
 		if os.path.exists(img_full_path):
@@ -69,8 +80,21 @@ def process_faces(trip_folder):
 		log("No rows found. Exiting.", log_path)
 		return
 
+	# If all rows already have a faces_detected value, treat this as a no-op so
+	# that re-running the script is a cheap resume operation.
+	if all(_row_has_face(r) for r in rows):
+		log("All rows already have faces_detected set; nothing to do.", log_path)
+		return
+
 	total_faces_found = 0
-	
+
+	def _flush():
+		"""Incrementally flush current face flags to CSV."""
+		if not rows:
+			return
+		write_csv_dict(csv_path, rows, rows[0].keys())
+		log("Incremental save: faces_detected flushed to CSV.", log_path)
+
 	is_parallel = os.environ.get("MEMOGRAPH_PARALLEL_EXECUTION", "false").lower() == "true"
 
 	if is_parallel:
@@ -99,6 +123,9 @@ def process_faces(trip_folder):
 						updated_rows.extend(processed_batch)
 						faces_in_batch = sum(1 for row in processed_batch if row.get("faces_detected") == 1)
 						log(f"Batch {batch_num} completed. Found {faces_in_batch} faces.", log_path)
+						# We only flush at the end for the parallel branch to avoid
+						# excessive contention; resume behavior is still handled by
+						# _row_has_face on reruns.
 					except Exception as e:
 						log(f"Batch {batch_num} generated an exception: {e}", log_path)
 		else:
@@ -111,6 +138,10 @@ def process_faces(trip_folder):
 				updated_rows.extend(processed_batch)
 				faces_in_batch = sum(1 for row in processed_batch if row.get("faces_detected") == 1)
 				log(f"Batch {i} completed. Found {faces_in_batch} faces.", log_path)
+				# Periodic incremental save in sequential CNN mode.
+				if i % 5 == 0:
+					rows = sorted(updated_rows, key=lambda r: r.get('image_name', ''))
+					_flush()
 
 		updated_rows.sort(key=lambda r: r.get('image_name', ''))
 		rows = updated_rows
@@ -122,6 +153,7 @@ def process_faces(trip_folder):
 		processed_rows = _process_batch(rows, trip_folder, 1, log_path, use_cnn_model=False)
 		rows = processed_rows
 		total_faces_found = sum(1 for row in rows if row.get("faces_detected") == 1)
+		# Single flush at end is sufficient here; resume behavior is via _row_has_face.
 
 	if rows:
 		write_csv_dict(csv_path, rows, rows[0].keys())

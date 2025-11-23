@@ -3,7 +3,7 @@
 3. Examine `memograph_config.py` for resource limit configurations.
 4. Propose and implement a solution to prevent memory-related crashes.
     - DONE: Set multiprocessing start method to 'spawn' in `run_all.py` and `face_detector.py` to fix CUDA error.
-    - DONE: Lowered `PARALLEL_WORKERS` to 2, `FACE_DETECTION_BATCH_SIZE` to 4, and `MIN_AVAILABLE_GPU_MEM_MB` to 1024 in `memograph_config.py`.
+    - DONE: Lowered `PARALLEL_WORKERS` to 2 (legacy, now unused for top-level steps), `FACE_DETECTION_BATCH_SIZE` to 4, and `MIN_AVAILABLE_GPU_MEM_MB` to 1024 in `memograph_config.py`.
     - DONE: Moved `multiprocessing.set_start_method('spawn', force=True)` to `run_all.py` for global effect.
     - DONE: Added image resizing in `face_detector.py` to reduce memory usage.
     - DONE: Removed `backup_csv` calls from all parallel scripts to prevent race conditions.
@@ -51,7 +51,7 @@
         - Steps 9–10 (blog + map) are lightweight.
     - Practical tuning guidelines:
         - For face detection (CNN/HOG) you can usually process small batches (2–8 images) safely; larger batches risk spikes in memory, especially on GPU.
-        - For CLIP-based label/species detection and BLIP-based captioning, even 1–2 concurrent images per worker can be heavy; keep `CAPTION_PARALLEL_WORKERS` low and consider lowering `PARALLEL_WORKERS` if freezes occur.
+        - For CLIP-based label/species detection and BLIP-based captioning, even 1-2 concurrent images per worker can be heavy; keep `CAPTION_PARALLEL_WORKERS` low and consider lowering `FACE_DETECTION_PARALLEL_WORKERS` or turning `MEMOGRAPH_PARALLEL_EXECUTION` off if freezes occur.
         - If the machine stalls or becomes unresponsive, reduce concurrency before reducing batch size (fewer workers first, then smaller batches).
     - Image resizing before models:
         - `face_detector.py` resizes images to CFG.MAX_IMAGE_SIZE (longest side) before running face detection.
@@ -60,7 +60,7 @@
 12. Resolution-sensitivity experiment for model robustness (face/label/species checks):
     - Configuration:
         - Use `MAX_IMAGE_SIZE` in `memograph_config.py` to control the longest side of images sent to models.
-        - Keep `PARALLEL_WORKERS`, `FACE_DETECTION_BATCH_SIZE`, `FACE_DETECTION_PARALLEL_WORKERS`, and `CAPTION_PARALLEL_WORKERS` at safe values (e.g. 2, 2, 1, 2) to avoid freezes during experiments.
+        - Keep `FACE_DETECTION_BATCH_SIZE`, `FACE_DETECTION_PARALLEL_WORKERS`, and `CAPTION_PARALLEL_WORKERS` at safe values (e.g. 2, 1, 2) to avoid freezes during experiments; use `MEMOGRAPH_PARALLEL_EXECUTION=false` if the machine is very constrained.
     - Procedure for a given trip (e.g. `data/trips/2025_Annapurna_Nepal`):
         1. Delete/clean the existing `MemoGraph` folder under the trip (it will be recreated on the next run).
         2. Set `MAX_IMAGE_SIZE = 256` in `memograph_config.py`.

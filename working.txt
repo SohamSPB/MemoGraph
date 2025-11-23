@@ -100,7 +100,7 @@ For a given trip_folder (e.g. data/trips/2025_Annapurna_Nepal):
     - Heavier on CPU/GPU and RAM.
 
 - Parallelism knobs (memograph_config.py):
-  - PARALLEL_WORKERS: number of top-level analysis steps run in parallel in run_all.py.
+  - PARALLEL_WORKERS: legacy knob (currently unused for top-level steps; high-level steps now run sequentially in run_all.py).
   - FACE_DETECTION_BATCH_SIZE: images per batch in face_detector.
   - FACE_DETECTION_PARALLEL_WORKERS: inner process workers inside face_detector (default 1).
   - CAPTION_PARALLEL_WORKERS: thread count for BLIP captioning (caption_filler).

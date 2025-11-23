@@ -108,15 +108,20 @@ def clean_species_list(species: Iterable[str]) -> List[str]:
 	seen = set()
 	out: List[str] = []
 	for s in species:
-		name = (s or "").strip()
-		if not name:
+		if s is None:
 			continue
-		low = name.lower()
-		if any(bad in low for bad in bad_substrings):
-			continue
-		if name in seen:
-			continue
-		seen.add(name)
-		out.append(name)
+		# Some pipelines store multiple coarse tags in a single string separated
+		# by commas or semicolons (e.g. "a cat; a dog"). Split those first.
+		parts = re.split(r"[;,]", str(s))
+		for part in parts:
+			name = part.strip()
+			if not name:
+				continue
+			low = name.lower()
+			if any(bad in low for bad in bad_substrings):
+				continue
+			if name in seen:
+				continue
+			seen.add(name)
+			out.append(name)
 	return out
-

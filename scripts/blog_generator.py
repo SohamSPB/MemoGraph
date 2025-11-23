@@ -17,7 +17,7 @@ import os
 import json
 import csv
 from datetime import datetime
-from collections import defaultdict
+from collections import defaultdict, Counter
 
 from scripts.utils.utils_io import (
 	read_csv_dict,
@@ -51,16 +51,86 @@ def group_by_day(rows):
 
 def describe_species(species):
 	"""Return a sentence summarizing species observed that day."""
-	species = clean_species_list(species)
+	# Clean and normalize species names for human-facing text.
+	raw = clean_species_list(species)
+
+	def _norm(name: str) -> str:
+		name = (name or "").strip()
+		if not name:
+			return ""
+		low = name.lower()
+		for art in ("a ", "an ", "the "):
+			if low.startswith(art):
+				name = name[len(art):].lstrip()
+				break
+		if name and name[0].islower():
+			name = name[0].upper() + name[1:]
+		return name
+
+	species = [s for s in (_norm(n) for n in raw) if s]
 	if not species:
 		return ""
 	species = sorted(species)
 	if len(species) == 1:
-		return f"We spotted a {species[0]}."
+		return f"We spotted {species[0]}."
 	elif len(species) == 2:
-		return f"We saw a {species[0]} and a {species[1]}."
+		return f"We saw {species[0]} and {species[1]}."
 	else:
 		return f"We encountered species like {', '.join(species[:-1])}, and {species[-1]}."
+
+
+def _classify_row_themes(row):
+	"""
+	Assign coarse thematic tags to a row based on labels/captions.
+	Used to build slightly richer day summaries without heavy models.
+	"""
+	text = " ".join(
+		[
+			str(row.get("detected_objects") or ""),
+			str(row.get("species_tags") or ""),
+			str(row.get("caption") or ""),
+			str(row.get("caption_ai") or ""),
+			str(row.get("image_type") or ""),
+		]
+	).lower()
+	tags = set()
+
+	if str(row.get("faces_detected", "")).strip() == "1":
+		tags.add("people")
+	if any(k in text for k in ("mountain", "valley", "ridge", "pass", "peak", "himalaya")):
+		tags.add("mountains")
+	if any(k in text for k in ("river", "lake", "waterfall", "pool", "sea", "ocean")):
+		tags.add("water")
+	if any(k in text for k in ("monument", "temple", "monastery", "building", "cityscape", "village", "street")):
+		tags.add("towns")
+	if any(k in text for k in ("galaxy", "nebula", "milky way", "night sky", "star cluster", "astrophotography")):
+		tags.add("astro")
+	if any(k in text for k in ("bird", "yak", "horse", "dog", "cat", "animal")):
+		tags.add("wildlife")
+	if any(k in text for k in ("plate of food", "food dish", "thali", "curry", "meal", "breakfast", "dinner", "lunch", "snack", "street food", "chai", "tea", "coffee", "restaurant", "cafe", "dessert")):
+		tags.add("food")
+	if any(k in text for k in ("temple", "monastery", "stupa", "mosque", "church", "palace", "fort", "castle", "shrine", "historical gate", "gate", "arch")):
+		tags.add("temples_palaces")
+	if any(k in text for k in ("market", "bazaar", "street market", "shop", "stall", "souvenir", "shopping street", "street vendor")):
+		tags.add("markets")
+	if any(k in text for k in ("hotel room", "guesthouse", "homestay", "hostel", "resort", "campsite", "tent", "campfire")):
+		tags.add("stays")
+	if any(k in text for k in ("mountain road", "highway", "road", "trail", "path", "steps", "staircase", "bridge", "suspension bridge")):
+		tags.add("roads_trails")
+	return tags
+
+
+def summarize_day_themes(rows):
+	"""Return a Counter of coarse themes and a count of people photos."""
+	theme_counts = Counter()
+	people_photos = 0
+	for r in rows:
+		tags = _classify_row_themes(r)
+		for t in tags:
+			theme_counts[t] += 1
+		if "people" in tags:
+			people_photos += 1
+	return theme_counts, people_photos
 
 
 def generate_day_paragraph(date, rows, day_number):
@@ -82,8 +152,37 @@ def generate_day_paragraph(date, rows, day_number):
 	start_loc = first.get("location_inferred", "an unknown place")
 	end_loc = last.get("location_inferred", start_loc)
 
-	paragraph = f"**Day {day_number} – {date}**\n"
+	theme_counts, people_photos = summarize_day_themes(rows)
+
+	paragraph = f"**Day {day_number} - {date}**\n"
 	paragraph += f"Our journey began around {time_start} from {start_loc}, and we concluded the day by {time_end} near {end_loc}. "
+
+	# Add short thematic sentences based on what we mostly photographed.
+	top_themes = [t for t, _ in theme_counts.most_common(4)]
+	theme_parts = []
+
+	def add_theme(tag, sentence, threshold=1):
+		if theme_counts.get(tag, 0) >= threshold and sentence not in theme_parts:
+			theme_parts.append(sentence)
+
+	# Prioritise a few key themes; keep at most 3 theme sentences.
+	add_theme("mountains", "Much of the day was spent among high roads and mountain valleys.", threshold=2)
+	add_theme("water", "We followed rivers, lakes, and pools for a good part of the day.", threshold=2)
+	add_theme("towns", "We wandered through towns, streets, and small settlements along the route.", threshold=2)
+	add_theme("temples_palaces", "We spent time exploring temples, monasteries, and old monuments along the way.", threshold=1)
+	add_theme("markets", "At ground level, markets and narrow lanes pulled us in with their shops and street stalls.", threshold=1)
+	add_theme("food", "Food breaks became part of the journey, from street snacks to heavier plates of local food.", threshold=1)
+	add_theme("stays", "By evening we settled into simple stays that looked back over the roads and trails we had just covered.", threshold=1)
+	add_theme("astro", "Later, we turned our attention to the night sky, capturing galaxies and nebulae.", threshold=1)
+	if people_photos > 0:
+		add_theme("people", "We also paused for photos with people we met along the way.", threshold=1)
+
+	# Trim to avoid overly long intros.
+	if len(theme_parts) > 3:
+		theme_parts = theme_parts[:3]
+
+	if theme_parts:
+		paragraph += " ".join(theme_parts) + " "
 
 	if ai_captions:
 		sample = combine_captions_for_day(ai_captions, max_items=2)

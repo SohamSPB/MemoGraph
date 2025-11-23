@@ -77,6 +77,11 @@ species_prompts = {
 all_species = [item for sublist in species_prompts.values() for item in sublist]
 
 
+def _row_has_species(row) -> bool:
+	"""Return True if this row already has species_tags populated."""
+	return bool((row.get("species_tags") or "").strip())
+
+
 def detect_species(image_path, model, preprocess, device):
 	"""Detect species using CLIP by comparing image features with text prompts."""
 	image = Image.open(image_path).convert("RGB")
@@ -114,7 +119,22 @@ def process_species(csv_path, trip_folder, log_path):
 	log(f"Using device: {device}", log_path)
 
 	updated_rows = []
+	updated_count = 0
+
+	def _flush():
+		"""Incrementally flush current species tags to CSV."""
+		if not updated_rows:
+			return
+		write_csv_dict(csv_path, updated_rows, updated_rows[0].keys())
+		log("Incremental save: species_tags flushed to CSV.", log_path)
+
 	for row in rows:
+		# Skip rows that already have species_tags so that re-running the script
+		# acts as a resume operation, only filling in missing tags.
+		if _row_has_species(row):
+			updated_rows.append(row)
+			continue
+
 		local_path = row.get("local_path", "")
 		image_path = os.path.join(trip_folder, local_path)
 
@@ -165,6 +185,7 @@ def process_species(csv_path, trip_folder, log_path):
 				log_path,
 			)
 			row["species_tags"] = row.get("species_tags", "")
+			updated_count += 1
 		else:
 			bird_tags_used = False
 			# Prefer the specialist bird model when enabled and the coarse text
@@ -182,6 +203,7 @@ def process_species(csv_path, trip_folder, log_path):
 							log_path,
 						)
 						bird_tags_used = True
+						updated_count += 1
 				except Exception as e:
 					log(
 						f"{os.path.basename(image_path)} -> bird model failed ({e}), falling back to CLIP.",
@@ -201,11 +223,17 @@ def process_species(csv_path, trip_folder, log_path):
 					else:
 						row["species_tags"] = row.get("species_tags", "")
 					log(f"{os.path.basename(image_path)} -> {row.get('species_tags', '')}", log_path)
+					if species_tags:
+						updated_count += 1
 				except Exception as e:
 					log(f"Failed to process {image_path} - {e}", log_path)
 					row["species_tags"] = row.get("species_tags", "")
 
 		updated_rows.append(row)
+
+		# Periodic incremental save so that long runs can resume with minimal loss.
+		if updated_count and updated_count % 10 == 0:
+			_flush()
 
 	write_csv_dict(csv_path, updated_rows, updated_rows[0].keys())
 	log("Species detection complete.", log_path)

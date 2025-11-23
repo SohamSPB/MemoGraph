@@ -23,6 +23,10 @@ from scripts.utils.utils_log import init_log, log
 import memograph_config as CFG
 from scripts.utils.utils_image import resize_image
 
+def _row_has_labels(row):
+	"""Return True if this row already has CLIP labels."""
+	return bool((row.get("detected_objects") or "").strip())
+
 def label_images(trip_folder):
 	memo_dir, logs_dir = CFG.ensure_memograph_folder(trip_folder)
 	log_path = os.path.join(logs_dir, "image_labeler.log") if CFG.LOG_TO_FILE else None
@@ -43,21 +47,51 @@ def label_images(trip_folder):
 	model, preprocess = clip.load("ViT-B/32", device=device)
 
 	concepts = [
-		# Nature / People
-		"a bird", "a flower", "a plant", "a tree", "a mountain", "a lake",
-		"a landscape", "a person", "a group of people", "a waterfall", "a forest",
-		"an insect", "an animal", "a cat", "a dog",
-		# Astro
+		# Nature / landscapes / people
+		"a bird", "a flower", "a plant", "a tree", "a forest",
+		"a mountain", "a valley", "a lake", "a river", "a waterfall",
+		"a landscape", "a person", "a group of people",
+		"an insect", "an animal", "a cat", "a dog", "a yak", "a horse",
+
+		# Astro / night sky
 		"a night sky", "stars", "the Milky Way", "the galaxy", "a nebula",
 		"a star cluster", "an astrophotography photo", "the moon", "the sun",
 		"an eclipse", "the Andromeda galaxy", "the Orion nebula",
+
+		# Temples / monuments / heritage / city
+		"a temple", "a monastery", "a stupa", "a church", "a mosque",
+		"a palace", "a fort", "a castle", "a monument", "a historical gate",
+		"a cityscape", "a street market", "a bazaar", "a narrow street",
+		"a building", "a museum", "an art gallery", "an old town square",
+
+		# Food / cafes / restaurants
+		"a plate of food", "a thali", "a street food stall", "a bowl of curry",
+		"a cup of tea", "a cup of coffee", "a glass of chai",
+		"a restaurant interior", "a cafe", "a dessert plate", "a pizza", "a burger",
+
+		# Stays / camps / roads
+		"a hotel room", "a guesthouse", "a homestay", "a campsite", "a tent",
+		"a campfire", "a mountain road", "a hiking trail", "a suspension bridge",
+		"a bus on a mountain road", "a highway through the mountains",
+
 		# Other scenes
-		"a sunrise", "a sunset", "a cityscape", "a building", "a monument", "a food dish"
+		"a sunrise", "a sunset", "a cityscape at night",
 	]
 	text_tokens = clip.tokenize(concepts).to(device)
 
 	updated = 0
+
+	def _flush():
+		"""Incrementally flush current labels to CSV."""
+		write_csv_dict(csv_path, rows, rows[0].keys())
+		log("Incremental save: labels flushed to CSV.", log_path)
+
 	for i, r in enumerate(rows, 1):
+		# Skip rows that already have labels so re-running the script naturally
+		# resumes only on missing entries.
+		if _row_has_labels(r):
+			continue
+
 		img_path = os.path.join(trip_folder, r.get("local_path", ""))
 		if not os.path.exists(img_path):
 			log(f"[{i}] Missing image: {img_path}", log_path)
@@ -106,6 +140,10 @@ def label_images(trip_folder):
 			log(f"[{i}] {os.path.basename(img_path)} -> {top_labels}", log_path)
 		except Exception as e:
 			log(f"[{i}] Failed on {img_path}: {e}", log_path)
+
+		# Periodic incremental save so that long runs can resume with minimal loss.
+		if updated and updated % 10 == 0:
+			_flush()
 
 	write_csv_dict(csv_path, rows, rows[0].keys())
 	log(f"Labeling complete. Updated {updated} rows. Saved: {csv_path}", log_path)
