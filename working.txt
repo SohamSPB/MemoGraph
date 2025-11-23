@@ -72,6 +72,10 @@ For a given trip_folder (e.g. data/trips/2025_Annapurna_Nepal):
 6) map_visualizer.create_map(points, map_path)
    - Produces the final interactive map (trip_map.html) after all fields
      (captions, species, image_type, etc.) are available.
+   - run_all also calls map_visualizer.create_overview_page(trip_folder) to
+     build trip_overview.html, which embeds trip_map.html and shows any
+     photos without GPS coordinates in a sidebar so the user can still see
+     them in the same page.
 
 7) Resource logging
    - run_all.py records CPU/RAM/GPU usage and writes MemoGraph/logs/resource_usage.csv.

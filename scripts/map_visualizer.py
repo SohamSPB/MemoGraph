@@ -77,6 +77,180 @@ def visualize_map(trip_folder):
 		log("Failed to generate map (no points).", log_path)
 
 
+def create_overview_page(trip_folder):
+	"""
+	Create an overview HTML page that embeds the main trip_map.html and also
+	lists photos that do not have GPS coordinates (and therefore do not
+	appear on the map) on the side.
+
+	Output: <trip_folder>/MemoGraph/trip_overview.html
+	"""
+	memo_dir, logs_dir = ensure_memograph_folder(trip_folder)
+	log_path = os.path.join(logs_dir, "map_visualizer.log") if CFG.LOG_TO_FILE else None
+
+	csv_path = os.path.join(memo_dir, "labels.csv")
+	if not os.path.exists(csv_path):
+		log(f"ERROR: labels.csv not found at {csv_path}", log_path)
+		return
+
+	rows = read_csv_dict(csv_path)
+	if not rows:
+		log("No rows found in CSV; cannot build overview.", log_path)
+		return
+
+	unlocated = []
+	all_tags = set()
+
+	def infer_tags(row):
+		"""Infer coarse tags for filtering based on detected_objects/species/image_type."""
+		text = " ".join(
+			str(row.get(field, "")).lower()
+			for field in ("detected_objects", "species_tags", "caption", "caption_ai")
+		)
+		image_type = (row.get("image_type") or "").lower()
+		tags = set()
+
+		if "person" in text or "people" in text or row.get("faces_detected") == "1":
+			tags.add("people")
+		if "bird" in text:
+			tags.add("birds")
+		if "flower" in text or "plant" in text or "tree" in text or "forest" in text:
+			tags.add("nature")
+			tags.add("plants_flowers")
+		if "insect" in text or "butterfly" in text or "spider" in text:
+			tags.add("insects")
+		if "animal" in text or "dog" in text or "cat" in text or "yak" in text or "cow" in text:
+			tags.add("animals")
+		if "mountain" in text or "landscape" in text or "lake" in text or "river" in text:
+			tags.add("landscapes")
+		if "galaxy" in text or "nebula" in text or "astrophotography" in text or "night sky" in text:
+			tags.add("astro")
+
+		if image_type:
+			tags.add(image_type)
+
+		return tags
+
+	for r in rows:
+		lat_raw = (str(r.get("gps_lat") or "").strip())
+		lon_raw = (str(r.get("gps_lon") or "").strip())
+		if not lat_raw or not lon_raw:
+			unlocated.append(r)
+			tags = infer_tags(r)
+			r["_mg_tags"] = sorted(tags)
+			all_tags.update(tags)
+
+	overview_path = os.path.join(memo_dir, "trip_overview.html")
+
+	# Build a simple HTML shell that embeds the existing map and shows
+	# unlocated images in a sidebar.
+	html_parts = []
+	html_parts.append("<!DOCTYPE html>")
+	html_parts.append("<html lang='en'>")
+	html_parts.append("<head>")
+	html_parts.append("<meta charset='utf-8'/>")
+	html_parts.append("<title>MemoGraph Trip Overview</title>")
+	html_parts.append(
+		"<style>"
+		"body { margin: 0; font-family: Arial, sans-serif; }"
+		".layout { display: flex; height: 100vh; }"
+		".map-pane { flex: 3; min-width: 0; }"
+		".map-pane iframe { border: 0; width: 100%; height: 100%; }"
+		".side-pane { flex: 1; min-width: 260px; max-width: 420px; "
+		"overflow-y: auto; border-left: 1px solid #ccc; padding: 8px; box-sizing: border-box; }"
+		".side-pane h2 { margin-top: 0; font-size: 16px; }"
+		".thumb { margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #eee; }"
+		".thumb img { max-width: 100%; height: auto; display: block; }"
+		".thumb-title { font-weight: bold; font-size: 13px; margin: 4px 0; }"
+		".thumb-caption { font-size: 12px; color: #555; }"
+		"</style>"
+	)
+	html_parts.append("</head>")
+	html_parts.append("<body>")
+	html_parts.append("<div class='layout'>")
+
+	# Left: map iframe (trip_map.html in same MemoGraph folder)
+	html_parts.append("<div class='map-pane'>")
+	html_parts.append("<iframe src='trip_map.html' title='Trip Map'></iframe>")
+	html_parts.append("</div>")
+
+	# Right: list of images without GPS
+	html_parts.append("<div class='side-pane'>")
+	html_parts.append("<h2>Photos without location</h2>")
+
+	# Filter bar
+	if all_tags:
+		html_parts.append("<div class='filters'>")
+		html_parts.append("<strong>Filters:</strong><br/>")
+		for tag in sorted(all_tags):
+			html_parts.append(
+				f"<label><input type='checkbox' class='filter-checkbox' value='{tag}'/> {tag}</label><br/>"
+			)
+		html_parts.append("<button type='button' id='clear-filters'>Clear filters</button>")
+		html_parts.append("<hr/>")
+
+	if not unlocated:
+		html_parts.append("<p>All photos have GPS coordinates and appear on the map.</p>")
+	else:
+		for r in unlocated:
+			name = r.get("image_name", "") or r.get("local_path", "")
+			local_path = r.get("local_path", "")
+			# From MemoGraph folder, images live one level up.
+			img_rel = os.path.join("..", local_path) if local_path else ""
+			caption = r.get("caption_ai") or r.get("caption") or ""
+			tag_list = r.get("_mg_tags", [])
+			tag_attr = " ".join(tag_list)
+			html_parts.append(f"<div class='thumb' data-tags='{tag_attr}'>")
+			if img_rel:
+				html_parts.append(f"<img src='{img_rel}' alt='{name}' loading='lazy'/>")
+			html_parts.append(f"<div class='thumb-title'>{name}</div>")
+			if caption:
+				html_parts.append(f"<div class='thumb-caption'>{caption}</div>")
+			if tag_list:
+				html_parts.append(
+					f"<div class='thumb-caption'><em>tags: {', '.join(tag_list)}</em></div>"
+				)
+			html_parts.append("</div>")
+	html_parts.append("</div>")  # side-pane
+
+	html_parts.append("</div>")  # layout
+
+	# Simple JS to handle filter checkboxes (OR semantics, no filter = show all)
+	html_parts.append(
+		"<script>"
+		"const checkboxes = document.querySelectorAll('.filter-checkbox');"
+		"const clearBtn = document.getElementById('clear-filters');"
+		"const thumbs = document.querySelectorAll('.thumb');"
+		"function applyFilters() {"
+		"  const active = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);"
+		"  if (active.length === 0) {"
+		"    thumbs.forEach(t => t.style.display = 'block');"
+		"    return;"
+		"  }"
+		"  thumbs.forEach(t => {"
+		"    const tags = (t.getAttribute('data-tags') || '').split(' ').filter(Boolean);"
+		"    const show = tags.some(tag => active.includes(tag));"
+		"    t.style.display = show ? 'block' : 'none';"
+		"  });"
+		"}"
+		"checkboxes.forEach(cb => cb.addEventListener('change', applyFilters));"
+		"if (clearBtn) {"
+		"  clearBtn.addEventListener('click', () => {"
+		"    checkboxes.forEach(cb => cb.checked = false);"
+		"    applyFilters();"
+		"  });"
+		"}"
+		"</script>"
+	)
+
+	html_parts.append("</body></html>")
+
+	with open(overview_path, "w", encoding="utf-8") as f:
+		f.write("\n".join(html_parts))
+
+	log(f"Overview page generated: {overview_path}", log_path)
+
+
 if __name__ == "__main__":
 	import argparse
 	p = argparse.ArgumentParser(description="Generate an interactive map for the trip.")

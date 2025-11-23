@@ -173,6 +173,14 @@ def run_pipeline(trip_folder: str, parallel: bool):
 		logger.info(f"STEP 10 finished in {time.time() - start_time:.2f} seconds.")
 		resource_data.append(("STEP 10 (map_final)", *get_resource_usage(main_process)))
 
+		# Generate an overview page that embeds the final map and shows any
+		# photos that still lack GPS coordinates in a sidebar, so the user
+		# can see all trip photos on a single page.
+		try:
+			map_visualizer.create_overview_page(trip_folder)
+		except Exception as e:
+			logger.error("Failed to create overview page: %s", e)
+
 		logger.info("[OK] All steps completed for: %s", trip_folder)
 		logger.info("Artifacts:")
 		logger.info("  CSV:     %s", csv_path)

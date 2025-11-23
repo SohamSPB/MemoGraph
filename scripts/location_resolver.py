@@ -13,6 +13,7 @@ Writes to <trip_folder>/MemoGraph/labels.csv and logs to
 
 import os
 import time
+from datetime import datetime
 from geopy.geocoders import Nominatim
 
 from scripts.utils.utils_io import (
@@ -39,6 +40,72 @@ def resolve_location_from_gps(lat: float, lon: float, geolocator: Nominatim) -> 
 		pass
 	return None
 
+
+def _parse_datetime(value: str):
+	"""Parse EXIF-style datetime strings into datetime objects, or None if invalid."""
+	value = (value or "").strip()
+	if not value:
+		return None
+	for fmt in ("%Y:%m:%d %H:%M:%S", "%Y-%m-%d %H:%M:%S"):
+		try:
+			return datetime.strptime(value, fmt)
+		except ValueError:
+			continue
+	return None
+
+
+def _propagate_gps_for_nearby_images(rows, log_path: str | None = None) -> None:
+	"""
+	Propagate gps_lat/gps_lon from the nearest previous image that has valid
+	GPS coordinates when the time difference is within a configurable window.
+
+	This is useful when some photos on a trip lack GPS tags but are taken
+	within a few minutes of a geotagged image, so their physical location is
+	effectively the same.
+	"""
+	max_minutes = getattr(CFG, "GPS_PROPAGATION_MAX_MINUTES", 15)
+	if max_minutes <= 0:
+		return
+
+	parsed_times = [_parse_datetime(r.get("datetime_original", "")) for r in rows]
+	indices_with_time = [i for i, dt in enumerate(parsed_times) if dt is not None]
+	if not indices_with_time:
+		return
+
+	# Sort indices by datetime so we can sweep in chronological order.
+	indices_with_time.sort(key=lambda i: parsed_times[i])
+
+	last_idx_with_gps = None
+	last_dt = None
+	for idx in indices_with_time:
+		row = rows[idx]
+		dt = parsed_times[idx]
+		lat_raw = (row.get("gps_lat") or "").strip()
+		lon_raw = (row.get("gps_lon") or "").strip()
+
+		if lat_raw and lon_raw:
+			# This row has GPS; remember it as the latest source.
+			last_idx_with_gps = idx
+			last_dt = dt
+			continue
+
+		if last_idx_with_gps is None or last_dt is None:
+			continue
+
+		# Only propagate if the time difference is within the configured window.
+		delta_min = abs((dt - last_dt).total_seconds()) / 60.0
+		if delta_min <= max_minutes:
+			src = rows[last_idx_with_gps]
+			src_lat = (src.get("gps_lat") or "").strip()
+			src_lon = (src.get("gps_lon") or "").strip()
+			if src_lat and src_lon:
+				row["gps_lat"] = src_lat
+				row["gps_lon"] = src_lon
+				log(
+					f"[GPS propagate] {row.get('image_name')} <- {src.get('image_name')} (Δt ≈ {delta_min:.1f} min)",
+					log_path,
+				)
+
 def fill_location(trip_folder: str) -> None:
 	memo_dir, logs_dir = ensure_memograph_folder(trip_folder)
 	log_path = os.path.join(logs_dir, "location_resolver.log") if CFG.LOG_TO_FILE else None
@@ -61,6 +128,10 @@ def fill_location(trip_folder: str) -> None:
 	if not required.issubset(first.keys()):
 		log(f"ERROR: labels.csv missing columns: {required - set(first.keys())}", log_path)
 		return
+
+	# First, try to propagate missing GPS from nearby-in-time images that
+	# already have valid coordinates, so that more rows can be reverse-geocoded.
+	_propagate_gps_for_nearby_images(rows, log_path)
 
 	trip_hint = infer_trip_name_from_path(trip_folder)
 	geolocator = Nominatim(user_agent="memograph_location_resolver")

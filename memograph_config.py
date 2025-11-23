@@ -79,6 +79,11 @@ FACE_DETECTION_PARALLEL_WORKERS = 1
 # This controls the ThreadPoolExecutor size and limits GPU/CPU pressure.
 CAPTION_PARALLEL_WORKERS = 2
 
+# Time window (in minutes) within which GPS coordinates can be propagated
+# from a nearby image that has valid lat/lon. This helps fill in missing
+# gps_lat/gps_lon for photos taken shortly before/after a geotagged image.
+GPS_PROPAGATION_MAX_MINUTES = 15
+
 # -----------------------------
 # Specialist species models (future-ready)
 # -----------------------------
