@@ -107,6 +107,7 @@ The main pipeline is executed through the `run_all.py` script.
     ```
 
 5.  **Check the output:** All generated files (CSV, logs, blog, map) will be placed in a `MemoGraph` folder inside your trip directory.
+6.  **Web app & context (auto):** `run_all.py` now also writes `blog_context.json` and a static gallery at `MemoGraph/webapp/index.html`, generating JPEG thumbnails in `MemoGraph/thumbnails` so the UI loads quickly even on large trips.
 
 ## Parallel Execution and Resource Monitoring
 
@@ -155,7 +156,7 @@ MemoGraph also produces a first-pass human-readable trip blog (`blog.md`) and a 
 - Used as-is for quick trip overviews.
 - Fed into an external LLM (see `blog_generation_prompt.md`) if you want to generate a longer, more narrative travel blog using MemoGraph’s captions, locations, and species as input.
 
-For even richer downstream processing, you can build a per-trip `blog_context.json` via:
+For even richer downstream processing, `run_all.py` now generates a per-trip `blog_context.json` automatically. You can rebuild it independently if needed via:
 
 ```bash
 python -m scripts.build_blog_context data/trips/my_awesome_trip

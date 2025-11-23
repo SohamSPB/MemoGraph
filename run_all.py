@@ -38,6 +38,8 @@ import scripts.generate_ai_captions as generate_ai_captions
 import scripts.image_type_detector as image_type_detector
 import scripts.blog_generator as blog_generator
 import scripts.map_visualizer as map_visualizer
+import scripts.build_blog_context as build_blog_context
+import scripts.build_webapp as build_webapp
 # import scripts.uploader_gcs  # optional
 
 def get_gpu_memory_usage():
@@ -192,12 +194,30 @@ def run_pipeline(trip_folder: str, parallel: bool):
 		except Exception as e:
 			logger.error("Failed to create overview page: %s", e)
 
+		start_time = time.time()
+		logger.info("--- STEP 11: Building Blog Context ---")
+		build_blog_context.build_blog_context(trip_folder)
+		logger.info(f"STEP 11 finished in {time.time() - start_time:.2f} seconds.")
+		resource_data.append(("STEP 11 (blog_context)", *get_resource_usage(main_process)))
+
+		start_time = time.time()
+		logger.info("--- STEP 12: Building Web App ---")
+		try:
+			build_webapp.build_webapp(trip_folder)
+			logger.info(f"STEP 12 finished in {time.time() - start_time:.2f} seconds.")
+		except Exception as e:
+			logger.error("Failed to build web app: %s", e)
+		else:
+			resource_data.append(("STEP 12 (webapp)", *get_resource_usage(main_process)))
+
 		logger.info("[OK] All steps completed for: %s", trip_folder)
 		logger.info("Artifacts:")
 		logger.info("  CSV:     %s", csv_path)
 		logger.info("  Blog MD: %s", blog_path)
 		logger.info("  Summary: %s", summary_path)
 		logger.info("  Map:     %s", map_path)
+		logger.info("  Context: %s", os.path.join(memo_dir, "blog_context.json"))
+		logger.info("  Webapp:  %s", os.path.join(memo_dir, "webapp", "index.html"))
 
 	except Exception as e:
 		logger.exception("[ERROR] Pipeline failed: %s", e)

@@ -41,6 +41,11 @@ IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".tiff", ".png", ".jfif")
 # Lower values reduce memory/compute at the cost of some detail.
 MAX_IMAGE_SIZE = 256
 
+# Physical thumbnail generation for the web app / overview UI.
+# Thumbnails live under <trip>/MemoGraph/thumbnails and default to 320px.
+THUMBNAIL_MAX_SIZE = 320
+THUMBNAIL_SUBDIR = "thumbnails"
+
 # -----------------------------
 # MemoGraph Folder
 # -----------------------------

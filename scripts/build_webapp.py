@@ -20,7 +20,9 @@ import json
 import os
 from textwrap import dedent
 
+import memograph_config as CFG
 from memograph_config import ensure_memograph_folder
+from scripts.utils.utils_image import create_thumbnail
 
 TEMPLATE = """<!DOCTYPE html>
 <html lang="en">
@@ -210,8 +212,11 @@ TEMPLATE = """<!DOCTYPE html>
   <script>
     // Embedded data (blog_context)
     const data = __DATA_PLACEHOLDER__;
-    // Images live at the trip root (two levels up from webapp/)
-    const IMG_BASE = "../../";
+    // Paths:
+    // - MemoGraph assets (thumbnails/css) live one level up from webapp/
+    // - Original trip images live two levels up (trip root).
+    const MEMO_BASE = "../";
+    const TRIP_BASE = "../../";
 
     // Collect all images
     const images = [];
@@ -312,8 +317,11 @@ TEMPLATE = """<!DOCTYPE html>
           thumb.className = 'thumb';
           const imgTag = document.createElement('img');
           imgTag.loading = 'lazy';
-          // Images live at the trip root (two levels up from webapp/)
-          imgTag.src = IMG_BASE + (img.local_path || img.image_name || '');
+          // Prefer thumbnails; fallback to original image path.
+          const thumbSrc = img.thumbnail
+            ? MEMO_BASE + img.thumbnail
+            : TRIP_BASE + (img.local_path || img.image_name || '');
+          imgTag.src = thumbSrc;
           imgTag.alt = img.caption_ai || img.caption || img.image_name;
           thumb.appendChild(imgTag);
           card.appendChild(thumb);
@@ -370,11 +378,13 @@ TEMPLATE = """<!DOCTYPE html>
       list.forEach(img => {
         if (img.gps_lat != null && img.gps_lon != null) {
           const marker = L.marker([img.gps_lat, img.gps_lon]).addTo(map);
-          const thumb = IMG_BASE +  + (img.local_path || img.image_name || '');
+          const popupImg = img.thumbnail
+            ? MEMO_BASE + img.thumbnail
+            : TRIP_BASE + (img.local_path || img.image_name || '');
           marker.bindPopup(
             `<div style="font-weight:600;">${img.caption_ai || img.caption || img.image_name}</div>
              <div style="color:#999;font-size:12px;margin:4px 0;">Day ${img.day_number} · ${img.location_short || ''}</div>
-             <img src="${thumb}" alt="" style="width:180px;max-height:140px;object-fit:cover;border-radius:8px;">`
+             <img src="${popupImg}" alt="" style="width:180px;max-height:140px;object-fit:cover;border-radius:8px;">`
           );
           markers.push(marker);
           coords.push([img.gps_lat, img.gps_lon]);
@@ -395,32 +405,80 @@ TEMPLATE = """<!DOCTYPE html>
 """
 
 
+def _sanitize_thumbnail_name(rel_path: str) -> str:
+	name_without_ext = os.path.splitext(rel_path)[0]
+	safe_name = name_without_ext.replace("\\", "_").replace("/", "_")
+	return f"{safe_name}.jpg"
+
+
+def _attach_thumbnails(trip_folder: str, memo_dir: str, data: dict) -> int:
+	"""Generate thumbnails (if needed) and attach their relative paths to image dicts."""
+	thumb_subdir = getattr(CFG, "THUMBNAIL_SUBDIR", "thumbnails")
+	thumb_dir = os.path.join(memo_dir, thumb_subdir)
+	os.makedirs(thumb_dir, exist_ok=True)
+
+	created = 0
+	for day in data.get("days", []):
+		for image in day.get("images", []):
+			rel_path = image.get("local_path") or image.get("image_name")
+			if not rel_path:
+				continue
+
+			src_path = os.path.join(trip_folder, rel_path)
+			if not os.path.exists(src_path):
+				continue
+
+			thumb_name = _sanitize_thumbnail_name(rel_path)
+			dest_path = os.path.join(thumb_dir, thumb_name)
+			needs_build = True
+
+			if os.path.exists(dest_path):
+				try:
+					needs_build = os.path.getmtime(dest_path) < os.path.getmtime(src_path)
+				except OSError:
+					needs_build = True
+
+			if needs_build:
+				if create_thumbnail(src_path, dest_path, max_size=getattr(CFG, "THUMBNAIL_MAX_SIZE", 320)):
+					created += 1
+				else:
+					# Skip attaching if generation failed.
+					continue
+
+			if os.path.exists(dest_path):
+				image["thumbnail"] = os.path.join(thumb_subdir, thumb_name).replace("\\", "/")
+
+	return created
+
+
 def build_webapp(trip_folder: str) -> str:
-    memo_dir, _ = ensure_memograph_folder(trip_folder)
-    context_path = os.path.join(memo_dir, "blog_context.json")
-    if not os.path.exists(context_path):
-        raise FileNotFoundError(f"blog_context.json not found at {context_path}. Run build_blog_context first.")
+	memo_dir, _ = ensure_memograph_folder(trip_folder)
+	context_path = os.path.join(memo_dir, "blog_context.json")
+	if not os.path.exists(context_path):
+		raise FileNotFoundError(f"blog_context.json not found at {context_path}. Run build_blog_context first.")
 
-    with open(context_path, "r", encoding="utf-8") as f:
-        data = json.load(f)
+	with open(context_path, "r", encoding="utf-8") as f:
+		data = json.load(f)
 
-    html = TEMPLATE.replace("__DATA_PLACEHOLDER__", json.dumps(data))
+	_attach_thumbnails(trip_folder, memo_dir, data)
 
-    out_dir = os.path.join(memo_dir, "webapp")
-    os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "index.html")
-    with open(out_path, "w", encoding="utf-8") as f:
-        f.write(html)
+	html = TEMPLATE.replace("__DATA_PLACEHOLDER__", json.dumps(data))
 
-    return out_path
+	out_dir = os.path.join(memo_dir, "webapp")
+	os.makedirs(out_dir, exist_ok=True)
+	out_path = os.path.join(out_dir, "index.html")
+	with open(out_path, "w", encoding="utf-8") as f:
+		f.write(html)
+
+	return out_path
 
 
 if __name__ == "__main__":
-    import argparse
+	import argparse
 
-    p = argparse.ArgumentParser(description="Generate a static webapp HTML to browse a MemoGraph trip.")
-    p.add_argument("trip_folder", help="Trip folder (e.g. data/trips/2025_Annapurna_Nepal)")
-    args = p.parse_args()
+	p = argparse.ArgumentParser(description="Generate a static webapp HTML to browse a MemoGraph trip.")
+	p.add_argument("trip_folder", help="Trip folder (e.g. data/trips/2025_Annapurna_Nepal)")
+	args = p.parse_args()
 
-    out = build_webapp(args.trip_folder)
-    print(f"Web app written to: {out}")
+	out = build_webapp(args.trip_folder)
+	print(f"Web app written to: {out}")
