@@ -50,9 +50,18 @@ def group_by_day(rows):
 
 
 def describe_species(species):
-	"""Return a sentence summarizing species observed that day."""
+	"""Return a short, natural sentence about wildlife observed that day.
+
+	Plants and clearly non-animal entries are ignored for wording purposes
+	(they still remain available in CSV/JSON for analysis).
+	"""
 	# Clean and normalize species names for human-facing text.
 	raw = clean_species_list(species)
+	if not raw:
+		return ""
+
+	animals = []
+	plants = []
 
 	def _norm(name: str) -> str:
 		name = (name or "").strip()
@@ -67,16 +76,56 @@ def describe_species(species):
 			name = name[0].upper() + name[1:]
 		return name
 
-	species = [s for s in (_norm(n) for n in raw) if s]
-	if not species:
-		return ""
-	species = sorted(species)
-	if len(species) == 1:
-		return f"We spotted {species[0]}."
-	elif len(species) == 2:
-		return f"We saw {species[0]} and {species[1]}."
-	else:
-		return f"We encountered species like {', '.join(species[:-1])}, and {species[-1]}."
+	animal_keywords = ("yak", "horse", "dog", "cat", "bird", "elephant", "cow")
+	plant_keywords = ("tulsi", "ficus", "fern", "tree", "flower", "plant")
+
+	for n in raw:
+		normed = _norm(n)
+		if not normed:
+			continue
+		low = normed.lower()
+		if any(k in low for k in animal_keywords):
+			animals.append(normed)
+		elif any(k in low for k in plant_keywords):
+			plants.append(normed)
+
+	# Prefer talking only about animals in prose.
+	if animals:
+		animals = sorted(set(animals))
+		if len(animals) == 1:
+			return f"We spotted {animals[0]} along the way."
+		elif len(animals) == 2:
+			return f"We saw {animals[0]} and {animals[1]} during the day."
+		else:
+			return f"We shared the day with animals such as {', '.join(animals[:-1])}, and {animals[-1]}."
+
+	# If only plants are present, mention them in a brief, softer way.
+	if plants:
+		plants = sorted(set(plants))
+		if len(plants) == 1:
+			return f"Shrubs and plants like {plants[0]} framed many of our photos."
+		else:
+			return f"Greenery such as {', '.join(plants[:-1])}, and {plants[-1]} appeared throughout the scenes."
+
+	return ""
+
+
+def _shorten_location(loc: str) -> str:
+	"""Shorten a long location_inferred string to something blog-friendly."""
+	loc = (loc or "").strip()
+	if not loc:
+		return "an unknown place"
+	# For typical Nominatim-style strings, keep the first comma-separated part
+	# or anything mentioning 'highway'/'road'.
+	parts = [p.strip() for p in loc.split(",") if p.strip()]
+	if not parts:
+		return loc
+	# Prefer segments that mention roads/highways.
+	for p in parts:
+		if any(k in p.lower() for k in ("highway", "road", "pass")):
+			return p
+	# Otherwise use the shortest non-empty segment (often village/town or trip name).
+	return min(parts, key=len)
 
 
 def _classify_row_themes(row):
@@ -134,7 +183,7 @@ def summarize_day_themes(rows):
 
 
 def generate_day_paragraph(date, rows, day_number):
-	"""Build a paragraph summary for a day."""
+	"""Build a 2-paragraph summary for a day."""
 	rows.sort(key=lambda x: x["_datetime"])
 	first, last = rows[0], rows[-1]
 
@@ -149,13 +198,36 @@ def generate_day_paragraph(date, rows, day_number):
 
 	time_start = first["_datetime"].strftime("%I:%M %p")
 	time_end = last["_datetime"].strftime("%I:%M %p")
-	start_loc = first.get("location_inferred", "an unknown place")
-	end_loc = last.get("location_inferred", start_loc)
+	start_loc_raw = first.get("location_inferred", "an unknown place")
+	end_loc_raw = last.get("location_inferred", start_loc_raw)
+	start_loc = _shorten_location(start_loc_raw)
+	end_loc = _shorten_location(end_loc_raw)
 
 	theme_counts, people_photos = summarize_day_themes(rows)
 
-	paragraph = f"**Day {day_number} - {date}**\n"
-	paragraph += f"Our journey began around {time_start} from {start_loc}, and we concluded the day by {time_end} near {end_loc}. "
+	header = f"**Day {day_number} - {date}**\n"
+
+	# -------------
+	# Paragraph 1: intro + themes
+	# -------------
+	intro_templates = [
+		f"Our first morning began around {time_start} near {start_loc}.",
+		f"We started the day around {time_start} near {start_loc}.",
+		f"Our morning began around {time_start} close to {start_loc}.",
+		f"As the day unfolded from about {time_start} near {start_loc}, we followed the road onward.",
+	]
+	if day_number == 1:
+		intro = intro_templates[0]
+	else:
+		intro = intro_templates[(day_number - 1) % len(intro_templates)]
+
+	para1 = intro + " "
+
+	# If there is a meaningful change in location during the day, mention it.
+	all_locs_short = { _shorten_location(r.get("location_inferred", "")) for r in rows if r.get("location_inferred") }
+	if len(all_locs_short) > 1 and start_loc != end_loc:
+		para1 += f"By the time we wrapped up around {time_end}, we were near {end_loc}, having moved through a mix of places along the way. "
+
 
 	# Add short thematic sentences based on what we mostly photographed.
 	top_themes = [t for t, _ in theme_counts.most_common(4)]
@@ -182,19 +254,33 @@ def generate_day_paragraph(date, rows, day_number):
 		theme_parts = theme_parts[:3]
 
 	if theme_parts:
-		paragraph += " ".join(theme_parts) + " "
+		para1 += " ".join(theme_parts) + " "
 
+	# -------------
+	# Paragraph 2: scenes + wildlife
+	# -------------
 	if ai_captions:
 		sample = combine_captions_for_day(ai_captions, max_items=2)
-		if sample:
-			paragraph += f"Scenes we captured include: {sample} "
 	elif captions:
 		sample = combine_captions_for_day(captions, max_items=3)
-		if sample:
-			paragraph += f"Moments captured include: {sample} "
+	else:
+		sample = ""
 
-	paragraph += describe_species(species) + "\n\n"
-	return paragraph
+	para2 = ""
+	if sample:
+		scene_intros = [
+			"Some of the moments that stood out were: ",
+			"Highlights from the day included: ",
+			"We kept pausing for scenes like: ",
+		]
+		scene_intro = scene_intros[(day_number - 1) % len(scene_intros)]
+		para2 += scene_intro + sample + " "
+
+	species_sentence = describe_species(species)
+	if species_sentence:
+		para2 += species_sentence
+
+	return header + para1.strip() + "\n" + (para2.strip() + "\n\n" if para2 else "\n\n")
 
 
 # -----------------------------
