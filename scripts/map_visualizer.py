@@ -12,6 +12,7 @@ Outputs:
 """
 
 import os
+import shutil
 import folium
 from folium.plugins import MarkerCluster
 
@@ -152,6 +153,17 @@ def create_overview_page(trip_folder):
 
 	overview_path = os.path.join(memo_dir, "trip_overview.html")
 
+	# Copy shared Material-style CSS theme into MemoGraph so the overview
+	# page can reference it locally.
+	root_dir = os.path.dirname(os.path.dirname(__file__))
+	template_css = os.path.join(root_dir, "templates", "memograph_ui.css")
+	target_css = os.path.join(memo_dir, "memograph_ui.css")
+	if os.path.exists(template_css):
+		try:
+			shutil.copyfile(template_css, target_css)
+		except Exception as e:
+			log(f"WARNING: Failed to copy memograph_ui.css: {e}", log_path)
+
 	# Build a simple HTML shell that embeds the existing map and shows
 	# unlocated images in a sidebar.
 	html_parts = []
@@ -160,23 +172,13 @@ def create_overview_page(trip_folder):
 	html_parts.append("<head>")
 	html_parts.append("<meta charset='utf-8'/>")
 	html_parts.append("<title>MemoGraph Trip Overview</title>")
-	html_parts.append(
-		"<style>"
-		"body { margin: 0; font-family: Arial, sans-serif; }"
-		".layout { display: flex; height: 100vh; }"
-		".map-pane { flex: 3; min-width: 0; }"
-		".map-pane iframe { border: 0; width: 100%; height: 100%; }"
-		".side-pane { flex: 1; min-width: 260px; max-width: 420px; "
-		"overflow-y: auto; border-left: 1px solid #ccc; padding: 8px; box-sizing: border-box; }"
-		".side-pane h2 { margin-top: 0; font-size: 16px; }"
-		".thumb { margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #eee; }"
-		".thumb img { max-width: 100%; height: auto; display: block; }"
-		".thumb-title { font-weight: bold; font-size: 13px; margin: 4px 0; }"
-		".thumb-caption { font-size: 12px; color: #555; }"
-		"</style>"
-	)
+	html_parts.append("<link rel='stylesheet' href='memograph_ui.css'/>")
 	html_parts.append("</head>")
 	html_parts.append("<body>")
+	html_parts.append("<div class='mg-app-bar'>")
+	html_parts.append("<div class='mg-app-bar-title'>MemoGraph Trip Overview</div>")
+	html_parts.append("<div class='mg-app-bar-subtle'>GPS map + photos without location</div>")
+	html_parts.append("</div>")
 	html_parts.append("<div class='layout'>")
 
 	# Left: map iframe (trip_map.html in same MemoGraph folder)
@@ -194,9 +196,9 @@ def create_overview_page(trip_folder):
 		html_parts.append("<strong>Filters:</strong><br/>")
 		for tag in sorted(all_tags):
 			html_parts.append(
-				f"<label><input type='checkbox' class='filter-checkbox' value='{tag}'/> {tag}</label><br/>"
+				f"<label class='mg-chip'><input type='checkbox' class='filter-checkbox' value='{tag}'/> {tag}</label>"
 			)
-		html_parts.append("<button type='button' id='clear-filters'>Clear filters</button>")
+		html_parts.append("<br/><button type='button' id='clear-filters' class='mg-button'>Clear filters</button>")
 		html_parts.append("<hr/>")
 
 	if not unlocated:
@@ -210,7 +212,7 @@ def create_overview_page(trip_folder):
 			caption = r.get("caption_ai") or r.get("caption") or ""
 			tag_list = r.get("_mg_tags", [])
 			tag_attr = " ".join(tag_list)
-			html_parts.append(f"<div class='thumb' data-tags='{tag_attr}'>")
+			html_parts.append(f"<div class='thumb mg-card' data-tags='{tag_attr}'>")
 			if img_rel:
 				html_parts.append(f"<img src='{img_rel}' alt='{name}' loading='lazy'/>")
 			html_parts.append(f"<div class='thumb-title'>{name}</div>")
@@ -231,6 +233,14 @@ def create_overview_page(trip_folder):
 		"const checkboxes = document.querySelectorAll('.filter-checkbox');"
 		"const clearBtn = document.getElementById('clear-filters');"
 		"const thumbs = document.querySelectorAll('.thumb');"
+		"function syncChipState() {"
+		"  checkboxes.forEach(cb => {"
+		"    const label = cb.closest('.mg-chip');"
+		"    if (!label) return;"
+		"    if (cb.checked) label.classList.add('mg-chip--active');"
+		"    else label.classList.remove('mg-chip--active');"
+		"  });"
+		"}"
 		"function applyFilters() {"
 		"  const active = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);"
 		"  if (active.length === 0) {"
@@ -243,13 +253,15 @@ def create_overview_page(trip_folder):
 		"    t.style.display = show ? 'block' : 'none';"
 		"  });"
 		"}"
-		"checkboxes.forEach(cb => cb.addEventListener('change', applyFilters));"
+		"checkboxes.forEach(cb => cb.addEventListener('change', () => { syncChipState(); applyFilters(); }));"
 		"if (clearBtn) {"
 		"  clearBtn.addEventListener('click', () => {"
 		"    checkboxes.forEach(cb => cb.checked = false);"
+		"    syncChipState();"
 		"    applyFilters();"
 		"  });"
 		"}"
+		"window.addEventListener('DOMContentLoaded', syncChipState);"
 		"</script>"
 	)
 
