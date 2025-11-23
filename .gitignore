@@ -117,3 +117,6 @@ models/
 
 # Data folder (for training purposes only)
 data/
+
+# Project-specific ignores
+tests/results/

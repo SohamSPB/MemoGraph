@@ -996,7 +996,7 @@ TEMPLATE = """<!DOCTYPE html>
         img.quality_notes ? `Quality notes: ${img.quality_notes}` : "",
         img.species_tags && img.species_tags.length ? `Species: ${img.species_tags.join(', ')}` : "",
         img.detected_objects && img.detected_objects.length ? `Objects: ${img.detected_objects.join(', ')}` : ""
-      ].filter(Boolean).join('\n');
+      ].filter(Boolean).join('\\n');
       updateMiniMap(img.gps_lat, img.gps_lon);
       lightbox.classList.add('show');
       lightboxVisible = true;

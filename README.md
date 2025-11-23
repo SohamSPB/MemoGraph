@@ -59,19 +59,22 @@ python -m venv .venv
 ```
 
 ### 3. Install Dependencies
-
-Install all the required packages from `requirements.txt`.
-
-```bash
-pip install -r requirements.txt
-```
-
-**Note:** The exact versions of the packages used during development are listed in `requirements.txt` to ensure compatibility.
-
-## Usage
-
-The main pipeline is executed through the `run_all.py` script.
-
+ 
+ Install all the required packages from `requirements.txt`.
+ 
+ ```bash
+ pip install -r requirements.txt
+ ```
+ 
+ **Note:** The exact versions of the packages used during development are listed in `requirements.txt` to ensure compatibility.
+ 
++### dlib GPU Support (Postponed)
++
++Attempts to enable dlib GPU support encountered runtime issues. For now, dlib will run on CPU. GPU support will be addressed in future development.
++
+ ## Usage
+ 
+ The main pipeline is executed through the `run_all.py` script.
 1.  **Place your photos** in a directory (e.g., `data/trips/my_awesome_trip`).
 2.  **Run the pipeline (sequential mode by default):**
 

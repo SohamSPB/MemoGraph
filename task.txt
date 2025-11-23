@@ -511,3 +511,7 @@
         - Config: `BLOG_CONTEXT_INCLUDE_EXTRAS = False` by default to keep `run_all.py` fast.
         - CLI overrides: `python -m scripts.build_blog_context <trip> --include-extras` toggles them on for ad-hoc runs; `--skip-extras` forces them off even if config enables them.
         - When extras are disabled the script skips loading the large YOLO/Places models altogether, avoiding the long “Using CPU. Note: This module is much faster with a GPU.” slowdowns unless explicitly requested.
+
+21. Postpone dlib GPU support:
+    - dlib will run on CPU for now due to persistent runtime issues with GPU.
+    - Move dlib GPU related files and reports to `tests/results`.

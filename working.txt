@@ -347,4 +347,8 @@ Resource logging
   - Provide quick export/share affordances (download filtered metadata CSV, copy shareable file paths, open original folder).
   - Replace coarse lat/lon rounding with a proper Leaflet clustering plugin and consider filter-aware marker layers (e.g., show/hide birds/astro chips directly on the map).
   - Add cross-trip search on the hub: build a lightweight manifest so users can search for strings like "Bulbul", "snow", "Mom" and jump to the relevant trip/photo anchor.
-  - Optional semantic search: persist CLIP embeddings so fuzzy queries ("snowy yak on a mountain pass") can return relevant shots even if tags do not match exactly.
+      - Optional semantic search: persist CLIP embeddings so fuzzy queries ("snowy yak on a mountain pass") can return relevant shots even if tags do not match exactly.
+   
+  +## 14. dlib GPU Support (Postponed)
+  +
+  +Due to persistent runtime issues with CUDA driver initialization, `dlib` GPU support is currently postponed. The pipeline will operate with CPU-only `dlib` for now. Further investigation into the CUDA runtime environment will be required for future GPU enablement.
