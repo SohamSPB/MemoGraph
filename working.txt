@@ -9,14 +9,17 @@ is meant as a quick reference for future work.
 --------------------------------
 - Main entry: run_all.py
   - Usage:
-    - Sequential: python run_all.py <trip_folder>
-    - Parallel:   set MEMOGRAPH_PARALLEL_EXECUTION=true, then python run_all.py <trip_folder>
-    - Reset + rerun: python run_all.py <trip_folder> --reset
+    - Sequential (top-level steps): python run_all.py <trip_folder>
+    - Parallel (internal parallelism inside steps):
+      - Linux/macOS:   MEMOGRAPH_PARALLEL_EXECUTION=true python run_all.py <trip_folder>
+      - Windows PowerShell: $env:MEMOGRAPH_PARALLEL_EXECUTION = "true"; python run_all.py <trip_folder>
+    - Reset + rerun:   python run_all.py <trip_folder> --reset
+    - Reset only:      python run_all.py <trip_folder> --reset-only
 
-- With --reset:
-  - Before running, run_all.py removes <trip_folder>/MemoGraph if it exists.
-  - This forces a full rebuild of labels.csv, captions, species tags, blog,
-    map, and logs using the current code and configuration.
+- With --reset / --reset-only:
+  - run_all.py removes <trip_folder>/MemoGraph if it exists.
+  - --reset then runs the full pipeline with the current configuration.
+  - --reset-only exits immediately after deletion (no processing).
 
 2. High-level step flow
 -----------------------
@@ -34,7 +37,7 @@ For a given trip_folder (e.g. data/trips/2025_Annapurna_Nepal):
 3) location_resolver.fill_location(trip_folder)
    - Converts GPS coordinates into location_inferred (strings).
 
-4) Core analysis (parallel or sequential):
+4) Core analysis (top-level sequential, internal parallelism allowed):
    - face_detector.process_faces(trip_folder)
      - Uses face_recognition (CNN/HOG) to set faces_detected (0/1).
      - Batches sized via CFG.FACE_DETECTION_BATCH_SIZE.
@@ -156,3 +159,27 @@ For a given trip_folder (e.g. data/trips/2025_Annapurna_Nepal):
 - Add a "safe laptop profile" and "full performance profile" in config or
   via environment variables for quick mode switching.
 
+9. Additional comparison tools and stats (added)
+-----------------------------------------------
+- scripts/compare_stats.py:
+  - Example:
+    - python -m scripts.compare_stats data/trips/2025_Annapurna_Nepal --variants MemoGraph_256_2 MemoGraph_512_2 MemoGraph_1024_2
+  - Reads each MemoGraph_*/logs/resource_usage.csv and prints a table of:
+    - step, then <variant>:cpu_percent, <variant>:ram_mb, <variant>:gpu_mb.
+  - CPU% values can exceed 100 because they represent combined usage across all cores for the process tree (e.g. ~600% ≈ 6 cores).
+
+- scripts/compare_labels_variants.py:
+  - Example:
+    - python -m scripts.compare_labels_variants data/trips/2025_Annapurna_Nepal --variants MemoGraph_256_2 MemoGraph_512_2 MemoGraph_1024_2 --fields detected_objects species_tags caption caption_ai
+  - Prints a CSV-style table with one row per image and columns for <variant>:<field>, useful for checking stability of CLIP/BLIP outputs across resolutions/runs.
+
+- stats_256.txt, stats_512.txt, stats_1024.txt:
+  - Plain-text summaries of per-step timings and RAM usage for the latest _2 runs at each resolution, based on run_all.log and resource_usage.csv.
+
+10. Species gating to avoid false positives (added)
+--------------------------------------------------
+- species_detector.py now:
+  - Builds a coarse text string from detected_objects + caption + caption_ai for each image.
+  - Only runs CLIP species matching when that text contains biological hints (bird/animal/plant/insect and related terms).
+  - If no such hints are found (e.g. pure galaxy/nebula images), species detection is skipped and existing tags are preserved.
+  - This prevents unrealistic species predictions (e.g. Peacock/Owl on space photos) and relies on image_labeler + captions to indicate when biological species are present.

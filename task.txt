@@ -19,13 +19,19 @@
     - The sequential steps are lightweight and mostly I/O bound.
     - The execution times for each step are available in the logs.
 9. Parallel + GPU usage mapping (for future debugging / AI agents):
-    - SEQUENTIAL (CPU, in main process): `image_scanner.py`, `trip_day_assigner.py`, `location_resolver.py`, `blog_generator.py`, `map_visualizer.py`.
-    - PARALLEL top-level steps (run via `ProcessPoolExecutor(max_workers=PARALLEL_WORKERS)` in `run_all.py` when `MEMOGRAPH_PARALLEL_EXECUTION=true`):
-        - `face_detector.process_faces` (GPU via `face_recognition` CNN when parallel, CPU HOG when sequential).
-        - `image_labeler.label_images` (GPU if available via CLIP, otherwise CPU).
-        - `caption_filler.fill_captions` (GPU/CPU via BLIP; now limited by `CAPTION_PARALLEL_WORKERS` threads).
-        - `generate_ai_captions.generate_ai_captions` (GPU/CPU via BLIP, sequential inside its process).
-        - `species_detector.process_species` (GPU if available via CLIP, otherwise CPU).
+    - SEQUENTIAL at top level (CPU, in main process): `image_scanner.py`, `trip_day_assigner.py`, `location_resolver.py`, `face_detector.py`, `image_labeler.py`, `caption_filler.py`, `generate_ai_captions.py`, `species_detector.py`, `blog_generator.py`, `map_visualizer.py`.
+        - These steps now run one after another in `run_all.py` to avoid race conditions on `labels.csv`.
+    - INTERNAL parallelism (controlled by config):
+        - `face_detector.process_faces`:
+            - Uses CNN/HOG with CFG.FACE_DETECTION_BATCH_SIZE and CFG.FACE_DETECTION_PARALLEL_WORKERS (default 1 to avoid nested process pools).
+        - `image_labeler.label_images`:
+            - Uses CLIP (GPU if available, otherwise CPU).
+        - `caption_filler.fill_captions`:
+            - Uses BLIP with a capped ThreadPoolExecutor controlled by `CAPTION_PARALLEL_WORKERS`.
+        - `generate_ai_captions.generate_ai_captions`:
+            - Uses BLIP in a sequential loop inside its step.
+        - `species_detector.process_species`:
+            - Uses CLIP for species prompts (GPU if available via CLIP, otherwise CPU) when biological hints are present.
 10. Additional safeguards added to reduce freezes:
     - New config knobs in `memograph_config.py`:
         - `FACE_DETECTION_PARALLEL_WORKERS` (default `1`) to avoid a large nested process pool inside `face_detector.py` when the pipeline itself already runs in parallel.
@@ -36,19 +42,20 @@
     - In `caption_filler.py`, the `ThreadPoolExecutor` size is now limited by `CAPTION_PARALLEL_WORKERS` instead of using all available cores.
     - These settings should be tuned conservatively on laptops (keep workers low, batch sizes small) to avoid CPU/GPU/memory freeze; check `MemoGraph/logs/resource_usage.csv` and per-step logs if the agent crashes.
 11. Per-step heaviness and image resizing (current observations):
-    - From `resource_usage.csv` on a sample trip:
-        - STEP 1 (scan images) briefly spikes CPU (~90%) but with modest RAM, then finishes quickly.
+    - From `resource_usage.csv` on a sample trip and the stats_*.txt summaries:
+        - STEP 1 (scan images) briefly spikes CPU (~90–110%) but with modest RAM, then finishes quickly.
         - STEP 2 (assign days) is light and fast.
         - STEP 3 (location resolver) is moderate CPU but stable RAM.
-        - PARALLEL phase steadily increases RAM from ~450MB up to several GB while GPU usage stays high and flat, indicating the heavy work is in the CLIP/BLIP/face-detection steps and their batching/concurrency.
+        - Faces/Labels/Captions/AI Captions/Species are the heaviest steps, with multi-core CPU usage and RAM increasing as MAX_IMAGE_SIZE grows:
+            - ~1.3 GB peak at 256px, ~1.4 GB at 512px, ~1.9 GB at 1024px.
         - Steps 9–10 (blog + map) are lightweight.
     - Practical tuning guidelines:
         - For face detection (CNN/HOG) you can usually process small batches (2–8 images) safely; larger batches risk spikes in memory, especially on GPU.
         - For CLIP-based label/species detection and BLIP-based captioning, even 1–2 concurrent images per worker can be heavy; keep `CAPTION_PARALLEL_WORKERS` low and consider lowering `PARALLEL_WORKERS` if freezes occur.
         - If the machine stalls or becomes unresponsive, reduce concurrency before reducing batch size (fewer workers first, then smaller batches).
     - Image resizing before models:
-        - `face_detector.py` already resizes images to a max dimension of 1024px before running face detection.
-        - `image_labeler.py`, `species_detector.py`, `caption_filler.py`, and `generate_ai_captions.py` now also resize each image to a maximum of 1024px (preserving aspect ratio) before passing it to CLIP/BLIP transforms.
+        - `face_detector.py` resizes images to CFG.MAX_IMAGE_SIZE (longest side) before running face detection.
+        - `image_labeler.py`, `species_detector.py`, `caption_filler.py`, and `generate_ai_captions.py` also resize each image to CFG.MAX_IMAGE_SIZE (preserving aspect ratio) before passing it to CLIP/BLIP transforms.
         - This downsampling reduces per-image memory usage and makes it safer to handle higher-resolution photos in all model-based steps.
 12. Resolution-sensitivity experiment for model robustness (face/label/species checks):
     - Configuration:
@@ -75,9 +82,16 @@
         - `faces_detected`: mostly consistent, but at least one image (`IMG20240816111741.jpg`) had missing value at 256 vs `0` at higher resolutions (likely due to CSV initialization rather than true detection differences).
         - `species_tags`: identical across 256/512/1024 for all images in this test, suggesting species detection is robust to downscaling to 256.
         - `detected_objects`: showed some variation across resolutions (expected for CLIP zero-shot on heavily downsampled images).
-    - A helper script `scripts/compare_resolutions.py` is available to quickly summarize differences across variants (defaulting to `MemoGraph_256`, `MemoGraph_512`, `MemoGraph_1024`) for a given trip:
-        - Example: `python -m scripts.compare_resolutions data/trips/2025_Annapurna_Nepal`
-        - It reports, for common images, whether fields like `faces_detected`, `species_tags`, `detected_objects`, `caption`, and `caption_ai` are identical or where the first mismatches occur.
+    - Helper scripts are available to summarize differences and resource usage across variants for a given trip:
+        - `scripts/compare_resolutions.py`:
+            - Example: `python -m scripts.compare_resolutions data/trips/2025_Annapurna_Nepal`
+            - Reports, for common images, whether fields like `faces_detected`, `species_tags`, `detected_objects`, `caption`, and `caption_ai` are identical or where the first mismatches occur.
+        - `scripts/compare_stats.py`:
+            - Example: `python -m scripts.compare_stats data/trips/2025_Annapurna_Nepal --variants MemoGraph_256_2 MemoGraph_512_2 MemoGraph_1024_2`
+            - Compares per-step CPU/RAM/GPU across `resource_usage.csv` files. CPU% values can exceed 100 because they represent the sum across multiple cores in the process tree (e.g. ~600% ≈ 6 cores).
+        - `scripts/compare_labels_variants.py`:
+            - Example: `python -m scripts.compare_labels_variants data/trips/2025_Annapurna_Nepal --variants MemoGraph_256_2 MemoGraph_512_2 MemoGraph_1024_2 --fields detected_objects species_tags caption caption_ai`
+            - Prints a CSV-style table with one row per image and columns for `<variant>:<field>` across the selected variants.
     - This experiment and notes allow future agents to continue or repeat the analysis even if a run crashes mid-way.
 13. CLIP-based species prompts and current species pipeline behavior:
     - `species_detector.py` uses CLIP in a zero-shot way: the `species_prompts` dictionary defines the only species names that CLIP can choose from when filling `species_tags`.
