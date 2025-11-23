@@ -120,6 +120,7 @@ TEMPLATE = """<!DOCTYPE html>
       align-items: center;
       gap: 12px;
       padding: 10px 24px 6px;
+      flex-wrap: wrap;
     }
     .filters-bar button {
       border: none;
@@ -131,6 +132,54 @@ TEMPLATE = """<!DOCTYPE html>
       transition: var(--transition);
     }
     .filters-bar button:hover { background: rgba(255,255,255,0.2); }
+    .preset-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 0 24px 10px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    .preset-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .preset-buttons button {
+      border: none;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(94,234,212,0.15);
+      color: var(--text);
+      cursor: pointer;
+      transition: transform 150ms ease, background 150ms ease;
+    }
+    .preset-buttons button:hover { transform: translateY(-1px); background: rgba(94,234,212,0.3); }
+    .custom-presets {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .custom-presets select {
+      background: rgba(255,255,255,0.05);
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      padding: 6px 10px;
+      min-width: 160px;
+    }
+    .custom-presets button {
+      border: none;
+      background: rgba(37,99,235,0.3);
+      color: var(--text);
+      padding: 6px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 150ms ease;
+    }
+    .custom-presets button:hover { background: rgba(37,99,235,0.5); }
     .filters-wrapper {
       padding: 0 24px 12px;
     }
@@ -155,8 +204,10 @@ TEMPLATE = """<!DOCTYPE html>
       background: rgba(255,255,255,0.04);
       color: var(--text);
       cursor: pointer;
-      transition: var(--transition);
+      transition: background 150ms ease, color 150ms ease, transform 150ms ease;
       font-size: 13px;
+      position: relative;
+      overflow: hidden;
     }
     .chip.active {
       background: linear-gradient(120deg, var(--accent), var(--accent-2));
@@ -164,6 +215,10 @@ TEMPLATE = """<!DOCTYPE html>
       border-color: transparent;
     }
     .chip:hover { border-color: rgba(255,255,255,0.3); }
+    .chip:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
     .main {
       display: grid;
       grid-template-columns: 2fr 1fr;
@@ -182,13 +237,13 @@ TEMPLATE = """<!DOCTYPE html>
       padding: 10px;
       border: 1px solid rgba(255,255,255,0.05);
       box-shadow: var(--shadow);
-      transition: var(--transition);
+      transition: transform 180ms ease, box-shadow 220ms ease, border 180ms ease;
       transform: translateY(0);
     }
     .card:hover {
       transform: translateY(-2px);
       border-color: rgba(56,189,248,0.4);
-      box-shadow: 0 12px 40px rgba(0,0,0,0.45);
+      box-shadow: 0 18px 45px rgba(0,0,0,0.5);
     }
     .thumb {
       width: 100%;
@@ -324,6 +379,29 @@ TEMPLATE = """<!DOCTYPE html>
       color: var(--muted);
       font-size: 0.95rem;
     }
+    .lightbox-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 10px 0;
+    }
+    .lightbox-actions button {
+      border: none;
+      background: rgba(56,189,248,0.2);
+      color: var(--text);
+      padding: 6px 12px;
+      border-radius: 999px;
+      cursor: pointer;
+    }
+    .lightbox-actions button:hover { background: rgba(56,189,248,0.35); }
+    .lightbox-map {
+      width: 100%;
+      height: 150px;
+      border-radius: 16px;
+      overflow: hidden;
+      margin-top: 8px;
+      display: none;
+    }
     .filmstrip {
       width: 100%;
       background: rgba(5,8,18,0.9);
@@ -336,8 +414,8 @@ TEMPLATE = """<!DOCTYPE html>
       align-items: center;
     }
     .filmstrip img {
-      width: 100px;
-      height: 70px;
+      width: 108px;
+      height: 72px;
       object-fit: cover;
       border-radius: 8px;
       cursor: pointer;
@@ -348,6 +426,18 @@ TEMPLATE = """<!DOCTYPE html>
     .filmstrip img:hover {
       opacity: 1;
       transform: translateY(-2px);
+    }
+    .cluster-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: rgba(56,189,248,0.8);
+      color: #031225;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid rgba(255,255,255,0.8);
+      font-weight: 600;
     }
     @media (max-width: 1024px) {
       .main { grid-template-columns: 1fr; }
@@ -384,6 +474,16 @@ TEMPLATE = """<!DOCTYPE html>
     </header>
     <div class="filters-bar">
       <button id="filterToggle">Hide Filters</button>
+    </div>
+    <div class="preset-toolbar">
+      <div style="min-width:120px;">Quick filters:</div>
+      <div class="preset-buttons" id="presetButtons"></div>
+      <div class="custom-presets">
+        <select id="customPresetSelect"></select>
+        <button id="applyPresetBtn">Apply</button>
+        <button id="savePresetBtn">Save current</button>
+        <button id="deletePresetBtn">Delete</button>
+      </div>
     </div>
     <div class="filters-wrapper" id="filtersWrapper">
       <div class="filters" id="filters"></div>
@@ -438,6 +538,11 @@ TEMPLATE = """<!DOCTYPE html>
     const searchInput = document.getElementById('search');
     const tripNameEl = document.getElementById('tripName');
     const backBtn = document.getElementById('backBtn');
+    const presetButtonsEl = document.getElementById('presetButtons');
+    const customPresetSelect = document.getElementById('customPresetSelect');
+    const applyPresetBtn = document.getElementById('applyPresetBtn');
+    const savePresetBtn = document.getElementById('savePresetBtn');
+    const deletePresetBtn = document.getElementById('deletePresetBtn');
 
     const lightbox = document.getElementById('lightbox') || (function() {
       const div = document.createElement('div');
@@ -457,6 +562,11 @@ TEMPLATE = """<!DOCTYPE html>
             <div class="lightbox-meta">
               <h3 id="lightboxTitle">Photo details</h3>
               <ul id="lightboxMeta"></ul>
+              <div class="lightbox-actions">
+                <button id="copyDetailsBtn">Copy details</button>
+                <button id="openOriginalBtn">Open photo</button>
+              </div>
+              <div class="lightbox-map" id="lightboxMap"></div>
             </div>
           </div>
           <div class="filmstrip" id="filmstrip"></div>
@@ -471,6 +581,19 @@ TEMPLATE = """<!DOCTYPE html>
     const navPrev = document.getElementById('navPrev');
     const navNext = document.getElementById('navNext');
     const lightboxClose = document.getElementById('lightboxClose');
+    const lightboxMapEl = document.getElementById('lightboxMap');
+    const copyDetailsBtn = document.getElementById('copyDetailsBtn');
+    const openOriginalBtn = document.getElementById('openOriginalBtn');
+
+    const PRESET_DEFS = [
+      { id: "birds", label: "Birds", tokens: ["birds"] },
+      { id: "landscapes", label: "Landscapes", tokens: ["landscape"] },
+      { id: "astro", label: "Astro", tokens: ["astro", "galaxy"] },
+      { id: "people", label: "People", tokens: ["selfie", "group"] }
+    ];
+    const STORAGE_KEY = "memograph_filters_v1";
+    const storedPresets = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+    let customPresets = storedPresets[TRIP_NAME] || [];
 
     let activeChips = new Set();
     let map;
@@ -478,6 +601,11 @@ TEMPLATE = """<!DOCTYPE html>
     let filteredImages = images.slice();
     let currentFilteredIndex = 0;
     let filtersCollapsed = false;
+    let lightboxVisible = false;
+    let lightboxMapInstance = null;
+    let lightboxMapMarker = null;
+    let latestDetailText = "";
+    let currentFullSrc = "";
 
     tripNameEl.textContent = TRIP_NAME;
     backBtn.onclick = () => { window.location.href = MASTER_BASE; };
@@ -486,12 +614,69 @@ TEMPLATE = """<!DOCTYPE html>
       filtersWrapper.classList.toggle('collapsed', filtersCollapsed);
       filterToggle.textContent = filtersCollapsed ? 'Show Filters' : 'Hide Filters';
     };
-    lightboxClose.onclick = () => lightbox.classList.remove('show');
+    const closeLightbox = () => {
+      lightbox.classList.remove('show');
+      lightboxVisible = false;
+    };
+    lightboxClose.onclick = closeLightbox;
     lightbox.onclick = (ev) => {
-      if (ev.target === lightbox) lightbox.classList.remove('show');
+      if (ev.target === lightbox) closeLightbox();
     };
     navPrev.onclick = (ev) => { ev.stopPropagation(); stepLightbox(-1); };
     navNext.onclick = (ev) => { ev.stopPropagation(); stepLightbox(1); };
+    document.addEventListener('keydown', (ev) => {
+      if (!lightboxVisible) return;
+      if (ev.key === 'ArrowLeft') {
+        ev.preventDefault();
+        stepLightbox(-1);
+      } else if (ev.key === 'ArrowRight') {
+        ev.preventDefault();
+        stepLightbox(1);
+      } else if (ev.key === 'Escape') {
+        ev.preventDefault();
+        closeLightbox();
+      }
+    });
+
+    copyDetailsBtn.onclick = async () => {
+      if (!latestDetailText) return;
+      try {
+        await navigator.clipboard.writeText(latestDetailText);
+      } catch (err) {
+        console.warn("Clipboard write failed", err);
+      }
+    };
+
+    openOriginalBtn.onclick = () => {
+      if (!currentFullSrc) return;
+      window.open(currentFullSrc, "_blank");
+    };
+
+    function updateMiniMap(lat, lon) {
+      if (!lightboxMapEl) return;
+      if (lat == null || lon == null) {
+        lightboxMapEl.style.display = "none";
+        if (lightboxMapInstance) {
+          lightboxMapInstance.remove();
+          lightboxMapInstance = null;
+          lightboxMapMarker = null;
+        }
+        return;
+      }
+      lightboxMapEl.style.display = "block";
+      if (!lightboxMapInstance) {
+        lightboxMapInstance = L.map(lightboxMapEl, { zoomControl: false, attributionControl: false });
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19
+        }).addTo(lightboxMapInstance);
+      }
+      lightboxMapInstance.setView([lat, lon], 10);
+      if (lightboxMapMarker) {
+        lightboxMapMarker.setLatLng([lat, lon]);
+      } else {
+        lightboxMapMarker = L.circleMarker([lat, lon], { radius: 6, color: "#5eead4", fillOpacity: 0.9 }).addTo(lightboxMapInstance);
+      }
+    }
 
     function renderChips() {
       filtersEl.innerHTML = '';
@@ -499,9 +684,11 @@ TEMPLATE = """<!DOCTYPE html>
         const btn = document.createElement('button');
         btn.className = 'chip';
         btn.textContent = ch;
+        if (activeChips.has(ch)) btn.classList.add('active');
         btn.onclick = () => {
-          if (activeChips.has(ch)) activeChips.delete(ch); else activeChips.add(ch);
-          btn.classList.toggle('active');
+          if (activeChips.has(ch)) activeChips.delete(ch);
+          else activeChips.add(ch);
+          renderChips();
           render();
         };
         filtersEl.appendChild(btn);
@@ -614,15 +801,48 @@ TEMPLATE = """<!DOCTYPE html>
       map.setView([20,0], 2);
     }
 
+    function clusterImagesForMap(list) {
+      const clusterMap = new Map();
+      list.forEach(img => {
+        if (img.gps_lat == null || img.gps_lon == null) return;
+        const key = `${img.gps_lat.toFixed(2)}|${img.gps_lon.toFixed(2)}`;
+        if (!clusterMap.has(key)) {
+          clusterMap.set(key, { lat: img.gps_lat, lon: img.gps_lon, items: [] });
+        }
+        clusterMap.get(key).items.push(img);
+      });
+      return Array.from(clusterMap.values());
+    }
+
     function renderMap(list) {
       if (!map) initMap();
       // Clear markers
       markers.forEach(m => m.remove());
       markers = [];
 
+      const clusters = clusterImagesForMap(list);
       const coords = [];
-      list.forEach(img => {
-        if (img.gps_lat != null && img.gps_lon != null) {
+      clusters.forEach(cluster => {
+        coords.push([cluster.lat, cluster.lon]);
+        if (cluster.items.length > 1) {
+          const marker = L.marker([cluster.lat, cluster.lon], {
+            icon: L.divIcon({ className: 'cluster-icon', html: cluster.items.length.toString(), iconSize: [36, 36] })
+          }).addTo(map);
+          marker.on('click', () => {
+            const previews = cluster.items.slice(0, 4).map(item => {
+              const imgSrc = item.thumbnail
+                ? MEMO_BASE + item.thumbnail
+                : TRIP_BASE + (item.local_path || item.image_name || '');
+              return `<div style="margin-bottom:6px;">
+                        <div style="font-weight:600;">${item.caption_ai || item.caption || item.image_name}</div>
+                        <img src="${imgSrc}" style="width:150px;height:90px;object-fit:cover;border-radius:8px;" />
+                      </div>`;
+            }).join('');
+            marker.bindPopup(previews || `${cluster.items.length} photos`).openPopup();
+          });
+          markers.push(marker);
+        } else {
+          const img = cluster.items[0];
           const marker = L.marker([img.gps_lat, img.gps_lon]).addTo(map);
           const popupImg = img.thumbnail
             ? MEMO_BASE + img.thumbnail
@@ -633,7 +853,6 @@ TEMPLATE = """<!DOCTYPE html>
              <img src="${popupImg}" alt="" style="width:180px;max-height:140px;object-fit:cover;border-radius:8px;">`
           );
           markers.push(marker);
-          coords.push([img.gps_lat, img.gps_lon]);
         }
       });
       if (coords.length) {
@@ -664,6 +883,7 @@ TEMPLATE = """<!DOCTYPE html>
       const img = filteredImages[currentFilteredIndex];
       const fullSrc = TRIP_BASE + (img.local_path || img.image_name || '');
       lightboxImage.src = fullSrc;
+      currentFullSrc = fullSrc;
       lightboxTitle.textContent = img.caption_ai || img.caption || img.image_name;
 
       const metaEntries = [];
@@ -696,7 +916,17 @@ TEMPLATE = """<!DOCTYPE html>
         metaEntries.push(`<strong>Map:</strong> <a href="${link}" target="_blank">Open location</a>`);
       }
       lightboxMeta.innerHTML = metaEntries.map(entry => `<li>${entry}</li>`).join('') || '<li>No additional metadata</li>';
+      latestDetailText = [
+        img.caption_ai || img.caption || img.image_name,
+        img.location_full || img.location_short ? `Location: ${img.location_full || img.location_short}` : "",
+        img.time ? `Captured: ${img.time}` : "",
+        img.device_model ? `Device: ${img.device_model}` : "",
+        img.species_tags && img.species_tags.length ? `Species: ${img.species_tags.join(', ')}` : "",
+        img.detected_objects && img.detected_objects.length ? `Objects: ${img.detected_objects.join(', ')}` : ""
+      ].filter(Boolean).join('\n');
+      updateMiniMap(img.gps_lat, img.gps_lon);
       lightbox.classList.add('show');
+      lightboxVisible = true;
       renderFilmstrip();
     }
 
@@ -704,6 +934,79 @@ TEMPLATE = """<!DOCTYPE html>
       if (!filteredImages.length) return;
       openLightbox(currentFilteredIndex + delta);
     }
+
+    function setActiveChipsFromArray(arr) {
+      activeChips = new Set((arr || []).map(s => s.toLowerCase()));
+      renderChips();
+      render();
+    }
+
+    function renderPresetButtons() {
+      presetButtonsEl.innerHTML = "";
+      PRESET_DEFS.forEach(preset => {
+        const btn = document.createElement('button');
+        btn.textContent = preset.label;
+        btn.onclick = () => setActiveChipsFromArray(preset.tokens);
+        presetButtonsEl.appendChild(btn);
+      });
+    }
+
+    function persistCustomPresets() {
+      storedPresets[TRIP_NAME] = customPresets;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(storedPresets));
+    }
+
+    function renderCustomPresetOptions() {
+      customPresetSelect.innerHTML = "";
+      if (!customPresets.length) {
+        const opt = document.createElement('option');
+        opt.value = "";
+        opt.textContent = "No saved filters";
+        customPresetSelect.appendChild(opt);
+        applyPresetBtn.disabled = true;
+        deletePresetBtn.disabled = true;
+        return;
+      }
+      applyPresetBtn.disabled = false;
+      deletePresetBtn.disabled = false;
+      customPresets.forEach(preset => {
+        const opt = document.createElement('option');
+        opt.value = preset.name;
+        opt.textContent = preset.name;
+        customPresetSelect.appendChild(opt);
+      });
+    }
+
+    renderPresetButtons();
+    renderCustomPresetOptions();
+    applyPresetBtn.onclick = () => {
+      const name = customPresetSelect.value;
+      const preset = customPresets.find(p => p.name === name);
+      if (preset) setActiveChipsFromArray(preset.tokens);
+    };
+    savePresetBtn.onclick = () => {
+      const tokens = Array.from(activeChips);
+      if (!tokens.length) {
+        alert("Select at least one chip before saving.");
+        return;
+      }
+      const proposed = `Preset ${customPresets.length + 1}`;
+      const name = prompt("Name for this filter preset:", proposed);
+      if (!name) return;
+      customPresets = customPresets.filter(p => p.name !== name);
+      customPresets.push({ name, tokens });
+      persistCustomPresets();
+      renderCustomPresetOptions();
+      customPresetSelect.value = name;
+    };
+    deletePresetBtn.onclick = () => {
+      const name = customPresetSelect.value;
+      if (!name) return;
+      if (!confirm(`Delete preset "${name}"?`)) return;
+      customPresets = customPresets.filter(p => p.name !== name);
+      persistCustomPresets();
+      renderCustomPresetOptions();
+    };
 
     renderChips();
     searchInput.addEventListener('input', render);

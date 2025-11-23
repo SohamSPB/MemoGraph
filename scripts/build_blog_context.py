@@ -460,6 +460,7 @@ def _build_day_context(day_rows: List[Dict[str, Any]], date_str: str, day_number
                 "image_name": r.get("image_name"),
                 "local_path": r.get("local_path"),
                 "time": r["_dt"].strftime("%Y-%m-%d %H:%M:%S"),
+                "device_model": r.get("device_model"),
                 "location_full": r.get("location_inferred", ""),
                 "location_short": _shorten_location(r.get("location_inferred", "")),
                 "caption": r.get("caption"),
