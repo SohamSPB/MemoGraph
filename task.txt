@@ -425,6 +425,20 @@
               the database and add a semantic `/api/search/semantic` route so
               queries like “snowy mountain pass” or “crow on a branch” fuzzy
               match even if tags don’t mention those exact words.
+        6. Master trip hub (NEW):
+            - [ ] Build a `scripts/build_trip_index.py` that scans `data/trips/*`
+              for MemoGraph outputs and emits `data/trips/index.html` — a landing
+              page showing every trip as a card with:
+                * 3–4 stacked thumbnail previews (use MemoGraph/thumbnails).
+                * Trip title, date range, day count, and top themes/species.
+                * Click-through to `<trip>/MemoGraph/webapp/index.html`.
+            - [ ] Style the hub with a modern Material UI look (glassmorphism,
+              smooth hover transitions, responsive grid) so it feels like a photo
+              library home screen.
+            - [ ] Add filters/search at the hub level (by year, region, themes,
+              species) so users can quickly locate a trip.
+            - [ ] Consider SPA approach (React/Vue) later so master + per-trip
+              views share a consistent theme and animated transitions.
 17. GPS propagation and overview page (DONE, first version)
     - Goal:
         - Ensure that photos taken near in time to a geotagged image also appear on the map, even if they lack EXIF GPS.

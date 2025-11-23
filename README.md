@@ -218,6 +218,9 @@ This aggregates per-day times, locations, themes (mountains/roads/temples/market
 
 This static webapp replaces the earlier baked overview-only experience and makes it easy to explore each trip offline.
 
+- **Master trips hub (`data/trips/index.html`):**  
+  Every time `run_all.py` completes, `build_trip_index.py` refreshes a landing page that lists every trip under `data/trips`. Each card shows stacked thumbnails, date ranges, photo/day counts, top themes/species, and links into that trip’s Leaflet viewer, giving you a single place to browse your archive.
+
 This ensures that every photo in a trip is visible somewhere (on the map if it has GPS, or in the sidebar if it does not), and that you can still explore large trips while processing is ongoing.
 
 ## Bird Species Model (optional)

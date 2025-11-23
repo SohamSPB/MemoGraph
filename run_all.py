@@ -40,6 +40,7 @@ import scripts.blog_generator as blog_generator
 import scripts.map_visualizer as map_visualizer
 import scripts.build_blog_context as build_blog_context
 import scripts.build_webapp as build_webapp
+import scripts.build_trip_index as build_trip_index
 # import scripts.uploader_gcs  # optional
 
 def get_gpu_memory_usage():
@@ -210,6 +211,17 @@ def run_pipeline(trip_folder: str, parallel: bool):
 		else:
 			resource_data.append(("STEP 12 (webapp)", *get_resource_usage(main_process)))
 
+		start_time = time.time()
+		logger.info("--- STEP 13: Updating Trip Index ---")
+		try:
+			index_path = build_trip_index.build_trip_index(CFG.DATA_ROOT)
+			logger.info(f"STEP 13 finished in {time.time() - start_time:.2f} seconds.")
+			logger.info("Trip index updated at: %s", index_path)
+		except Exception as e:
+			logger.error("Failed to update trip index: %s", e)
+		else:
+			resource_data.append(("STEP 13 (trip_index)", *get_resource_usage(main_process)))
+
 		logger.info("[OK] All steps completed for: %s", trip_folder)
 		logger.info("Artifacts:")
 		logger.info("  CSV:     %s", csv_path)
@@ -218,6 +230,7 @@ def run_pipeline(trip_folder: str, parallel: bool):
 		logger.info("  Map:     %s", map_path)
 		logger.info("  Context: %s", os.path.join(memo_dir, "blog_context.json"))
 		logger.info("  Webapp:  %s", os.path.join(memo_dir, "webapp", "index.html"))
+		logger.info("  Trips Hub: %s", os.path.join(CFG.DATA_ROOT, "index.html"))
 
 	except Exception as e:
 		logger.exception("[ERROR] Pipeline failed: %s", e)

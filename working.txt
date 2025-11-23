@@ -124,6 +124,14 @@ For a given trip_folder (e.g. data/trips/2025_Annapurna_Nepal):
      - Map: Leaflet map shows only the filtered GPS-tagged photos with
        captions + thumbnails inside popups.
 
+9) build_trip_index.build_trip_index(trips_root)
+   - Scans data/trips for MemoGraph outputs and renders a master landing page
+     at data/trips/index.html.
+   - Each trip card displays stacked thumbnails (from MemoGraph/thumbnails),
+     the date range, day/photo counts, and top themes/species derived from
+     blog_context.json, linking into that trip’s webapp/index.html.
+   - run_all.py calls this after every trip so the hub stays in sync.
+
 Optional: Face recognition
    - build_face_gallery.build_face_gallery(known_root, gallery_path):
      - Scans models/faces/known/<PersonName>/ for reference photos.
