@@ -303,14 +303,34 @@
         - Build a small web app to explore trips: browse photos, view them
           on maps, and run rich searches (birds, plants, landscapes, people,
           specific species, themes like "snowy mountains", etc.).
+    - Latest operator notes (Nov 20 run):
+        - Verified that the clean --reset pipeline produces up-to-date
+          labels.csv, blog.md, blog_context.json, trip_map/overview, and the
+          static webapp with thumbnails.
+        - blog_context.json now contains all the structured data (themes,
+          wildlife, CLIP/YOLO/Places tags) needed for an LLM prompt.
+        - Faces are 0 for this trip; once we add faces_count + enable face
+          recognition, people_tags will become searchable.
+        - The “next steps” below capture the user’s request for offline LLM
+          generation and a richer search UI (birds, plants, snow scenes,
+          selfies vs groups, named people, etc.). Documenting them here keeps
+          the plan actionable for future work.
     - Offline LLM integration:
         - Target models:
             - Small instruction-tuned LLMs in the 3–4B range (e.g. Phi-3
               mini, Llama-3.2-3B Instruct) running in 4-bit quantisation on
-              a GTX 1650-class GPU, or on CPU if needed.
+              a GTX 1650-class GPU, or on CPU if needed. These models fit in
+              ~2–3 GB VRAM when quantised, so they’re practical on a 4 GB
+              GTX 1650. Heavier models (e.g. Mistral-7B) would need more
+              aggressive quantisation/offloading.
         - Runtime:
             - Use a local runner such as Ollama or llama.cpp to host the
               model and expose a simple HTTP/text-generation interface.
+            - Suggested workflow to note in README when implemented:
+                1. Install Ollama.
+                2. `ollama pull llama3.2:3b` or `ollama pull phi3:mini`.
+                3. POST a prompt built from blog_context.json to the local
+                   model and save the output as blog_llm.md.
         - Inputs:
             - Use MemoGraph’s blog_context.json as the primary input:
                 - Per-day times, locations, activities, themes.
@@ -338,6 +358,9 @@
             - Map view:
                 - Leaflet/folium-style map with markers for GPS-tagged
                   photos; clicking a marker shows a thumbnail and key tags.
+            - Current static webapp proves the layout; the long-term goal is
+              to replace the baked-in JSON with live API responses so
+              filters/search scale to large trips.
         - Search features:
             - Birds/plants/landscapes/species:
                 - Use species_tags + detected_objects + image_type to filter
@@ -347,9 +370,13 @@
             - Selfies vs group photos:
                 - Extend face_detector to add a faces_count column and
                   filter where faces_count == 1 (selfies) vs >= 2 (groups).
+                  (TODO item below.)
             - People search ("my mother", "Alice"):
                 - Use people_tags populated by face_recognizer; allow free
                   text match on person labels.
+                - Requires building the face gallery and enabling the
+                  recognition step so people_tags are populated; then expose
+                  a “Person” filter in the web UI.
             - Astro / night sky:
                 - Filter where CLIP/Places tags and captions mention galaxy,
                   nebula, Milky Way, star cluster, night sky.
@@ -376,6 +403,28 @@
         4. Use the existing comparison tools (`compare_resolutions.py`, `compare_stats.py`, `compare_labels_variants.py`) to:
             - Validate that specialist models improve accuracy without causing regressions in performance.
             - Decide which combinations of `MAX_IMAGE_SIZE` and specialist models are appropriate for daily runs vs offline analysis.
+        5. TODOs to unblock the requested web-app features:
+            - [ ] Update `face_detector.py` to write a `faces_count`
+              column (count of detected faces) so we can differentiate
+              selfies vs group photos via filters.
+            - [ ] Document/implement the workflow for building a face
+              gallery (models/faces/known/…) and enabling
+              ENABLE_FACE_RECOGNITION so people_tags populate; then expose
+              person-name filters in the API/UI.
+            - [ ] Build a FastAPI backend that reads labels.csv (or SQLite)
+              and exposes `/api/photos`, `/api/map_points`, and `/api/search`
+              endpoints with query parameters for birds/plants/landscapes,
+              snow scenes (detected_objects + places_scenes + captions),
+              species text search (e.g. crow), selfies/groups (faces_count),
+              named people (people_tags), and astro/night filters.
+            - [ ] Enhance the static webapp (or a new frontend) to call this
+              backend instead of embedding blog_context.json, so filters,
+              thumbnails, and the Leaflet map all reactively update without
+              regenerating HTML.
+            - [ ] Optional/advanced: store CLIP embeddings (image + text) in
+              the database and add a semantic `/api/search/semantic` route so
+              queries like “snowy mountain pass” or “crow on a branch” fuzzy
+              match even if tags don’t mention those exact words.
 17. GPS propagation and overview page (DONE, first version)
     - Goal:
         - Ensure that photos taken near in time to a geotagged image also appear on the map, even if they lack EXIF GPS.

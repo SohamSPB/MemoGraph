@@ -113,8 +113,16 @@ For a given trip_folder (e.g. data/trips/2025_Annapurna_Nepal):
      <trip>/MemoGraph/webapp/index.html with inline data + Leaflet.
    - Generates JPEG thumbnails (CFG.THUMBNAIL_MAX_SIZE) under
      <trip>/MemoGraph/thumbnails to keep the UI fast; gallery and map popups
-     now load these thumbnails first and fall back to originals only if
-     needed.
+     load thumbnails first and fall back to originals only if needed.
+   - Web app behaviour:
+     - Search bar: matches captions, AI captions, species_tags, detected_objects,
+       YOLO objects, Places365 scenes, and location strings.
+     - Filter chips: built from CLIP/YOLO/Places tags (birds, plants, astro,
+       landscapes, etc.); toggling chips narrows the gallery/map results.
+     - Gallery: displays thumbnails with captions + tags; all images respond
+       to search/chip filters.
+     - Map: Leaflet map shows only the filtered GPS-tagged photos with
+       captions + thumbnails inside popups.
 
 Optional: Face recognition
    - build_face_gallery.build_face_gallery(known_root, gallery_path):

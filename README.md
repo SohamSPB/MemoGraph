@@ -109,6 +109,29 @@ The main pipeline is executed through the `run_all.py` script.
 5.  **Check the output:** All generated files (CSV, logs, blog, map) will be placed in a `MemoGraph` folder inside your trip directory.
 6.  **Web app & context (auto):** `run_all.py` now also writes `blog_context.json` and a static gallery at `MemoGraph/webapp/index.html`, generating JPEG thumbnails in `MemoGraph/thumbnails` so the UI loads quickly even on large trips.
 
+## Pipeline Overview
+
+MemoGraph’s `run_all.py` runs the following steps sequentially (each step calls
+the script named in parentheses):
+
+1. Scan + EXIF ingest (`image_scanner.py`)
+2. Day assignment (`trip_day_assigner.py`)
+3. GPS resolution + early map preview (`location_resolver.py`)
+4. Faces (`face_detector.py`, optional face recognition via `face_recognizer.py`)
+5. Image labels (CLIP) (`image_labeler.py`)
+6. BLIP captions (`caption_filler.py`)
+7. BLIP AI captions (`generate_ai_captions.py`)
+8. Species tags (CLIP + optional bird model) (`species_detector.py`)
+9. Image type classification (CLIP prompts) (`image_type_detector.py`)
+10. Blog + summary (`blog_generator.py`)
+11. Final map + overview page (`map_visualizer.py`)
+12. `blog_context.json` builder (`build_blog_context.py`)
+13. Static Leaflet gallery/map web app + thumbnails (`build_webapp.py`)
+
+Every run writes a complete `MemoGraph` folder containing `labels.csv`, `blog.md`,
+`trip_summary.json`, `trip_map.html`, `trip_overview.html`, `blog_context.json`,
+`webapp/index.html`, per-step logs, and JPEG thumbnails under `MemoGraph/thumbnails`.
+
 ## Parallel Execution and Resource Monitoring
 
 MemoGraph supports internal parallelism for computationally intensive steps (face detection, image labeling, caption generation, species detection).
@@ -152,11 +175,16 @@ The repository includes helper scripts for comparing runs and configurations:
 
 These are documented in more detail in `working.txt` and `task.txt`, and are useful when deciding which resolution (e.g. 256, 512, 1024) gives acceptable accuracy for your models.
 
-MemoGraph also produces a first-pass human-readable trip blog (`blog.md`) and a structured day summary (`trip_summary.json`) for each run. These files can be:
+MemoGraph also produces:
+
+- A first-pass human-readable trip blog (`blog.md`)
+- A structured day summary (`trip_summary.json`)
+- A rich context file (`blog_context.json`, generated automatically by `run_all.py`) that aggregates per-day themes/activities plus per-image captions, CLIP/YOLO/Places tags, species, faces, etc.
+
+These files can be:
 - Used as-is for quick trip overviews.
 - Fed into an external LLM (see `blog_generation_prompt.md`) if you want to generate a longer, more narrative travel blog using MemoGraph’s captions, locations, and species as input.
-
-For even richer downstream processing, `run_all.py` now generates a per-trip `blog_context.json` automatically. You can rebuild it independently if needed via:
+- Regenerated manually when needed via:
 
 ```bash
 python -m scripts.build_blog_context data/trips/my_awesome_trip
@@ -179,6 +207,16 @@ This aggregates per-day times, locations, themes (mountains/roads/temples/market
   - Shows non-geotagged photos in a right-hand sidebar as cards (lazy-loaded thumbnails).
   - Derives simple tags per image (e.g., people, birds, plants_flowers, insects, animals, landscapes, astro and the image_type categories).
   - Provides a chip-style filter bar so you can interactively filter sidebar photos by these tags.
+
+- **Static Leaflet gallery + map (`MemoGraph/webapp/index.html`):**  
+  `build_webapp.py` reads `blog_context.json`, generates thumbnails in `MemoGraph/thumbnails`, and emits a single-page app with:
+  - A search box that scans captions, AI captions, species tags, detected_objects, Places tags, and locations.
+  - Chip filters constructed from CLIP/YOLO/Places tags (birds, plants, landscapes, astro, etc.).
+  - A thumbnail gallery that loads the generated JPEG thumbnails first (falls back to originals if needed).
+  - A right-hand Leaflet map whose markers show the same filtered photos with captions + thumbnails in popups.
+  - All assets are local; no external backend is required to browse processed trips.
+
+This static webapp replaces the earlier baked overview-only experience and makes it easy to explore each trip offline.
 
 This ensures that every photo in a trip is visible somewhere (on the map if it has GPS, or in the sidebar if it does not), and that you can still explore large trips while processing is ongoing.
 
