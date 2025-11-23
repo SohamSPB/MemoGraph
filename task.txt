@@ -439,6 +439,12 @@
               species) so users can quickly locate a trip.
             - [ ] Consider SPA approach (React/Vue) later so master + per-trip
               views share a consistent theme and animated transitions.
+        7. Additional per-trip UI polish ideas (NEW backlog items):
+            - [ ] Add richer Material animations (chip ripples, card hover elevations, page transitions) and keyboard shortcuts (←/→ navigation, Esc to close lightbox, focus outlines).
+            - [ ] Surface quick filter presets (e.g. “Birds”, “Landscapes”, “Astro”) and allow saving custom filter sets per trip.
+            - [ ] Extend the lightbox metadata panel with device model, EXIF info, map preview thumbnail, and buttons to copy metadata or open the file on disk.
+            - [ ] Add map clustering + synchronized filters (chips to hide/show marker categories) so dense GPS data stays usable.
+            - [ ] Global search/across-trip view (hook the hub page into a JSON index so you can search for “Bulbul” and jump straight into the matching trip/photo).
 17. GPS propagation and overview page (DONE, first version)
     - Goal:
         - Ensure that photos taken near in time to a geotagged image also appear on the map, even if they lack EXIF GPS.

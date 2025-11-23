@@ -60,9 +60,8 @@ TEMPLATE = """<!DOCTYPE html>
     header {
       padding: 16px 24px;
       display: flex;
-      gap: 12px;
+      gap: 16px;
       align-items: center;
-      justify-content: space-between;
       background: linear-gradient(120deg, rgba(56,189,248,0.15), rgba(34,211,238,0.10), rgba(56,189,248,0.05));
       backdrop-filter: blur(6px);
       position: sticky;
@@ -71,7 +70,30 @@ TEMPLATE = """<!DOCTYPE html>
       border-bottom: 1px solid rgba(255,255,255,0.06);
       box-shadow: var(--shadow);
     }
-    .brand { font-weight: 700; letter-spacing: 0.5px; }
+    .brand {
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .trip-name {
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    .back-btn {
+      border: none;
+      background: rgba(255,255,255,0.1);
+      color: var(--text);
+      padding: 8px 14px;
+      border-radius: 999px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: var(--transition);
+    }
+    .back-btn:hover { background: rgba(255,255,255,0.2); }
     .search {
       flex: 1;
       display: flex;
@@ -93,12 +115,39 @@ TEMPLATE = """<!DOCTYPE html>
       font-size: 15px;
       outline: none;
     }
+    .filters-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 24px 6px;
+    }
+    .filters-bar button {
+      border: none;
+      background: rgba(255,255,255,0.08);
+      color: var(--text);
+      padding: 6px 14px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    .filters-bar button:hover { background: rgba(255,255,255,0.2); }
+    .filters-wrapper {
+      padding: 0 24px 12px;
+    }
+    .filters-wrapper.collapsed {
+      max-height: 0;
+      overflow: hidden;
+      padding-bottom: 0;
+    }
     .filters {
-      padding: 12px 24px;
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
+      max-height: 96px;
+      overflow-y: auto;
+      padding-right: 4px;
     }
+    .filters::-webkit-scrollbar { height: 6px; }
     .chip {
       padding: 8px 12px;
       border-radius: 999px;
@@ -186,22 +235,138 @@ TEMPLATE = """<!DOCTYPE html>
       color: var(--muted);
       padding: 40px 0;
     }
+    .lightbox {
+      position: fixed;
+      inset: 0;
+      background: rgba(5,8,18,0.92);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 200ms ease;
+      z-index: 99;
+    }
+    .lightbox.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .lightbox-content {
+      width: min(1200px, 90vw);
+      max-height: 90vh;
+      background: var(--card);
+      border-radius: 24px;
+      padding: 24px;
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 18px;
+      position: relative;
+    }
+    .lightbox-img-wrap {
+      position: relative;
+      border-radius: 18px;
+      overflow: hidden;
+      background: #050812;
+    }
+    .lightbox-img-wrap img {
+      width: 100%;
+      height: 60vh;
+      object-fit: contain;
+      background: #050812;
+    }
+    .lightbox-close {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: rgba(255,255,255,0.12);
+      border: none;
+      color: var(--text);
+      padding: 8px 12px;
+      border-radius: 999px;
+      cursor: pointer;
+    }
+    .lightbox-nav {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: calc(100% - 32px);
+      display: flex;
+      justify-content: space-between;
+      pointer-events: none;
+    }
+    .lightbox-nav button {
+      pointer-events: auto;
+      border: none;
+      background: rgba(0,0,0,0.4);
+      color: var(--text);
+      padding: 8px 14px;
+      border-radius: 999px;
+      cursor: pointer;
+    }
+    .lightbox-meta h3 {
+      margin: 0 0 6px;
+    }
+    .lightbox-meta ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+    .filmstrip {
+      margin-top: 14px;
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 6px;
+    }
+    .filmstrip img {
+      width: 72px;
+      height: 54px;
+      object-fit: cover;
+      border-radius: 8px;
+      cursor: pointer;
+      opacity: 0.7;
+      transition: opacity 150ms ease, transform 150ms ease;
+    }
+    .filmstrip img.active,
+    .filmstrip img:hover {
+      opacity: 1;
+      transform: translateY(-2px);
+    }
     @media (max-width: 1024px) {
       .main { grid-template-columns: 1fr; }
       .map-pane { height: 360px; position: relative; top: 0; }
+      .lightbox-content {
+        grid-template-columns: 1fr;
+        max-height: 95vh;
+      }
+      .lightbox-img-wrap img { height: 45vh; }
     }
   </style>
 </head>
 <body>
   <div class="app">
     <header>
-      <div class="brand">MemoGraph Browser</div>
+      <button class="back-btn" id="backBtn">← Trips</button>
+      <div class="brand">
+        <span>MemoGraph Browser</span>
+        <span class="trip-name" id="tripName">Trip</span>
+      </div>
       <label class="search">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="5"/><path d="M11 11l4 4"/></svg>
         <input id="search" type="text" placeholder="Search captions, tags, species, scenes..." />
       </label>
     </header>
-    <div class="filters" id="filters"></div>
+    <div class="filters-bar">
+      <button id="filterToggle">Hide Filters</button>
+    </div>
+    <div class="filters-wrapper" id="filtersWrapper">
+      <div class="filters" id="filters"></div>
+    </div>
     <div class="main">
       <div class="gallery" id="gallery"></div>
       <div class="map-pane"><div id="map"></div></div>
@@ -213,10 +378,12 @@ TEMPLATE = """<!DOCTYPE html>
     // Embedded data (blog_context)
     const data = __DATA_PLACEHOLDER__;
     // Paths:
+    const TRIP_NAME = data.trip_name || "MemoGraph Trip";
     // - MemoGraph assets (thumbnails/css) live one level up from webapp/
     // - Original trip images live two levels up (trip root).
     const MEMO_BASE = "../";
     const TRIP_BASE = "../../";
+    const MASTER_BASE = "../../../index.html";
 
     // Collect all images
     const images = [];
@@ -226,6 +393,7 @@ TEMPLATE = """<!DOCTYPE html>
           ...img,
           day_number: day.day_number,
           date: day.date,
+          _index: images.length
         });
       });
     });
@@ -243,12 +411,64 @@ TEMPLATE = """<!DOCTYPE html>
     const chips = Array.from(chipSet).filter(Boolean).sort();
 
     const filtersEl = document.getElementById('filters');
+    const filtersWrapper = document.getElementById('filtersWrapper');
+    const filterToggle = document.getElementById('filterToggle');
     const galleryEl = document.getElementById('gallery');
     const searchInput = document.getElementById('search');
+    const tripNameEl = document.getElementById('tripName');
+    const backBtn = document.getElementById('backBtn');
+
+    const lightbox = document.getElementById('lightbox') || (function() {
+      const div = document.createElement('div');
+      div.className = 'lightbox';
+      div.id = 'lightbox';
+      div.innerHTML = `
+        <div class="lightbox-content">
+          <button class="lightbox-close" id="lightboxClose">Close ✕</button>
+          <div class="lightbox-img-wrap">
+            <img id="lightboxImage" src="" alt="">
+            <div class="lightbox-nav">
+              <button id="navPrev">◀</button>
+              <button id="navNext">▶</button>
+            </div>
+          </div>
+          <div class="lightbox-meta">
+            <h3 id="lightboxTitle">Photo details</h3>
+            <ul id="lightboxMeta"></ul>
+            <div class="filmstrip" id="filmstrip"></div>
+          </div>
+        </div>`;
+      document.body.appendChild(div);
+      return div;
+    })();
+    const lightboxImage = document.getElementById('lightboxImage');
+    const lightboxTitle = document.getElementById('lightboxTitle');
+    const lightboxMeta = document.getElementById('lightboxMeta');
+    const filmstripEl = document.getElementById('filmstrip');
+    const navPrev = document.getElementById('navPrev');
+    const navNext = document.getElementById('navNext');
+    const lightboxClose = document.getElementById('lightboxClose');
 
     let activeChips = new Set();
     let map;
     let markers = [];
+    let filteredImages = images.slice();
+    let currentFilteredIndex = 0;
+    let filtersCollapsed = false;
+
+    tripNameEl.textContent = TRIP_NAME;
+    backBtn.onclick = () => { window.location.href = MASTER_BASE; };
+    filterToggle.onclick = () => {
+      filtersCollapsed = !filtersCollapsed;
+      filtersWrapper.classList.toggle('collapsed', filtersCollapsed);
+      filterToggle.textContent = filtersCollapsed ? 'Show Filters' : 'Hide Filters';
+    };
+    lightboxClose.onclick = () => lightbox.classList.remove('show');
+    lightbox.onclick = (ev) => {
+      if (ev.target === lightbox) lightbox.classList.remove('show');
+    };
+    navPrev.onclick = (ev) => { ev.stopPropagation(); stepLightbox(-1); };
+    navNext.onclick = (ev) => { ev.stopPropagation(); stepLightbox(1); };
 
     function renderChips() {
       filtersEl.innerHTML = '';
@@ -302,6 +522,7 @@ TEMPLATE = """<!DOCTYPE html>
     function render() {
       const term = searchInput.value.trim().toLowerCase();
       const result = images.filter(img => matchesFilters(img, term));
+      filteredImages = result;
 
       galleryEl.innerHTML = '';
       if (!result.length) {
@@ -310,7 +531,7 @@ TEMPLATE = """<!DOCTYPE html>
         empty.textContent = 'No photos match your filters.';
         galleryEl.appendChild(empty);
       } else {
-        result.forEach(img => {
+        result.forEach((img, idx) => {
           const card = document.createElement('div');
           card.className = 'card';
           const thumb = document.createElement('div');
@@ -352,11 +573,13 @@ TEMPLATE = """<!DOCTYPE html>
           if (fc >= 2) pushTag('group');
 
           card.appendChild(tagsWrap);
+          card.onclick = () => openLightbox(idx);
           galleryEl.appendChild(card);
         });
       }
 
       renderMap(result);
+      renderFilmstrip();
     }
 
     function initMap() {
@@ -396,10 +619,74 @@ TEMPLATE = """<!DOCTYPE html>
       }
     }
 
+    function renderFilmstrip() {
+      filmstripEl.innerHTML = '';
+      filteredImages.forEach((img, idx) => {
+        const thumb = document.createElement('img');
+        thumb.src = img.thumbnail
+          ? MEMO_BASE + img.thumbnail
+          : TRIP_BASE + (img.local_path || img.image_name || '');
+        thumb.classList.toggle('active', idx === currentFilteredIndex);
+        thumb.onclick = (ev) => {
+          ev.stopPropagation();
+          openLightbox(idx);
+        };
+        filmstripEl.appendChild(thumb);
+      });
+    }
+
+    function openLightbox(idx) {
+      if (!filteredImages.length) return;
+      currentFilteredIndex = (idx + filteredImages.length) % filteredImages.length;
+      const img = filteredImages[currentFilteredIndex];
+      const fullSrc = TRIP_BASE + (img.local_path || img.image_name || '');
+      lightboxImage.src = fullSrc;
+      lightboxTitle.textContent = img.caption_ai || img.caption || img.image_name;
+
+      const metaEntries = [];
+      if (img.location_full || img.location_short) {
+        metaEntries.push(`<strong>Location:</strong> ${img.location_full || img.location_short}`);
+      }
+      if (img.time) {
+        metaEntries.push(`<strong>Captured:</strong> ${img.time}`);
+      }
+      if (img.image_type) {
+        metaEntries.push(`<strong>Type:</strong> ${img.image_type}`);
+      }
+      if (typeof img.faces_count !== "undefined") {
+        metaEntries.push(`<strong>Faces:</strong> ${img.faces_count}`);
+      }
+      if (img.species_tags && img.species_tags.length) {
+        metaEntries.push(`<strong>Species:</strong> ${img.species_tags.join(', ')}`);
+      }
+      if (img.detected_objects && img.detected_objects.length) {
+        metaEntries.push(`<strong>Detected objects:</strong> ${img.detected_objects.join(', ')}`);
+      }
+      if (img.places_scenes && img.places_scenes.length) {
+        metaEntries.push(`<strong>Scenes:</strong> ${img.places_scenes.join(', ')}`);
+      }
+      if (img.yolo_objects && img.yolo_objects.length) {
+        metaEntries.push(`<strong>YOLO:</strong> ${img.yolo_objects.join(', ')}`);
+      }
+      if (img.gps_lat != null && img.gps_lon != null) {
+        const link = `https://maps.google.com/?q=${img.gps_lat},${img.gps_lon}`;
+        metaEntries.push(`<strong>Map:</strong> <a href="${link}" target="_blank">Open location</a>`);
+      }
+      lightboxMeta.innerHTML = metaEntries.map(entry => `<li>${entry}</li>`).join('') || '<li>No additional metadata</li>';
+      lightbox.classList.add('show');
+      renderFilmstrip();
+    }
+
+    function stepLightbox(delta) {
+      if (!filteredImages.length) return;
+      openLightbox(currentFilteredIndex + delta);
+    }
+
     renderChips();
     searchInput.addEventListener('input', render);
     render();
   </script>
+
 </body>
 </html>
 """

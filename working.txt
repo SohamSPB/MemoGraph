@@ -117,12 +117,16 @@ For a given trip_folder (e.g. data/trips/2025_Annapurna_Nepal):
    - Web app behaviour:
      - Search bar: matches captions, AI captions, species_tags, detected_objects,
        YOLO objects, Places365 scenes, and location strings.
-     - Filter chips: built from CLIP/YOLO/Places tags (birds, plants, astro,
-       landscapes, etc.); toggling chips narrows the gallery/map results.
-     - Gallery: displays thumbnails with captions + tags; all images respond
-       to search/chip filters.
-     - Map: Leaflet map shows only the filtered GPS-tagged photos with
-       captions + thumbnails inside popups.
+      - Filter chips: built from CLIP/YOLO/Places tags (birds, plants, astro,
+        landscapes, etc.); toggling chips narrows the gallery/map results. Filters
+        can be collapsed/expanded via a toolbar button.
+      - Gallery: displays thumbnails with captions + tags; all images respond
+        to search/chip filters and now show the full-resolution photo + metadata
+        inside a lightbox when clicked (with prev/next arrows and a filmstrip).
+      - Map: Leaflet map shows only the filtered GPS-tagged photos with
+        captions + thumbnails inside popups.
+      - Header: shows the trip name and a back button that jumps to the master
+        trips hub (`../../index.html`).
 
 9) build_trip_index.build_trip_index(trips_root)
    - Scans data/trips for MemoGraph outputs and renders a master landing page
