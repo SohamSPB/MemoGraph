@@ -109,7 +109,7 @@
         - Expand `species_prompts` with more realistic/common species names for your trips, or
         - Plug in specialized bird/insect/animal/plant models that take the coarse `"bird"/"insect"/"animal"/"plant"` hints from `detected_objects`/captions and then predict fine-grained species, merging those results back into `species_tags`.
         - This work is not yet implemented, but the current pipeline structure and notes here are meant to support continuing in that direction.
-14. FUTURE (not yet implemented): Integrate iNaturalist-style specialist species models
+14. FUTURE (partially implemented): Integrate iNaturalist-style specialist species models
     - Goal:
         - Move beyond CLIP + `species_prompts` to real fine-grained species recognition for birds/insects/plants/animals.
         - Use coarse labels from `image_labeler`/captions (`"a bird"`, `"a flower"`, `"a dog"`, etc.) to decide when to call specialist models.
@@ -207,8 +207,8 @@
             - Landscapes / biomes (e.g., deserts, snowy mountains, Himalayas, plains, rivers, lakes, deltas, tea estates).
         - Add a coarse `image_type` classification for each image (e.g., natural camera photo, document/text scan, meme/graphic, screenshot, chart/plot).
     - CSV support:
-        - The `image_type` column has been added to CSV_HEADERS in `memograph_config.py`.
-        - Currently it is empty; future scripts will populate it based on CLIP/BLIP outputs and specialized models.
+        - DONE: The `image_type` column has been added to CSV_HEADERS in `memograph_config.py`.
+        - DONE: `scripts/image_type_detector.py` now populates `image_type` using CLIP zero-shot prompts with categories such as `natural_photo`, `document_scan`, `meme_or_graphic`, `screenshot`, and `chart_or_plot`.
     - Planned model families and sources (to be explored and integrated later):
         - Flowers/plants:
             - Hugging Face image classification models trained on datasets like Oxford 102 Flowers, PlantCLEF, or PlantNet-derived corpora.

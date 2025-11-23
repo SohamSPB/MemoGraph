@@ -117,6 +117,16 @@ def run_pipeline(trip_folder: str, parallel: bool):
 		logger.info(f"STEP 3 finished in {time.time() - start_time:.2f} seconds.")
 		resource_data.append(("STEP 3", *get_resource_usage(main_process)))
 
+		# --- EARLY MAP PREVIEW ---
+		# Generate an initial map as soon as GPS/locations are available so
+		# users can start exploring the trip while heavier steps are running.
+		start_time = time.time()
+		logger.info("--- STEP 4: Creating Initial Map Preview ---")
+		points_preview = map_visualizer.load_geo_points(csv_path, trip_folder)
+		map_visualizer.create_map(points_preview, map_path)
+		logger.info(f"STEP 4 finished in {time.time() - start_time:.2f} seconds.")
+		resource_data.append(("STEP 4 (map_preview)", *get_resource_usage(main_process)))
+
 		# --- CORE PROCESSING (PARALLEL OR SEQUENTIAL) ---
 		analysis_steps = {
 			"Faces": face_detector.process_faces,
@@ -157,11 +167,11 @@ def run_pipeline(trip_folder: str, parallel: bool):
 		resource_data.append(("STEP 9", *get_resource_usage(main_process)))
 
 		start_time = time.time()
-		logger.info("--- STEP 10: Creating Map ---")
+		logger.info("--- STEP 10: Creating Final Map ---")
 		points = map_visualizer.load_geo_points(csv_path, trip_folder)
 		map_visualizer.create_map(points, map_path)
 		logger.info(f"STEP 10 finished in {time.time() - start_time:.2f} seconds.")
-		resource_data.append(("STEP 10", *get_resource_usage(main_process)))
+		resource_data.append(("STEP 10 (map_final)", *get_resource_usage(main_process)))
 
 		logger.info("[OK] All steps completed for: %s", trip_folder)
 		logger.info("Artifacts:")
