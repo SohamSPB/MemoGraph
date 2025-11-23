@@ -34,6 +34,7 @@ import scripts.image_labeler as image_labeler
 import scripts.caption_filler as caption_filler
 import scripts.species_detector as species_detector
 import scripts.generate_ai_captions as generate_ai_captions
+import scripts.image_type_detector as image_type_detector
 import scripts.blog_generator as blog_generator
 import scripts.map_visualizer as map_visualizer
 # import scripts.uploader_gcs  # optional
@@ -132,7 +133,11 @@ def run_pipeline(trip_folder: str, parallel: bool):
 		# Always back up the CSV once before core analysis steps.
 		backup_csv(csv_path, max_backups=CFG.MAX_BACKUPS, log_path=log_path)
 
-		all_steps = {**analysis_steps, "Species": species_detector.process_species}
+		all_steps = {
+			**analysis_steps,
+			"Species": species_detector.process_species,
+			"Image Type": image_type_detector.detect_image_types,
+		}
 		for name, func in all_steps.items():
 			start_time_step = time.time()
 			logger.info(f"--- Running Step: {name} ---")

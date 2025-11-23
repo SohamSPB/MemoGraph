@@ -198,3 +198,46 @@
             - Because `image_scanner` writes rows in a sorted order and downstream scripts preserve row order, resolution comparisons (e.g. `MemoGraph_256/512/1024`) remain meaningful.
             - `scripts/compare_resolutions.py` relies on `image_name` keys; stable ordering and idempotent updates help ensure that comparisons reflect real model differences rather than ordering artefacts.
     - This robustness work is deferred until after current performance/memory tuning and basic functionality are stable, but the structure here should guide future implementations.
+16. FUTURE (not yet implemented): Additional specialist models and content type classification
+    - Goal:
+        - Extend the current bird-specific specialist model approach to other domains:
+            - Flowers / plants (flowering plants, trees, crops, tea estates).
+            - Insects / butterflies / spiders.
+            - Other animals (mammals, livestock, wild fauna).
+            - Landscapes / biomes (e.g., deserts, snowy mountains, Himalayas, plains, rivers, lakes, deltas, tea estates).
+        - Add a coarse `image_type` classification for each image (e.g., natural camera photo, document/text scan, meme/graphic, screenshot, chart/plot).
+    - CSV support:
+        - The `image_type` column has been added to CSV_HEADERS in `memograph_config.py`.
+        - Currently it is empty; future scripts will populate it based on CLIP/BLIP outputs and specialized models.
+    - Planned model families and sources (to be explored and integrated later):
+        - Flowers/plants:
+            - Hugging Face image classification models trained on datasets like Oxford 102 Flowers, PlantCLEF, or PlantNet-derived corpora.
+            - Integration similar to the bird model:
+                - `ENABLE_PLANT_MODEL`, `PLANT_MODEL_DIR`, `PLANT_TOPK` in `memograph_config.py`.
+                - `predict_plant_species(image)` in `scripts/species_models.py`.
+        - Insects/butterflies/spiders:
+            - Image classifiers trained on insect subsets of iNaturalist or dedicated insect datasets (butterflies, moths, spiders).
+            - Config + helper functions analogous to the bird model.
+        - Other animals:
+            - General animal classifiers built on iNaturalist (mammals, livestock, etc.).
+            - Could be hooked in when CLIP/BLIP coarse tags indicate animal/mammal.
+        - Landscapes/biomes:
+            - Scene classification models such as ResNet/ViT trained on Places365 or similar scene datasets.
+            - CLIP-based zero-shot prompts for labels like "snowy mountain", "cold desert", "Himalayan landscape", "urban cityscape", "tea plantation".
+            - A dedicated scene/biome classifier could write tags like "snow_biome", "cold_desert", "river_valley", "tea_estate" into `detected_objects` or a new `biome_tags` field.
+        - Image type (natural vs text/meme/graphic):
+            - Document/text detectors (e.g., models trained for document classification or screenshot vs photo).
+            - CLIP-based prompts to distinguish "a natural camera photo" vs "a meme", "a screenshot of text", "a scanned document", "a chart or plot".
+            - Results stored in `image_type` as a small set of categories (e.g., `natural_photo`, `document_scan`, `meme_or_graphic`, `screenshot`, `chart_or_plot`).
+    - Implementation plan (later, after core stability):
+        1. Choose and download specialist models for plants, insects, and landscapes to `models/<domain>/...`, using a pattern similar to the bird classifier.
+        2. Extend `scripts/species_models.py` with new helpers:
+            - `predict_plant_species(image)`, `predict_insect_species(image)`, `predict_animal_species(image)`.
+            - Optionally `predict_biome(image)` for scene/biome classification.
+        3. Extend `species_detector.py` and/or a new `image_type_detector.py` to:
+            - Use coarse hints from `detected_objects` + captions to decide which specialist model(s) to call.
+            - Populate `species_tags` with fine-grained species from the specialist classifiers.
+            - Populate `image_type` based on a combination of CLIP/BLIP outputs and a dedicated image-type classifier.
+        4. Use the existing comparison tools (`compare_resolutions.py`, `compare_stats.py`, `compare_labels_variants.py`) to:
+            - Validate that specialist models improve accuracy without causing regressions in performance.
+            - Decide which combinations of `MAX_IMAGE_SIZE` and specialist models are appropriate for daily runs vs offline analysis.

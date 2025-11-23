@@ -129,6 +129,12 @@ You can customize the behavior of the scripts by editing `memograph_config.py`. 
 - Logging and backup options
 - Image size and parallelism knobs (e.g., `MAX_IMAGE_SIZE`, `PARALLEL_WORKERS`, `FACE_DETECTION_BATCH_SIZE`, `CAPTION_PARALLEL_WORKERS`).
 
+The CSV schema includes an `image_type` column reserved for high-level content
+classification (e.g., natural photo, document scan, meme/graphic, screenshot).
+At present this column is not yet populated; future work will use it to store
+coarse image categories detected by additional models (document/text detectors,
+scene/biome classifiers, etc.).
+
 ## Analysis & Comparison Tools
 
 The repository includes helper scripts for comparing runs and configurations:
