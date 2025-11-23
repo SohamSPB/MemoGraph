@@ -117,6 +117,35 @@ def process_species(csv_path, trip_folder, log_path):
 		local_path = row.get("local_path", "")
 		image_path = os.path.join(trip_folder, local_path)
 
+		# Decide if this image is a good candidate for biological species
+		# detection. If the coarse labels / captions do not mention any
+		# bird/animal/plant/insect concepts, we skip the specialist CLIP
+		# species matching entirely to avoid hallucinating birds on space
+		# images or purely inanimate scenes.
+		coarse_text = " ".join(
+			str(row.get(field, "")) for field in ("detected_objects", "caption", "caption_ai")
+		).lower()
+		bio_keywords = [
+			"bird",
+			"insect",
+			"animal",
+			"dog",
+			"cat",
+			"horse",
+			"cow",
+			"goat",
+			"sheep",
+			"yak",
+			"deer",
+			"plant",
+			"flower",
+			"tree",
+			"forest",
+			"grass",
+			"leaf",
+		]
+		has_bio_hint = any(keyword in coarse_text for keyword in bio_keywords)
+
 		if not os.path.exists(image_path):
 			log(f"Missing image: {image_path}", log_path)
 			# Preserve any existing coarse species tags from image_labeler
@@ -124,19 +153,29 @@ def process_species(csv_path, trip_folder, log_path):
 			updated_rows.append(row)
 			continue
 
-		try:
-			tags = detect_species(image_path, model, preprocess, device)
-			species_tags = tags[:3]
-			if species_tags:
-				# Only override if we have confident species predictions; otherwise
-				# keep whatever coarse tags were already present.
-				row["species_tags"] = ", ".join(species_tags)
-			else:
-				row["species_tags"] = row.get("species_tags", "")
-			log(f"{os.path.basename(image_path)} -> {row.get('species_tags', '')}", log_path)
-		except Exception as e:
-			log(f"Failed to process {image_path} - {e}", log_path)
+		# If there is no biological hint, do not run CLIP species matching;
+		# keep whatever coarse tags are already present (often astrophotography
+		# / galaxy related for space images).
+		if not has_bio_hint:
+			log(
+				f"{os.path.basename(image_path)} -> skipped species detection (no bio hints)",
+				log_path,
+			)
 			row["species_tags"] = row.get("species_tags", "")
+		else:
+			try:
+				tags = detect_species(image_path, model, preprocess, device)
+				species_tags = tags[:3]
+				if species_tags:
+					# Only override if we have confident species predictions; otherwise
+					# keep whatever coarse tags were already present.
+					row["species_tags"] = ", ".join(species_tags)
+				else:
+					row["species_tags"] = row.get("species_tags", "")
+				log(f"{os.path.basename(image_path)} -> {row.get('species_tags', '')}", log_path)
+			except Exception as e:
+				log(f"Failed to process {image_path} - {e}", log_path)
+				row["species_tags"] = row.get("species_tags", "")
 
 		updated_rows.append(row)
 
@@ -155,4 +194,3 @@ if __name__ == "__main__":
 	init_log(log_path, "species_labeler.py")
 
 	process_species(csv_path, trip_folder, log_path)
-

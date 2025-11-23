@@ -39,7 +39,7 @@ LOG_TO_FILE = True
 IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".tiff", ".png", ".jfif")
 # Maximum image size (in pixels) for the longest side before feeding into models.
 # Lower values reduce memory/compute at the cost of some detail.
-MAX_IMAGE_SIZE = 256
+MAX_IMAGE_SIZE = 1024
 
 # -----------------------------
 # MemoGraph Folder
