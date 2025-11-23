@@ -121,6 +121,17 @@ def create_overview_page(trip_folder):
 		image_type = (row.get("image_type") or "").lower()
 		tags = set()
 
+		# Selfie/group hints from faces_count (if present) or faces_detected.
+		try:
+			fc_val = str(row.get("faces_count", "")).strip()
+			fc = int(fc_val) if fc_val else 0
+		except ValueError:
+			fc = 0
+		if fc >= 2:
+			tags.add("group")
+		elif fc == 1 or row.get("faces_detected") == "1":
+			tags.add("selfie")
+
 		if "person" in text or "people" in text or row.get("faces_detected") == "1":
 			tags.add("people")
 		if "bird" in text:

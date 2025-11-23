@@ -21,7 +21,7 @@ DATA_ROOT = os.path.join("data", "trips")
 CSV_HEADERS = [
 	"image_name", "local_path", "md5sum", "datetime_original", "device_model",
 	"gps_lat", "gps_lon", "location_inferred", "day_number",
-	"detected_objects", "species_tags", "faces_detected", "people_tags",
+	"detected_objects", "species_tags", "faces_detected", "faces_count", "people_tags",
 	"caption", "caption_ai", "notes", "image_type"
 ]
 

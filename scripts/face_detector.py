@@ -42,7 +42,6 @@ def _process_batch(batch_rows, trip_folder, batch_num, log_path, use_cnn_model=F
 			continue
 
 		img_full_path = os.path.join(trip_folder, row.get("local_path", ""))
-		face_flag = 0
 		if os.path.exists(img_full_path):
 			try:
 				with Image.open(img_full_path) as img:
@@ -51,16 +50,20 @@ def _process_batch(batch_rows, trip_folder, batch_num, log_path, use_cnn_model=F
 				
 				model = "cnn" if use_cnn_model else "hog"
 				face_locations = face_recognition.face_locations(image, model=model)
-				
-				if len(face_locations) > 0:
-					face_flag = 1
+				face_count = len(face_locations)
+				face_flag = 1 if face_count > 0 else 0
 				# log(f"[Batch {batch_num}-{i}] {os.path.basename(img_full_path)} -> {'Face' if face_flag else 'No face'}", log_path)
 			except Exception as e:
 				log(f"[Batch {batch_num}-{i}] Failed to process image {img_full_path}: {e}", log_path)
+				face_flag = 0
+				face_count = 0
 		else:
 			log(f"[Batch {batch_num}-{i}] Missing image: {img_full_path}", log_path)
+			face_flag = 0
+			face_count = 0
 		
 		row["faces_detected"] = face_flag
+		row["faces_count"] = face_count
 		updated_rows.append(row)
 	return updated_rows
 
