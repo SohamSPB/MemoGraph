@@ -234,10 +234,12 @@
         4. Map popups (`scripts/map_visualizer.py`):
             - Uses `clean_caption` on the caption used in each popup for better grammar.
             - Adds a small metadata line under the caption showing Day N and `location_inferred` when available, making the map more informative.
-    - Future refinements (still open):
+    - Future refinements (partially implemented, still open):
         - Additional heuristics for fixing obviously broken place names or duplicated phrases in captions.
         - Optional separate "short_title" field for ultra-compact labels, derived from `caption_ai`, for use in tight UI elements.
-    - Planned model families and sources (to be explored and integrated later):
+        - More varied per-day intro sentences (avoid repeating the same pattern across days).
+        - Even richer use of CLIP labels to talk about food, markets, temples/forts, and stays in blog paragraphs.
+    - Planned model families and sources (to be explored and integrated later or handed off to external LLMs using blog_generation_prompt.md):
         - Flowers/plants:
             - Hugging Face image classification models trained on datasets like Oxford 102 Flowers, PlantCLEF, or PlantNet-derived corpora.
             - Integration similar to the bird model:

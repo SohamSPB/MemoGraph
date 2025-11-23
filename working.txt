@@ -71,11 +71,19 @@ For a given trip_folder (e.g. data/trips/2025_Annapurna_Nepal):
 
 5) blog_generator.generate_blog(trip_folder)
    - Builds blog.md and trip_summary.json inside MemoGraph.
-   - Uses utils_text.clean_caption and combine_captions_for_day to produce
-     smoother daily summaries from caption/caption_ai fields.
-   - Uses utils_text.clean_species_list so blog sentences only mention
-     biologically meaningful species (filters out "astrophotography photo",
-     "galaxy", "nebula" etc.).
+   - Uses utils_text helpers (clean_caption, clean_caption_list,
+     combine_captions_for_day, clean_species_list) to produce smoother daily
+     summaries from caption/caption_ai fields.
+   - Builds per-day paragraphs that:
+     - Use start/end times and locations.
+     - Derive coarse themes (mountains, water, towns, temples/monuments,
+       markets, food, stays, astro, wildlife) from detected_objects +
+       captions + image_type.
+     - Mention wildlife using cleaned, biological species names while
+       filtering out non-biological tags like "galaxy" and "nebula".
+   - The resulting blog is intentionally template-based and deterministic so
+     it can be used both as a quick summary and as input to external LLMs
+     (see blog_generation_prompt.md) for richer rewrites.
 
 6) map_visualizer.create_map(points, map_path)
    - Produces the final interactive map (trip_map.html) after all fields

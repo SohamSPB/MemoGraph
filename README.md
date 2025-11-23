@@ -150,6 +150,10 @@ The repository includes helper scripts for comparing runs and configurations:
 
 These are documented in more detail in `working.txt` and `task.txt`, and are useful when deciding which resolution (e.g. 256, 512, 1024) gives acceptable accuracy for your models.
 
+MemoGraph also produces a first-pass human-readable trip blog (`blog.md`) and a structured day summary (`trip_summary.json`) for each run. These files can be:
+- Used as-is for quick trip overviews.
+- Fed into an external LLM (see `blog_generation_prompt.md`) if you want to generate a longer, more narrative travel blog using MemoGraph’s captions, locations, and species as input.
+
 ## Location Propagation and Overview Page
 
 - **GPS propagation:**  
