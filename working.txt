@@ -116,18 +116,22 @@ For a given trip_folder (e.g. data/trips/2025_Annapurna_Nepal):
      load thumbnails first and fall back to originals only if needed.
    - Web app behaviour:
      - Search bar: matches captions, AI captions, species_tags, detected_objects,
-       YOLO objects, Places365 scenes, and location strings.
-      - Filter chips: built from CLIP/YOLO/Places tags (birds, plants, astro,
-        landscapes, etc.); toggling chips narrows the gallery/map results. Filters
-        can be collapsed/expanded via a toolbar button.
-      - Gallery: displays thumbnails with captions + tags; all images respond
-        to search/chip filters and show the full-resolution photo + metadata
-        inside a lightbox when clicked (with prev/next arrows and a filmstrip
-        docked along the bottom).
-      - Map: Leaflet map shows only the filtered GPS-tagged photos with
-        captions + thumbnails inside popups.
-      - Header: shows the trip name and a back button that jumps to the master
-        trips hub (`../../index.html`).
+       YOLO objects, Places365 scenes, people_tags, and location strings.
+     - Filter chips: built from CLIP/YOLO/Places tags (birds, plants, astro,
+       landscapes, etc.) with a collapse/expand toggle, quick preset buttons
+       (Birds, Landscapes, Astro, People), and per-trip custom presets stored
+       in localStorage.
+     - Gallery: displays thumbnails with captions + tags; all images respond
+       to search/chip filters and show the full-resolution photo + metadata
+       inside a lightbox that now includes keyboard navigation, copy/open
+       buttons, device info, faces/species/objects/scene tags, and a mini-map.
+       A filmstrip is permanently docked across the bottom so you can scrub like a
+       native photo app.
+     - Map: Leaflet map shows only the filtered GPS-tagged photos with
+       captions + thumbnails inside popups, plus quick previews when multiple
+       shots share the same rounded lat/lon (coarse clustering).
+     - Header: shows the trip name and a back button that jumps to the master
+       trips hub (`../../index.html`) for multi-trip navigation.
 
 9) build_trip_index.build_trip_index(trips_root)
    - Scans data/trips for MemoGraph outputs and renders a master landing page
@@ -319,6 +323,21 @@ Resource logging
 
 - UI templates and theming:
   - A reusable CSS theme is stored under templates/memograph_ui.css.
-  - map_visualizer.create_overview_page copies this file into <trip>/MemoGraph as memograph_ui.css and links it from trip_overview.html.
+ - map_visualizer.create_overview_page copies this file into <trip>/MemoGraph as memograph_ui.css and links it from trip_overview.html.
   - The CSS defines a dark, Material-style look (app bar, cards, chips, buttons) applied to the overview layout.
   - This template-based approach makes it easier to tweak colors/spacing/animations once and have all future trips use the updated styles.
+
+13. Web app backlog and polish items
+------------------------------------
+- Current state recap:
+  - Per-trip viewer ships with search + chip filters + collapsible toolbar, quick presets, custom presets in localStorage, and thumbnails powered by MemoGraph/thumbnails.
+  - Lightbox mirrors native photo apps (hero image, right-side metadata, device info, faces/species/objects/scenes, mini-map, copy/open buttons, keyboard navigation, and a bottom filmstrip).
+  - Leaflet map listens to the same filters/search, clusters nearby shots with coarse rounding, and shows thumbnail previews in popups.
+  - Master hub (data/trips/index.html) lists each trip as a card with stacked thumbnails, date range, counts, and top themes/species; clicking a card opens the trip web app with a built-in back button.
+- Short-term improvements to consider next:
+  - Add extra Material-style polish (chip ripples, card ripple, transitions on filter/map changes, smoother hover/focus outlines).
+  - Surface richer EXIF (shutter/ISO/f-stop/focal length) and device metadata in blog_context.json so the lightbox details panel can show it.
+  - Provide quick export/share affordances (download filtered metadata CSV, copy shareable file paths, open original folder).
+  - Replace coarse lat/lon rounding with a proper Leaflet clustering plugin and consider filter-aware marker layers (e.g., show/hide birds/astro chips directly on the map).
+  - Add cross-trip search on the hub: build a lightweight manifest so users can search for strings like "Bulbul", "snow", "Mom" and jump to the relevant trip/photo anchor.
+  - Optional semantic search: persist CLIP embeddings so fuzzy queries ("snowy yak on a mountain pass") can return relevant shots even if tags do not match exactly.

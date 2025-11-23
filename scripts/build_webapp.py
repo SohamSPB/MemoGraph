@@ -300,7 +300,7 @@ TEMPLATE = """<!DOCTYPE html>
       opacity: 0;
       pointer-events: none;
       transition: opacity 200ms ease;
-      z-index: 99;
+      z-index: 1500;
     }
     .lightbox.show {
       opacity: 1;
@@ -324,6 +324,7 @@ TEMPLATE = """<!DOCTYPE html>
       gap: 18px;
       position: relative;
       min-height: 60vh;
+      overflow: hidden;
     }
     .lightbox-img-wrap {
       position: relative;
@@ -403,29 +404,33 @@ TEMPLATE = """<!DOCTYPE html>
       display: none;
     }
     .filmstrip {
+      flex: 0 0 auto;
       width: 100%;
-      background: rgba(5,8,18,0.9);
-      border-radius: 18px;
-      border: 1px solid rgba(255,255,255,0.08);
-      padding: 10px 16px;
+      background: rgba(5,8,18,0.95);
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.12);
+      padding: 14px 18px;
       display: flex;
-      gap: 12px;
+      gap: 14px;
       overflow-x: auto;
       align-items: center;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.45);
     }
     .filmstrip img {
-      width: 108px;
-      height: 72px;
+      width: 140px;
+      height: 90px;
       object-fit: cover;
-      border-radius: 8px;
+      border-radius: 10px;
       cursor: pointer;
-      opacity: 0.7;
-      transition: opacity 150ms ease, transform 150ms ease;
+      opacity: 0.65;
+      transition: opacity 150ms ease, transform 150ms ease, border 150ms ease;
+      border: 2px solid transparent;
     }
     .filmstrip img.active,
     .filmstrip img:hover {
       opacity: 1;
-      transform: translateY(-2px);
+      transform: translateY(-3px);
+      border-color: var(--accent);
     }
     .cluster-icon {
       width: 34px;
@@ -452,9 +457,8 @@ TEMPLATE = """<!DOCTYPE html>
       }
       .lightbox-img-wrap img { height: 45vh; }
       .filmstrip {
-        width: 100%;
-        flex-wrap: nowrap;
-        justify-content: flex-start;
+        border-radius: 14px;
+        padding: 10px 12px;
       }
     }
   </style>
@@ -895,6 +899,9 @@ TEMPLATE = """<!DOCTYPE html>
       }
       if (img.image_type) {
         metaEntries.push(`<strong>Type:</strong> ${img.image_type}`);
+      }
+      if (img.device_model) {
+        metaEntries.push(`<strong>Device:</strong> ${img.device_model}`);
       }
       if (typeof img.faces_count !== "undefined") {
         metaEntries.push(`<strong>Faces:</strong> ${img.faces_count}`);

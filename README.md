@@ -210,19 +210,31 @@ This aggregates per-day times, locations, themes (mountains/roads/temples/market
 
 - **Static Leaflet gallery + map (`MemoGraph/webapp/index.html`):**  
   `build_webapp.py` reads `blog_context.json`, generates thumbnails in `MemoGraph/thumbnails`, and emits a single-page app with:
-  - A search box that scans captions, AI captions, species tags, detected_objects, Places tags, and locations.
-  - Chip filters constructed from CLIP/YOLO/Places tags (birds, plants, landscapes, astro, etc.) that can be collapsed if you want more screen space.
-  - A thumbnail gallery that loads the generated JPEG thumbnails first (falls back to originals if needed) and opens a full-size lightbox (metadata + prev/next + filmstrip stretched across the bottom) when you click a photo.
-  - A right-hand Leaflet map whose markers show the same filtered photos with captions + thumbnails in popups.
-  - Header includes a back button to the trips hub and shows the current trip name so you always know which dataset you’re viewing.
+  - A search box that scans captions, AI captions, species tags, detected_objects, Places tags, people_tags, and locations across the entire trip.
+  - Chip filters (birds, plants, landscapes, astro, wildlife, selfie/group, etc.) with a collapse/expand toggle plus a preset toolbar that ships with "Birds", "Landscapes", "Astro", "People" and lets you store custom filter combinations per trip via `localStorage`.
+  - A thumbnail gallery that uses the generated JPEG thumbnails (falls back to originals if needed), shows day/location context, and opens a modern lightbox with keyboard shortcuts (←/→/Esc), copy/open buttons, device info, face counts, species/object/scene tags, and a mini-map when GPS is available.
+  - A bottom-aligned filmstrip so you can scrub through photos like a native photo app while keeping the main hero image + metadata panel in view.
+  - A right-hand Leaflet map whose markers mirror the active filters/search; nearby points are clustered (rounded lat/lon) so dense GPS data stays readable, and marker popups include thumbnails/captions.
+  - Header includes a back button to the trips hub and shows the current trip name so you always know which dataset you're viewing.
   - All assets are local; no external backend is required to browse processed trips.
 
 This static webapp replaces the earlier baked overview-only experience and makes it easy to explore each trip offline.
 
 - **Master trips hub (`data/trips/index.html`):**  
-  Every time `run_all.py` completes, `build_trip_index.py` refreshes a landing page that lists every trip under `data/trips`. Each card shows stacked thumbnails, date ranges, photo/day counts, top themes/species, and links into that trip’s Leaflet viewer, giving you a single place to browse your archive.
+  Every time `run_all.py` completes, `build_trip_index.py` refreshes a landing page that lists every trip under `data/trips`. Each card shows stacked thumbnails (sourced from each trip's MemoGraph thumbnails), date ranges, photo/day counts, and top themes/species so you get a quick visual vibe before diving in. Cards link straight into `<trip>/MemoGraph/webapp/index.html`, effectively giving you a native-feeling photo library for multiple trips with a constant back button to return to the hub.
 
 This ensures that every photo in a trip is visible somewhere (on the map if it has GPS, or in the sidebar if it does not), and that you can still explore large trips while processing is ongoing.
+
+## Web App Roadmap
+
+The current static viewer covers the basics (search, filters, lightbox, map, multi-trip hub), and the next batch of improvements we are tracking includes:
+
+- Richer Material polish: chip ripples, card ripple effects, and smoother transitions when filters/map clusters update.
+- Expanded EXIF/metadata: surface shutter/ISO/f-stop/device sensor info (requires parsing EXIF and extending `blog_context.json`).
+- Share/export affordances: quick buttons to download filtered metadata CSVs, copy shareable file paths, or open the original folder.
+- Smarter map clustering: switch from simple lat/lon rounding to a Leaflet clustering plugin and keep marker groups in sync with filter chips.
+- Cross-trip search: load a compact manifest on the hub so you can search for themes/species/people (e.g., “Bulbul”, “snow”, “Mom”) and jump directly into the relevant trip/photo.
+- Semantic search ideas: optionally store CLIP embeddings to support fuzzy queries like “snowy yak on a mountain pass” without pre-defined tags.
 
 ## Bird Species Model (optional)
 

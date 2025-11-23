@@ -486,3 +486,20 @@
             - Use simple placeholder replacement to inject trip-specific data at generation time.
         4. Extended filters:
             - Optionally extend tag-based filters to the map layer (e.g. hide/show markers for only birds/landscapes) using the same tag definitions used in the sidebar.
+
+19. Web app status + roadmap (Nov 21 update)
+    - Current implementation highlights:
+        - build_webapp.py now injects a header with a hub-aware back button and renders the trip name so navigation across multiple trips stays clear.
+        - Filters have a collapse/expand control plus quick presets (Birds/Landscapes/Astro/People) and per-trip custom presets stored via localStorage.
+        - Clicking any thumbnail launches a redesigned lightbox with the hero image centered, metadata panel (location, time, image_type, device, faces_count, species, detected objects, Places/YOLO tags, Google Maps link), copy/open buttons, keyboard nav (Left/Right arrows + Esc), and a Leaflet mini-map when GPS is available.
+        - The previous/next filmstrip now spans the full width under the lightbox with larger thumbnail previews, making the experience closer to native photo apps.
+        - Leaflet markers use coarse clustering (rounded lat/lon) with preview popups for multi-photo clusters, and the modal overlay now sits above the map thanks to a higher z-index so no overlay bleeding occurs.
+        - The master hub (data/trips/index.html) lists every processed trip with stacked thumbnail previews, ranges, counts, top themes/species, and deep links into <trip>/MemoGraph/webapp/index.html.
+    - Upcoming enhancements to keep on the task list:
+        - [ ] Polish the Material look/feel (chip ripple animations, gallery card ripple, smoother transitions when filters or map markers change).
+        - [ ] Enrich metadata by parsing additional EXIF fields (shutter speed, aperture, ISO, focal length) into blog_context.json so the lightbox details panel can show it.
+        - [ ] Add quick export actions (download current filter results as CSV, copy shareable metadata, open the containing folder).
+        - [ ] Replace coarse lat/lon rounding with a proper Leaflet clustering plugin and allow category-aware marker layers (e.g., show/hide birds/astro/person markers directly from chips).
+        - [ ] Extend the master hub with cross-trip search (species/tags/person names) so users can jump from the landing page straight into the relevant trip/photo anchor.
+        - [ ] Optional: persist CLIP embeddings per photo so the web app (or a future backend) can power semantic search like "snowy yak on a mountain road" without manual tags.
+        - [ ] Continue UX testing of the bottom filmstrip and keyboard shortcuts across mobile/tablet breakpoints; ensure thumbnails remain large enough and the strip snaps edge-to-edge.
