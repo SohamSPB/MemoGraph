@@ -27,6 +27,37 @@ from typing import Dict, List, Any
 from memograph_config import ensure_memograph_folder
 from scripts.utils.utils_io import read_csv_dict
 
+# Optional dependencies for richer image analysis (YOLO + OCR + Places365).
+try:
+    from ultralytics import YOLO  # type: ignore
+    _YOLO_AVAILABLE = True
+except Exception:
+    YOLO = None  # type: ignore
+    _YOLO_AVAILABLE = False
+
+try:
+    import easyocr  # type: ignore
+    _EASYOCR_AVAILABLE = True
+except Exception:
+    easyocr = None  # type: ignore
+    _EASYOCR_AVAILABLE = False
+
+try:
+    import torch
+    import torchvision.transforms as T
+    from torchvision import models as tv_models
+    _PLACES_AVAILABLE = True
+except Exception:
+    torch = None  # type: ignore
+    T = None  # type: ignore
+    tv_models = None  # type: ignore
+    _PLACES_AVAILABLE = False
+
+_yolo_model = None
+_ocr_reader = None
+_places_model = None
+_places_labels: List[str] = []
+
 
 def _parse_datetime(value: str):
     """Parse EXIF-style datetime strings into datetime objects, or None if invalid."""
@@ -39,6 +70,90 @@ def _parse_datetime(value: str):
         except ValueError:
             continue
     return None
+
+
+def _get_yolo_model():
+    """Lazily load a small YOLO model if ultralytics is available.
+
+    We prefer to keep the weights under models/yolo/yolov8s.pt so that
+    they live alongside other project models rather than in a global cache.
+    """
+    global _yolo_model
+    if not _YOLO_AVAILABLE:
+        return None
+    if _yolo_model is None:
+        # Use a small model to keep downloads and memory modest.
+        weights_path = os.path.join("models", "yolo", "yolov8s.pt")
+        os.makedirs(os.path.dirname(weights_path), exist_ok=True)
+        _yolo_model = YOLO(weights_path)
+    return _yolo_model
+
+
+def _get_ocr_reader():
+    """Lazily construct an EasyOCR reader if available."""
+    global _ocr_reader
+    if not _EASYOCR_AVAILABLE:
+        return None
+    if _ocr_reader is None:
+        # English-only is usually enough for road signs / shop boards.
+        _ocr_reader = easyocr.Reader(["en"], gpu=False)
+    return _ocr_reader
+
+
+def _get_places_model():
+    """Lazily load a ResNet-50 Places365 scene classifier, if weights are present."""
+    global _places_model, _places_labels
+    if not _PLACES_AVAILABLE:
+        return None, []
+
+    if _places_model is not None and _places_labels:
+        return _places_model, _places_labels
+
+    weights_path = os.path.join("models", "places", "resnet50_places365.pth.tar")
+    categories_path = os.path.join("models", "places", "categories_places365.txt")
+    if not (os.path.exists(weights_path) and os.path.exists(categories_path)):
+        return None, []
+
+    # Load category labels
+    labels: List[str] = []
+    try:
+        with open(categories_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                # File format: "/a/airfield 0"
+                # We keep the last path segment ("airfield") and make it human-friendly.
+                tokens = line.split()
+                if not tokens:
+                    continue
+                path_token = tokens[0]
+                leaf = path_token.split("/")[-1]
+                label = leaf.replace("_", " ").replace("-", " ").strip()
+                if label:
+                    labels.append(label)
+    except Exception:
+        labels = []
+
+    # Load model and weights
+    try:
+        model = tv_models.resnet50(num_classes=365)
+        checkpoint = torch.load(weights_path, map_location="cpu")
+        state_dict = checkpoint.get("state_dict", checkpoint)
+        # Strip 'module.' prefix if present
+        clean_state_dict = {}
+        for k, v in state_dict.items():
+            if k.startswith("module."):
+                k = k[len("module.") :]
+            clean_state_dict[k] = v
+        model.load_state_dict(clean_state_dict, strict=False)
+        model.eval()
+
+        _places_model = model
+        _places_labels = labels
+        return _places_model, _places_labels
+    except Exception:
+        return None, []
 
 
 def _shorten_location(loc: str) -> str:
@@ -170,7 +285,82 @@ def _split_species(species: List[str]) -> Dict[str, List[str]]:
     return {"animals": sorted(set(animals)), "plants": sorted(set(plants))}
 
 
-def _build_day_context(day_rows: List[Dict[str, Any]], date_str: str, day_number: int) -> Dict[str, Any]:
+def _analyze_image_extras(image_path: str) -> Dict[str, Any]:
+    """
+    Run optional detectors (YOLO + OCR) on a single image.
+
+    Returns a dict with:
+        - yolo_objects: list of coarse object labels (if available)
+        - ocr_text: list of short text snippets detected on the image (if any)
+    """
+    extras: Dict[str, Any] = {"yolo_objects": [], "ocr_text": [], "places_scenes": []}
+
+    # YOLO: detect objects and keep a small set of labels.
+    model = _get_yolo_model()
+    if model is not None and os.path.exists(image_path):
+        try:
+            results = model(image_path, verbose=False)
+            labels: List[str] = []
+            if results:
+                r0 = results[0]
+                names = r0.names
+                for box in r0.boxes:
+                    cls_idx = int(box.cls.item())
+                    label = names.get(cls_idx, str(cls_idx))
+                    labels.append(label)
+            # Deduplicate, keep a small subset to avoid overwhelming the JSON.
+            extras["yolo_objects"] = sorted(set(labels))
+        except Exception:
+            # Fail silently; extras remain empty.
+            pass
+
+    # OCR: read short text snippets (e.g., signs, boards).
+    reader = _get_ocr_reader()
+    if reader is not None and os.path.exists(image_path):
+        try:
+            results = reader.readtext(image_path, detail=0)
+            cleaned = []
+            for txt in results:
+                t = str(txt).strip()
+                if 3 <= len(t) <= 40:
+                    cleaned.append(t)
+            extras["ocr_text"] = cleaned
+        except Exception:
+            pass
+
+    # Places365: scene classification (top-1 or top-2 labels).
+    places_model, places_labels = _get_places_model()
+    if places_model is not None and places_labels and os.path.exists(image_path):
+        from PIL import Image  # local import to avoid top-level dependency if unused
+
+        try:
+            with Image.open(image_path).convert("RGB") as im:
+                transform = T.Compose(
+                    [
+                        T.Resize(256),
+                        T.CenterCrop(224),
+                        T.ToTensor(),
+                        T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+                    ]
+                )
+                tensor = transform(im).unsqueeze(0)
+                with torch.no_grad():
+                    logits = places_model(tensor)
+                    probs = torch.softmax(logits, dim=1)[0]
+                    top_probs, top_idxs = probs.topk(2)
+                scenes: List[str] = []
+                for idx, prob in zip(top_idxs.tolist(), top_probs.tolist()):
+                    if 0 <= idx < len(places_labels):
+                        label = places_labels[idx]
+                        scenes.append(f"{label} ({prob:.2f})")
+                extras["places_scenes"] = scenes
+        except Exception:
+            pass
+
+    return extras
+
+
+def _build_day_context(day_rows: List[Dict[str, Any]], date_str: str, day_number: int, trip_folder: str) -> Dict[str, Any]:
     """Build a structured context dict for a single day."""
     # Parse datetimes for ordering within the day.
     for r in day_rows:
@@ -245,6 +435,9 @@ def _build_day_context(day_rows: List[Dict[str, Any]], date_str: str, day_number
         img_species_raw = str(r.get("species_tags") or "").strip()
         img_species = [p.strip() for p in img_species_raw.split(",") if p.strip()]
 
+        full_img_path = os.path.join(trip_folder, r.get("local_path", ""))
+        extras = _analyze_image_extras(full_img_path)
+
         images_ctx.append(
             {
                 "image_name": r.get("image_name"),
@@ -257,6 +450,9 @@ def _build_day_context(day_rows: List[Dict[str, Any]], date_str: str, day_number
                 "detected_objects": detected,
                 "image_type": r.get("image_type"),
                 "faces_detected": r.get("faces_detected"),
+                "yolo_objects": extras.get("yolo_objects", []),
+                "ocr_text": extras.get("ocr_text", []),
+                "places_scenes": extras.get("places_scenes", []),
             }
         )
 
@@ -307,7 +503,7 @@ def build_blog_context(trip_folder: str) -> str:
 
     days_out: List[Dict[str, Any]] = []
     for idx, date_key in enumerate(sorted(per_day.keys()), start=1):
-        ctx = _build_day_context(per_day[date_key], date_key, idx)
+        ctx = _build_day_context(per_day[date_key], date_key, idx, trip_folder)
         if ctx:
             days_out.append(ctx)
 
@@ -330,4 +526,3 @@ if __name__ == "__main__":
 
     out = build_blog_context(args.trip_folder)
     print(f"Blog context written to: {out}")
-
