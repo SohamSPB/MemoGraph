@@ -136,20 +136,14 @@
             - `BIRD_LABELS_PATH = "models/birds/bird_labels.json"`
             - (Later, similar flags/paths for insects, plants, animals.)
         2. Create `scripts/species_models.py` to encapsulate model loading and inference:
-            - `load_bird_model()`:
-                - Loads weights from `BIRD_MODEL_PATH`.
-                - Moves model to `cuda` if available, else CPU.
-                - Caches the model so it is only loaded once per run.
-            - `predict_bird_species(image)`:
-                - Accepts a PIL image (already resized via `resize_image`).
-                - Runs preprocessing and forward pass on the bird model.
-                - Returns top-k species names and confidence scores using `bird_labels.json`.
+            - DONE (for birds):
+                - `load_bird_model()` + `predict_bird_species(image)` implemented in `scripts/species_models.py`, using a Hugging Face image classification model (e.g. `dennisjooo/Birds-Classifier-EfficientNetB2`) and its built-in `id2label` mapping.
             - (Later, add `predict_insect_species`, `predict_plant_species`, etc.)
         3. Extend `scripts/species_detector.py` to route images to specialist models:
             - For each CSV row:
                 - Inspect `detected_objects` and/or `caption` / `caption_ai` to detect coarse categories (`"bird"`, `"insect"`, `"animal"`, `"plant"`).
-                - If `ENABLE_BIRD_MODEL` is True and any bird keyword is present:
-                    - Call `predict_bird_species(image)` and use the top predictions to populate/augment `species_tags`.
+                - DONE (for birds):
+                    - `species_detector` now uses coarse text + config flags to decide when to call `predict_bird_species(image)` and populate `species_tags` with specialist bird predictions, falling back to CLIP prompts otherwise.
                 - Similarly, route to insect/plant/animal models when enabled and indicated by coarse labels.
             - Keep the existing CLIP + `species_prompts` classifier as a fallback when no specialist model is enabled or available.
             - Never erase existing `species_tags` if specialist models/CLIP fail; only refine/append with more specific names.

@@ -19,6 +19,7 @@ from memograph_config import ensure_memograph_folder
 from scripts.utils.utils_log import init_log, log
 import memograph_config as CFG
 from scripts.utils.utils_image import resize_image
+from scripts.species_models import predict_bird_species
 
 # ------------------------------
 # Species prompts
@@ -145,6 +146,8 @@ def process_species(csv_path, trip_folder, log_path):
 			"leaf",
 		]
 		has_bio_hint = any(keyword in coarse_text for keyword in bio_keywords)
+		bird_keywords = ["bird", "sparrow", "eagle", "owl", "duck", "peacock", "kingfisher"]
+		has_bird_hint = any(keyword in coarse_text for keyword in bird_keywords)
 
 		if not os.path.exists(image_path):
 			log(f"Missing image: {image_path}", log_path)
@@ -163,19 +166,44 @@ def process_species(csv_path, trip_folder, log_path):
 			)
 			row["species_tags"] = row.get("species_tags", "")
 		else:
-			try:
-				tags = detect_species(image_path, model, preprocess, device)
-				species_tags = tags[:3]
-				if species_tags:
-					# Only override if we have confident species predictions; otherwise
-					# keep whatever coarse tags were already present.
-					row["species_tags"] = ", ".join(species_tags)
-				else:
+			bird_tags_used = False
+			# Prefer the specialist bird model when enabled and the coarse text
+			# clearly indicates a bird.
+			if CFG.ENABLE_BIRD_MODEL and has_bird_hint:
+				try:
+					raw_image = Image.open(image_path).convert("RGB")
+					raw_image = resize_image(raw_image)
+					bird_preds = predict_bird_species(raw_image, topk=getattr(CFG, "BIRD_TOPK", 3))
+					if bird_preds:
+						bird_names = [name for name, _ in bird_preds]
+						row["species_tags"] = ", ".join(bird_names)
+						log(
+							f"{os.path.basename(image_path)} -> bird model: {row.get('species_tags', '')}",
+							log_path,
+						)
+						bird_tags_used = True
+				except Exception as e:
+					log(
+						f"{os.path.basename(image_path)} -> bird model failed ({e}), falling back to CLIP.",
+						log_path,
+					)
+
+			# If bird model did not provide tags (not enabled, no hint, or failed),
+			# fall back to CLIP species prompts.
+			if not bird_tags_used:
+				try:
+					tags = detect_species(image_path, model, preprocess, device)
+					species_tags = tags[:3]
+					if species_tags:
+						# Only override if we have confident species predictions; otherwise
+						# keep whatever coarse tags were already present.
+						row["species_tags"] = ", ".join(species_tags)
+					else:
+						row["species_tags"] = row.get("species_tags", "")
+					log(f"{os.path.basename(image_path)} -> {row.get('species_tags', '')}", log_path)
+				except Exception as e:
+					log(f"Failed to process {image_path} - {e}", log_path)
 					row["species_tags"] = row.get("species_tags", "")
-				log(f"{os.path.basename(image_path)} -> {row.get('species_tags', '')}", log_path)
-			except Exception as e:
-				log(f"Failed to process {image_path} - {e}", log_path)
-				row["species_tags"] = row.get("species_tags", "")
 
 		updated_rows.append(row)
 

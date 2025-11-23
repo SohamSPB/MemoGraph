@@ -39,7 +39,7 @@ LOG_TO_FILE = True
 IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".tiff", ".png", ".jfif")
 # Maximum image size (in pixels) for the longest side before feeding into models.
 # Lower values reduce memory/compute at the cost of some detail.
-MAX_IMAGE_SIZE = 1024
+MAX_IMAGE_SIZE = 256
 
 # -----------------------------
 # MemoGraph Folder
@@ -78,3 +78,16 @@ FACE_DETECTION_PARALLEL_WORKERS = 1
 # Maximum number of concurrent images to caption in BLIP-based caption_filler.
 # This controls the ThreadPoolExecutor size and limits GPU/CPU pressure.
 CAPTION_PARALLEL_WORKERS = 2
+
+# -----------------------------
+# Specialist species models (future-ready)
+# -----------------------------
+# Bird classifier based on a Hugging Face image classification model.
+# The recommended starting point is:
+#   dennisjooo/Birds-Classifier-EfficientNetB2
+# Download and save it under models/birds/Birds-Classifier-EfficientNetB2
+# using AutoImageProcessor + AutoModelForImageClassification, then enable it.
+ENABLE_BIRD_MODEL = True
+BIRD_MODEL_DIR = os.path.join("models", "birds", "Birds-Classifier-EfficientNetB2")
+# Number of bird species to keep per image when using the specialist model.
+BIRD_TOPK = 3

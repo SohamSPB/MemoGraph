@@ -144,6 +144,54 @@ The repository includes helper scripts for comparing runs and configurations:
 
 These are documented in more detail in `working.txt` and `task.txt`, and are useful when deciding which resolution (e.g. 256, 512, 1024) gives acceptable accuracy for your models.
 
+## Bird Species Model (optional)
+
+MemoGraph can optionally use a specialist bird classifier (in addition to CLIP
+prompts) to improve species recognition when an image clearly contains a bird.
+
+- Recommended starting model:  
+  `dennisjooo/Birds-Classifier-EfficientNetB2` on Hugging Face.
+
+- To enable it:
+  1. Install the necessary libraries (if not already installed):
+
+     ```bash
+     pip install transformers torch
+     ```
+
+  2. Download the model into the expected folder using the helper script:
+
+     ```bash
+     # Activate your venv first
+     .venv\Scripts\Activate.ps1         # Windows PowerShell
+     # or: source .venv/bin/activate    # Linux/macOS
+
+     python -m scripts.download_bird_model
+     ```
+
+     This will download `dennisjooo/Birds-Classifier-EfficientNetB2` and save it under:
+     `models/birds/Birds-Classifier-EfficientNetB2`.
+
+  3. Edit `memograph_config.py` and set:
+
+     ```python
+     ENABLE_BIRD_MODEL = True
+     ```
+
+  4. Run the pipeline as usual (optionally with `--reset` to regenerate species tags):
+
+     ```bash
+     python run_all.py data/trips/my_awesome_trip --reset
+     ```
+
+- Behavior:
+  - `image_labeler.py` + BLIP captions first detect whether an image likely
+    contains birds/animals/plants/insects.
+  - `species_detector.py`:
+    - Skips species detection entirely when there are no biological hints (e.g., pure galaxy/nebula images).
+    - When bird hints are present and `ENABLE_BIRD_MODEL=True`, it uses the bird classifier to propose top bird species and writes them into `species_tags`.
+    - If the bird model is unavailable or fails, it falls back to the existing CLIP-based species prompts.
+
 
 ## License
 
