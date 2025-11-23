@@ -49,12 +49,15 @@ For a given trip_folder (e.g. data/trips/2025_Annapurna_Nepal):
      - Also writes coarse species-like tags (e.g. "a bird", "a flower") into species_tags.
    - caption_filler.fill_captions(trip_folder)
      - Uses BLIP to generate multiple captions per image.
+     - Passes raw BLIP strings through utils_text.clean_caption and
+       utils_text.clean_caption_list so `caption` and `caption_samples`
+       are less noisy and more readable.
      - Updates caption + caption_samples.
      - Respects CFG.CAPTION_PARALLEL_WORKERS for thread count.
      - Skips rows that already have caption and periodically flushes CSV.
    - generate_ai_captions.generate_ai_captions(trip_folder)
      - Uses BLIP to generate single AI captions.
-     - Updates caption_ai.
+     - Cleans them via utils_text.clean_caption before saving as caption_ai.
      - Skips rows that already have caption_ai and flushes CSV periodically.
    - species_detector.process_species(csv_path, trip_folder, log_path)
      - Uses CLIP with species_prompts (small list of species names) to refine species_tags.
@@ -68,6 +71,11 @@ For a given trip_folder (e.g. data/trips/2025_Annapurna_Nepal):
 
 5) blog_generator.generate_blog(trip_folder)
    - Builds blog.md and trip_summary.json inside MemoGraph.
+   - Uses utils_text.clean_caption and combine_captions_for_day to produce
+     smoother daily summaries from caption/caption_ai fields.
+   - Uses utils_text.clean_species_list so blog sentences only mention
+     biologically meaningful species (filters out "astrophotography photo",
+     "galaxy", "nebula" etc.).
 
 6) map_visualizer.create_map(points, map_path)
    - Produces the final interactive map (trip_map.html) after all fields

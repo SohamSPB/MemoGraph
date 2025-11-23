@@ -26,6 +26,11 @@ from scripts.utils.utils_io import (
 from memograph_config import ensure_memograph_folder
 from scripts.utils.utils_log import init_log, log
 import memograph_config as CFG
+from scripts.utils.utils_text import (
+	clean_caption,
+	combine_captions_for_day,
+	clean_species_list,
+)
 
 # -----------------------------
 # Helper functions
@@ -46,6 +51,7 @@ def group_by_day(rows):
 
 def describe_species(species):
 	"""Return a sentence summarizing species observed that day."""
+	species = clean_species_list(species)
 	if not species:
 		return ""
 	species = sorted(species)
@@ -62,8 +68,8 @@ def generate_day_paragraph(date, rows, day_number):
 	rows.sort(key=lambda x: x["_datetime"])
 	first, last = rows[0], rows[-1]
 
-	captions = [r.get("caption", "").strip() for r in rows if r.get("caption")]
-	ai_captions = [r.get("caption_ai", "").strip() for r in rows if r.get("caption_ai")]
+	captions = [clean_caption(r.get("caption", "")) for r in rows if r.get("caption")]
+	ai_captions = [clean_caption(r.get("caption_ai", "")) for r in rows if r.get("caption_ai")]
 
 	species = set()
 	for r in rows:
@@ -80,11 +86,13 @@ def generate_day_paragraph(date, rows, day_number):
 	paragraph += f"Our journey began around {time_start} from {start_loc}, and we concluded the day by {time_end} near {end_loc}. "
 
 	if ai_captions:
-		sample = " ".join(ai_captions[:2]) + ("..." if len(ai_captions) > 2 else "")
-		paragraph += f"Scenes we captured include: {sample} "
+		sample = combine_captions_for_day(ai_captions, max_items=2)
+		if sample:
+			paragraph += f"Scenes we captured include: {sample} "
 	elif captions:
-		sample = " ".join(captions[:3]) + ("..." if len(captions) > 3 else "")
-		paragraph += f"Moments captured include: {sample} "
+		sample = combine_captions_for_day(captions, max_items=3)
+		if sample:
+			paragraph += f"Moments captured include: {sample} "
 
 	paragraph += describe_species(species) + "\n\n"
 	return paragraph

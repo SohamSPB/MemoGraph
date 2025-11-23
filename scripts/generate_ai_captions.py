@@ -22,6 +22,7 @@ from memograph_config import ensure_memograph_folder
 from scripts.utils.utils_log import init_log, log
 import memograph_config as CFG
 from scripts.utils.utils_image import resize_image
+from scripts.utils.utils_text import clean_caption
 
 def generate_ai_captions(trip_folder):
 	memo_dir, logs_dir = CFG.ensure_memograph_folder(trip_folder)
@@ -71,7 +72,8 @@ def generate_ai_captions(trip_folder):
 			inputs = processor(raw_image, return_tensors="pt").to(device)
 			with torch.no_grad():
 				output = model.generate(**inputs, max_length=40)
-				caption = processor.decode(output[0], skip_special_tokens=True)
+				raw_caption = processor.decode(output[0], skip_special_tokens=True)
+			caption = clean_caption(raw_caption)
 			r["caption_ai"] = caption
 			log(f"[{i}] {os.path.basename(img_path)} -> {caption}", log_path)
 			updated += 1

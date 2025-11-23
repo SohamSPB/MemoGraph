@@ -23,6 +23,7 @@ from memograph_config import ensure_memograph_folder
 from scripts.utils.utils_log import init_log, log
 import memograph_config as CFG
 from scripts.utils.utils_image import resize_image
+from scripts.utils.utils_text import clean_caption, clean_caption_list
 
 def generate_multiple_captions(image, processor, model, num_variations=3):
 	"""Generate multiple captions using top-k sampling."""
@@ -30,8 +31,9 @@ def generate_multiple_captions(image, processor, model, num_variations=3):
 	inputs = processor(image, return_tensors="pt").to(model.device)
 	for _ in range(num_variations):
 		output = model.generate(**inputs, do_sample=True, top_k=50, max_length=40)
-		captions.append(processor.decode(output[0], skip_special_tokens=True))
-	return list(set(captions))
+		raw = processor.decode(output[0], skip_special_tokens=True)
+		captions.append(clean_caption(raw))
+	return clean_caption_list(captions)
 
 def _process_image_for_captioning(row, trip_folder, processor, model, i, log_path):
 	"""Helper function to process a single image for captioning, used in parallel processing."""

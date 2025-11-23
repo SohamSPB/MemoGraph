@@ -209,6 +209,34 @@
     - CSV support:
         - DONE: The `image_type` column has been added to CSV_HEADERS in `memograph_config.py`.
         - DONE: `scripts/image_type_detector.py` now populates `image_type` using CLIP zero-shot prompts with categories such as `natural_photo`, `document_scan`, `meme_or_graphic`, `screenshot`, and `chart_or_plot`.
+
+16. Text quality and blog/map wording improvements (DONE for first pass)
+    - Goal:
+        - Make captions, blog paragraphs, and map popups read more naturally.
+        - Reduce obvious grammar glitches and nonsensical phrases in captions.
+        - Avoid treating non-biological labels (e.g. "an astrophotography photo") as species in human-facing summaries.
+    - Implemented changes:
+        1. New helper module: `scripts/utils/utils_text.py`:
+            - `clean_caption(text)`: trims whitespace, collapses spaces, fixes duplicated determiners ("a an"), removes immediate repeated last words, trims trailing punctuation, capitalizes the first letter.
+            - `clean_caption_list(texts)`: applies `clean_caption` to a sequence, drops empties, and deduplicates while preserving order.
+            - `combine_captions_for_day(captions, max_items)`: combines up to N cleaned captions into a short summary (joined with `; ` and `...` if more remain), used by the blog generator.
+            - `clean_species_list(species)`: filters out non-biological labels such as "astrophotography photo", "galaxy", "nebula", "night sky" from species lists and deduplicates them.
+        2. Caption generators:
+            - `scripts/caption_filler.py`:
+                - Now passes BLIP-generated captions through `clean_caption` and uses `clean_caption_list` to build the `caption_samples` set, so `caption` and `caption_samples` are less noisy.
+            - `scripts/generate_ai_captions.py`:
+                - Wraps the raw BLIP caption with `clean_caption` before storing it in `caption_ai`.
+        3. Blog generation (`scripts/blog_generator.py`):
+            - Imports `clean_caption`, `combine_captions_for_day`, and `clean_species_list` from `utils_text`.
+            - Cleans both `caption` and `caption_ai` before using them to form day summaries.
+            - Uses `combine_captions_for_day` to create short, readable "Scenes we captured include: ..." clauses instead of concatenating raw model outputs.
+            - Runs `clean_species_list` on the aggregated species names so that blog sentences no longer mention non-species like "an astrophotography photo" as if they were animals.
+        4. Map popups (`scripts/map_visualizer.py`):
+            - Uses `clean_caption` on the caption used in each popup for better grammar.
+            - Adds a small metadata line under the caption showing Day N and `location_inferred` when available, making the map more informative.
+    - Future refinements (still open):
+        - Additional heuristics for fixing obviously broken place names or duplicated phrases in captions.
+        - Optional separate "short_title" field for ultra-compact labels, derived from `caption_ai`, for use in tight UI elements.
     - Planned model families and sources (to be explored and integrated later):
         - Flowers/plants:
             - Hugging Face image classification models trained on datasets like Oxford 102 Flowers, PlantCLEF, or PlantNet-derived corpora.

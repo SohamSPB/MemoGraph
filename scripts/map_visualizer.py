@@ -22,6 +22,7 @@ from scripts.utils.utils_io import (
 from memograph_config import ensure_memograph_folder
 from scripts.utils.utils_log import init_log, log
 import memograph_config as CFG
+from scripts.utils.utils_text import clean_caption
 
 def load_geo_points(csv_path, trip_folder):
 	points = []
@@ -32,10 +33,19 @@ def load_geo_points(csv_path, trip_folder):
 			lon = float(r.get("gps_lon") or 0)
 			if lat == 0 or lon == 0:
 				continue
-			caption = r.get("caption_ai") or r.get("caption") or "Untitled"
+			caption = clean_caption(r.get("caption_ai") or r.get("caption") or "Untitled")
 			img_path = os.path.join(trip_folder, r.get("local_path", ""))
 			img_tag = f"<br/><img src='{img_path}' width='150'/>" if os.path.exists(img_path) else ""
-			popup = f"<b>{caption}</b>{img_tag}"
+			day = str(r.get("day_number") or "").strip()
+			loc = (r.get("location_inferred") or "").strip()
+			meta_parts = []
+			if day:
+				meta_parts.append(f"Day {day}")
+			if loc:
+				meta_parts.append(loc)
+			meta = " – ".join(meta_parts)
+			meta_html = f"<br/><small>{meta}</small>" if meta else ""
+			popup = f"<b>{caption}</b>{meta_html}{img_tag}"
 			points.append((lat, lon, popup))
 		except:
 			continue
