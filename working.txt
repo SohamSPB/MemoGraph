@@ -130,7 +130,7 @@ For a given trip_folder (e.g. data/trips/2025_Annapurna_Nepal):
        inside a lightbox that now includes keyboard navigation, copy/open
        buttons, device info, faces/species/objects/scene tags, and a mini-map.
        A filmstrip is permanently docked across the bottom so you can scrub like a
-       native photo app.
+      native photo app.
       - Quality-aware browsing: a “Best Balanced” toggle filters/sorts by the new
         `quality_score`, gallery cards show the percentage, and lightbox metadata
         lists exposure/contrast/sharpness/noise sub-metrics + human-readable notes.
@@ -352,3 +352,31 @@ Resource logging
   +## 14. dlib GPU Support (Postponed)
   +
   +Due to persistent runtime issues with CUDA driver initialization, `dlib` GPU support is currently postponed. The pipeline will operate with CPU-only `dlib` for now. Further investigation into the CUDA runtime environment will be required for future GPU enablement.
+- scripts/vision_llm_demo.py:
+  - Tiny helper to test multimodal LLMs (e.g. llava-hf/llava-onevision-qwen2-0.5b-ov-hf).
+  - Setup:
+    1. `.venv\Scripts\Activate.ps1`
+    2. `hf auth login --token <HF_TOKEN>`
+    3. Download once (≈1.6 GB to fetch, expands to ~12.8 GB on disk, ~8-9 min):
+       ```powershell
+       python - <<'PY'
+       from huggingface_hub import snapshot_download
+       snapshot_download(
+           'llava-hf/llava-onevision-qwen2-0.5b-ov-hf',
+           local_dir='models/llava_onevision_qwen2_0.5b'
+       )
+       PY
+       ```
+  - CLI:
+    ```
+    python -m scripts.vision_llm_demo data/trips/<trip> ^
+      --model-id models/llava_onevision_qwen2_0.5b ^
+      --question "Describe the scene."
+    ```
+  - Automatically resizes the chosen image to <=512 px, feeds it to the model, prints the
+    result, and saves `<trip>/MemoGraph/llm_vision_demo.txt`. Pass `--image` for a specific
+    file or rely on the first non-MemoGraph photo. Toggle max tokens via `--max-new-tokens`.
+  - Inference time on GTX 1650: ~40 s/image after the first load.
+  - Sample outputs:
+    - Annapurna IMG20240816111741: tree with orange fruits by a white wall/green roof.
+    - Home IMG20251019232730: indoor telescope on tripod by checkered curtain, cabinet with pink blanket/striped pillow.

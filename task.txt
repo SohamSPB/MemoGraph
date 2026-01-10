@@ -512,6 +512,23 @@
         - CLI overrides: `python -m scripts.build_blog_context <trip> --include-extras` toggles them on for ad-hoc runs; `--skip-extras` forces them off even if config enables them.
         - When extras are disabled the script skips loading the large YOLO/Places models altogether, avoiding the long “Using CPU. Note: This module is much faster with a GPU.” slowdowns unless explicitly requested.
 
+21. Vision LLM experimentation (Nov 21 update)
+    - Added `scripts/vision_llm_demo.py` to probe multimodal models (default `llava-hf/llava-onevision-qwen2-0.5b-hf`).
+        - Setup recap:
+            1. `.venv\Scripts\Activate.ps1`
+            2. `hf auth login --token <HF_TOKEN>`
+            3. `python - <<'PY' ... snapshot_download('llava-hf/llava-onevision-qwen2-0.5b-ov-hf', local_dir='models/llava_onevision_qwen2_0.5b')`
+        - CLI takes a trip folder and optional `--image/--question` arguments, resizes the photo to ≤512 px, sends it to the model, prints the response, and saves `<trip>/MemoGraph/llm_vision_demo.txt`.
+        - Download time: ~8–9 minutes (model fetch ≈1.6 GB, unpacks to ~12.8 GB). Inference time on GTX 1650: ~40 s/photo.
+        - Latest sample outputs:
+            - Annapurna IMG20240816111741: “The image captures a serene outdoor scene… tree with vibrant orange fruits… white wall and green roof… tranquil mood.”
+            - Home IMG20251019232730: “Indoor scene with a white/black telescope on a metal tripod by a checkered curtain, wooden cabinet with pink blanket and striped pillow—cozy setting, telescope adds intrigue.”
+        - Good for testing GTX 1650-friendly models before wiring them into the web app or blog generation pipeline.
+    - Next steps if we want deeper integration:
+        - [ ] Cache per-image LLM descriptions alongside captions so the web UI can show “LLM view” or answer natural-language queries.
+        - [ ] Provide a backend endpoint that forwards user questions to the multimodal LLM and streams answers.
+        - [ ] Evaluate other lightweight VLMs (Phi-3.5 VLM, Qwen2-VL, etc.) and quantify VRAM requirements/latency on the target hardware.
+
 21. Postpone dlib GPU support:
     - dlib will run on CPU for now due to persistent runtime issues with GPU.
     - Move dlib GPU related files and reports to `tests/results`.

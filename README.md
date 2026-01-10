@@ -245,6 +245,63 @@ The current static viewer covers the basics (search, filters, lightbox, map, mul
 - Semantic search ideas: optionally store CLIP embeddings to support fuzzy queries like "snowy yak on a mountain pass" without pre-defined tags.
 - Quality-aware browsing: leverage the new per-image quality metrics (exposure/color/contrast/sharpness/noise) to highlight the most balanced photos in the UI.
 
+## Vision LLM Demo (optional)
+
+You can try a small multimodal model on any MemoGraph photo using `scripts/vision_llm_demo.py`. This is a standalone utility meant for experimentation (richer captions, question answering, etc.).
+
+### Setup
+1. Activate the venv:
+   ```powershell
+   .venv\Scripts\Activate.ps1
+   ```
+2. Log in to Hugging Face (one-time):
+   ```powershell
+   hf auth login --token <YOUR_HF_TOKEN>
+   ```
+3. Download the model locally (downloads ≈1.6 GB but expands to ~12.8 GB on disk, ~8–9 minutes on our link):
+   ```powershell
+   python - <<'PY'
+   from huggingface_hub import snapshot_download
+   snapshot_download(
+       'llava-hf/llava-onevision-qwen2-0.5b-ov-hf',
+       local_dir='models/llava_onevision_qwen2_0.5b'
+   )
+   PY
+   ```
+
+### Usage
+Recommended starter model for GTX 1650-class GPUs: **`llava-hf/llava-onevision-qwen2-0.5b-ov-hf`** (~0.5B parameters, runs in ~3 GB VRAM). Heavier 7B+ vision models may exceed the 4 GB limit unless you use aggressive quantization or CPU inference.
+
+```powershell
+.venv\Scripts\Activate.ps1
+python -m scripts.vision_llm_demo data/trips/2025_Annapurna_Nepal `
+  --model-id models/llava_onevision_qwen2_0.5b `
+  --question "Describe this photo with any interesting objects or activities."
+```
+
+- Finds the first photo in the trip (or use `--image path/to/photo.jpg`).
+- Resizes it to max 512 px, sends it to the multimodal LLM, and prints the response.
+- Writes the output to `<trip>/MemoGraph/llm_vision_demo.txt` by default (override via `--output`).
+- Inference on a GTX 1650 takes ~40 seconds per image (after the initial model load).
+
+Sample output (Annapurna trip, first photo):
+
+```
+Model: models/llava_onevision_qwen2_0.5b
+Image: data\trips\2025_Annapurna_Nepal\IMG20240816111741.jpg
+Question: Describe this photo in detail. Mention setting, subjects, lighting, and any interesting objects.
+Response:
+…The image captures a serene outdoor scene, dominated by a lush green tree with vibrant orange fruits…white wall and green roof…overall scene exudes a sense of tranquility and natural beauty.
+```
+
+Another example (Home trip, IMG20251019232730):
+
+```
+…a white and black telescope mounted on a tripod… positioned in front of a window with a black-and-white checkered curtain… a wooden cabinet on the right with a pink blanket and striped pillow, making the room feel cozy, while the telescope adds intrigue.
+```
+
+You can change prompts or max tokens (`--max-new-tokens`) to explore different descriptions. Later we can wire this into the web app or blog generation flow if desired.
+
 ## Bird Species Model (optional)
 
 MemoGraph can optionally use a specialist bird classifier (in addition to CLIP
