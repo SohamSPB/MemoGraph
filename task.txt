@@ -512,22 +512,24 @@
         - CLI overrides: `python -m scripts.build_blog_context <trip> --include-extras` toggles them on for ad-hoc runs; `--skip-extras` forces them off even if config enables them.
         - When extras are disabled the script skips loading the large YOLO/Places models altogether, avoiding the long “Using CPU. Note: This module is much faster with a GPU.” slowdowns unless explicitly requested.
 
-21. Vision LLM experimentation (Nov 21 update)
-    - Added `scripts/vision_llm_demo.py` to probe multimodal models (default `llava-hf/llava-onevision-qwen2-0.5b-hf`).
-        - Setup recap:
-            1. `.venv\Scripts\Activate.ps1`
-            2. `hf auth login --token <HF_TOKEN>`
-            3. `python - <<'PY' ... snapshot_download('llava-hf/llava-onevision-qwen2-0.5b-ov-hf', local_dir='models/llava_onevision_qwen2_0.5b')`
-        - CLI takes a trip folder and optional `--image/--question` arguments, resizes the photo to ≤512 px, sends it to the model, prints the response, and saves `<trip>/MemoGraph/llm_vision_demo.txt`.
-        - Download time: ~8–9 minutes (model fetch ≈1.6 GB, unpacks to ~12.8 GB). Inference time on GTX 1650: ~40 s/photo.
-        - Latest sample outputs:
-            - Annapurna IMG20240816111741: “The image captures a serene outdoor scene… tree with vibrant orange fruits… white wall and green roof… tranquil mood.”
-            - Home IMG20251019232730: “Indoor scene with a white/black telescope on a metal tripod by a checkered curtain, wooden cabinet with pink blanket and striped pillow—cozy setting, telescope adds intrigue.”
-        - Good for testing GTX 1650-friendly models before wiring them into the web app or blog generation pipeline.
-    - Next steps if we want deeper integration:
-        - [ ] Cache per-image LLM descriptions alongside captions so the web UI can show “LLM view” or answer natural-language queries.
-        - [ ] Provide a backend endpoint that forwards user questions to the multimodal LLM and streams answers.
-        - [ ] Evaluate other lightweight VLMs (Phi-3.5 VLM, Qwen2-VL, etc.) and quantify VRAM requirements/latency on the target hardware.
+21. Vision LLM experimentation (Nov 24 update)
+    - `scripts/vision_llm_demo.py` is our go-to probe for `llava-hf/llava-onevision-qwen2-0.5b-ov-hf` (download once with `snapshot_download` into `models/llava_onevision_qwen2_0.5b`, ~1.6 GB fetch / ~12.8 GB on disk, ~8–9 min).
+        - Usage: `python -m scripts.vision_llm_demo data/trips/<trip> --model-id models/llava_onevision_qwen2_0.5b --question "..." [--image ...]`.
+        - Inference time on the GTX 1650 (or CPU fallback) is ~40 s/photo after the first load; results land in `<trip>/MemoGraph/llm_vision_demo.txt`.
+        - Sample references:
+            - `data/trips/2025_Annapurna_Nepal/IMG20240816111741.jpg`: tree with orange fruits by white wall/green roof.
+            - `data/trips/Home/IMG20251019232730.jpg`: indoor telescope on tripod beside checkered curtain, cabinet with blanket/pillow.
+    - Prompt sweep experiment (new):
+        - Ran 10 different prompts (travel diary, documentary pitch, Instagram caption, foreground/midground/background list, teacher critique, descriptive audio, short vignette, rituals/activities, guided tour, field naturalist) against `IMG20240816111741.jpg`.
+        - Kept the model loaded for the entire batch; total runtime ≈616 s (35–90 s per prompt). Output saved to `data/trips/2025_Annapurna_Nepal/MemoGraph/llm_vision_prompt_study.txt` for prompt-comparison analysis.
+        - Insight: structured prompts give rich prose, while informal IG-style requests got stuck in a hashtag loop—so we need to curate a “house” prompt before automating.
+    - Task list going forward:
+        - [ ] Wrap the prompt sweep into a real CLI (`scripts/vision_llm_prompt_sweep.py`) that reads a prompt list/JSON, keeps the model in memory, and writes structured JSON/markdown summaries under each trip.
+        - [ ] Extend `run_all.py` with an opt-in `--vision-llm` flag (and config knobs) so we can batch caption every photo at the end of the pipeline without repeated loads. Persist outputs as new columns in `labels.csv` (`vision_caption`, `vision_prompt`, optional `vision_json`).
+        - [ ] Flow those columns into `blog_context.json` and the static web app (add a toggle to show VLM prose vs BLIP captions, display which question generated the text).
+        - [ ] Evaluate multiple prompts per image (e.g., descriptive paragraph + bullet summary + Q&A) in one session and decide which subset we should store.
+        - [ ] Benchmark/compare other small VLMs (Phi-3.5 VLM, Qwen2-VL 2B/7B, etc.) for VRAM, download size, and latency on GTX 1650 hardware; update docs when we settle on the default.
+        - [ ] (Later) consider an optional backend endpoint or CLI that can take ad-hoc user questions, reuse the cached embeddings, and avoid reprocessing when the UI wants a custom query.
 
 21. Postpone dlib GPU support:
     - dlib will run on CPU for now due to persistent runtime issues with GPU.

@@ -302,6 +302,15 @@ Another example (Home trip, IMG20251019232730):
 
 You can change prompts or max tokens (`--max-new-tokens`) to explore different descriptions. Later we can wire this into the web app or blog generation flow if desired.
 
+### Prompt study + integration plan
+
+- A 10-prompt comparison run on `data/trips/2025_Annapurna_Nepal/IMG20240816111741.jpg` lives at `data/trips/2025_Annapurna_Nepal/MemoGraph/llm_vision_prompt_study.txt`. Because the helper script keeps the model in memory, the entire sweep took ~616 s on CPU (~35–90 s per prompt) and highlighted where prompts shine (structured diary/narrator perspectives) versus fail (casual Instagram requests led to repeated hashtags). Reviewing that file helps us pick a house prompt before wiring the model into production.
+- Near-term roadmap (see `task.txt`/`working.txt` for details):
+  1. Wrap the ad-hoc prompt sweep into a tiny CLI that accepts a prompt list and emits JSON so we can compare outputs systematically.
+  2. Teach `run_all.py` (behind a flag like `--vision-llm` or via config) to load the model **once**, iterate over every photo in the trip, and stash the preferred VLM caption under new `vision_caption_*` columns plus `blog_context.json`.
+  3. Surface those richer captions in the static web app (toggle between BLIP + VLM text) and optionally in the Markdown blog.
+- Until that wiring exists, you can reproduce the study by calling `scripts/vision_llm_demo.py` repeatedly with different `--question` prompts or by adapting the inline example used for the saved study.
+
 ## Bird Species Model (optional)
 
 MemoGraph can optionally use a specialist bird classifier (in addition to CLIP

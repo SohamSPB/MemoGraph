@@ -352,31 +352,28 @@ Resource logging
   +## 14. dlib GPU Support (Postponed)
   +
   +Due to persistent runtime issues with CUDA driver initialization, `dlib` GPU support is currently postponed. The pipeline will operate with CPU-only `dlib` for now. Further investigation into the CUDA runtime environment will be required for future GPU enablement.
-- scripts/vision_llm_demo.py:
-  - Tiny helper to test multimodal LLMs (e.g. llava-hf/llava-onevision-qwen2-0.5b-ov-hf).
+- scripts/vision_llm_demo.py (vision LLM experimentation):
+  - Tiny helper to test multimodal LLMs (default `llava-hf/llava-onevision-qwen2-0.5b-ov-hf`, downloaded once via `snapshot_download` into `models/llava_onevision_qwen2_0.5b`, ~8-9 min fetch of ~1.6 GB that expands to ~12.8 GB on disk).
   - Setup:
     1. `.venv\Scripts\Activate.ps1`
     2. `hf auth login --token <HF_TOKEN>`
-    3. Download once (≈1.6 GB to fetch, expands to ~12.8 GB on disk, ~8-9 min):
-       ```powershell
-       python - <<'PY'
-       from huggingface_hub import snapshot_download
-       snapshot_download(
-           'llava-hf/llava-onevision-qwen2-0.5b-ov-hf',
-           local_dir='models/llava_onevision_qwen2_0.5b'
-       )
-       PY
-       ```
+    3. `python - <<'PY' ... snapshot_download('llava-hf/llava-onevision-qwen2-0.5b-ov-hf', local_dir='models/llava_onevision_qwen2_0.5b')`
   - CLI:
     ```
     python -m scripts.vision_llm_demo data/trips/<trip> ^
       --model-id models/llava_onevision_qwen2_0.5b ^
       --question "Describe the scene."
     ```
-  - Automatically resizes the chosen image to <=512 px, feeds it to the model, prints the
-    result, and saves `<trip>/MemoGraph/llm_vision_demo.txt`. Pass `--image` for a specific
-    file or rely on the first non-MemoGraph photo. Toggle max tokens via `--max-new-tokens`.
-  - Inference time on GTX 1650: ~40 s/image after the first load.
-  - Sample outputs:
-    - Annapurna IMG20240816111741: tree with orange fruits by a white wall/green roof.
-    - Home IMG20251019232730: indoor telescope on tripod by checkered curtain, cabinet with pink blanket/striped pillow.
+    - Resizes the chosen image to <=512 px, feeds it to the model, prints the result, and saves `<trip>/MemoGraph/llm_vision_demo.txt`. Pass `--image` for a specific file, `--output` for a custom log, and `--max-new-tokens` to tune length.
+    - Inference time on GTX 1650 (or CPU fallback) is ~40 s/image after the first load.
+    - Sample outputs on record: Annapurna IMG20240816111741 (tree + orange fruits near white wall/green roof) and Home IMG20251019232730 (indoor telescope scene).
+  - Prompt sweep experiment (Nov 24):
+    - Ran 10 prompts back-to-back (travel diary, documentary pitch, Instagram caption, foreground/midground/background list, teacher critique, descriptive audio, vignette, rituals list, guided tour, field naturalist) against `data/trips/2025_Annapurna_Nepal/IMG20240816111741.jpg`.
+    - Script kept the model resident for the whole batch; total runtime ~616 s (35-90 s/prompt). Outputs logged to `data/trips/2025_Annapurna_Nepal/MemoGraph/llm_vision_prompt_study.txt`.
+    - Findings: narrative/structured prompts are coherent; the Instagram-style prompt looped hashtags, so we should preselect a safe "house" prompt when automating.
+  - Next steps:
+    - [ ] Provide a tiny CLI (`scripts/vision_llm_prompt_sweep.py`) that reads a prompt list and emits JSON so we can redo the study without hand-written inline Python.
+    - [ ] Add a config flag (`ENABLE_VISION_LLM` or `--vision-llm`) so `run_all.py` can load the model once, walk every image, and write results to new columns (e.g., `vision_caption`, `vision_prompt`, optional raw JSON).
+    - [ ] Pipe those fields into `blog_context.json` plus the static web app (toggle between BLIP captions and VLM prose, show which prompt generated the text).
+    - [ ] Support multi-question batches per image (e.g., descriptive paragraph + structured bullet list) while the model stays loaded.
+    - [ ] Benchmark other lightweight VLMs (Phi-3.5 VLM, Qwen2-VL, etc.) for quality/latency/VRAM so we know whether we should stick with OneVision or swap later.
