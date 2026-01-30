@@ -22,7 +22,7 @@ CSV_HEADERS = [
 	"image_name", "local_path", "md5sum", "datetime_original", "device_model",
 	"gps_lat", "gps_lon", "location_inferred", "day_number",
 	"detected_objects", "species_tags", "faces_detected", "faces_count", "people_tags",
-	"caption", "caption_samples", "caption_ai", "notes", "image_type",
+	"caption", "caption_samples", "caption_ai", "vision_caption", "notes", "image_type", "color_palette",
 	"quality_score", "exposure_score", "color_balance_score",
 	"contrast_score", "sharpness_score", "noise_score", "quality_notes"
 ]

@@ -127,10 +127,11 @@ the script named in parentheses):
 8. Species tags (CLIP + optional bird model) (`species_detector.py`)
 9. Image type classification (CLIP prompts) (`image_type_detector.py`)
 10. Image quality scoring (histogram/exposure/sharpness/noise heuristics) (`image_quality.py`)
-11. Blog + summary (`blog_generator.py`)
-12. Final map + overview page (`map_visualizer.py`)
-13. `blog_context.json` builder (`build_blog_context.py`)
-14. Static Leaflet gallery/map web app + thumbnails (`build_webapp.py`)
+11. Color palette extraction (`image_colors.py`)
+12. Blog + summary (`blog_generator.py`)
+13. Final map + overview page (`map_visualizer.py`)
+14. `blog_context.json` builder (`build_blog_context.py`)
+15. Static Leaflet gallery/map web app + thumbnails (`build_webapp.py`)
 
 Every run writes a complete `MemoGraph` folder containing `labels.csv`, `blog.md`,
 `trip_summary.json`, `trip_map.html`, `trip_overview.html`, `blog_context.json`,
@@ -217,14 +218,12 @@ This aggregates per-day times, locations, themes (mountains/roads/temples/market
   - Provides a chip-style filter bar so you can interactively filter sidebar photos by these tags.
 
 - **Static Leaflet gallery + map (`MemoGraph/webapp/index.html`):**  
-  `build_webapp.py` reads `blog_context.json`, generates thumbnails in `MemoGraph/thumbnails`, and emits a single-page app with:
-  - A search box that scans captions, AI captions, species tags, detected_objects, Places tags, people_tags, and locations across the entire trip.
-  - Chip filters (birds, plants, landscapes, astro, wildlife, selfie/group, etc.) with a collapse/expand toggle plus a preset toolbar that ships with "Birds", "Landscapes", "Astro", "People" and lets you store custom filter combinations per trip via `localStorage`.
-  - A thumbnail gallery that uses the generated JPEG thumbnails (falls back to originals if needed), shows day/location context, and opens a modern lightbox with keyboard shortcuts (←/→/Esc), copy/open buttons, device info, face counts, species/object/scene tags, and a mini-map when GPS is available.
-  - A bottom-aligned filmstrip so you can scrub through photos like a native photo app while keeping the main hero image + metadata panel in view.
-  - A right-hand Leaflet map whose markers mirror the active filters/search; nearby points are clustered (rounded lat/lon) so dense GPS data stays readable, and marker popups include thumbnails/captions.
-  - Header includes a back button to the trips hub and shows the current trip name so you always know which dataset you're viewing.
-  - All assets are local; no external backend is required to browse processed trips.
+  `build_webapp.py` generates a modern, 3-column web application:
+  - **Left Sidebar:** Interactive filters grouped by category (Nature, Structures, People, Tech, Food, etc.) and a "Clear Filters" button.
+  - **Main Gallery:** Scrollable grid of photos with smart thumbnails, showing color palettes, key tags, and quality scores.
+  - **Right Map Pane:** A sticky map that updates markers in real-time as you filter the gallery.
+  - **Lightbox:** A detailed full-screen view with a filmstrip, metadata panel (location, faces, camera info), a mini-map, and color swatches.
+  - All assets are local; no external backend is required.
 
 This static webapp replaces the earlier baked overview-only experience and makes it easy to explore each trip offline.
 
@@ -245,9 +244,27 @@ The current static viewer covers the basics (search, filters, lightbox, map, mul
 - Semantic search ideas: optionally store CLIP embeddings to support fuzzy queries like "snowy yak on a mountain pass" without pre-defined tags.
 - Quality-aware browsing: leverage the new per-image quality metrics (exposure/color/contrast/sharpness/noise) to highlight the most balanced photos in the UI.
 
-## Vision LLM Demo (optional)
+## Vision LLM (Batch & Demo)
 
-You can try a small multimodal model on any MemoGraph photo using `scripts/vision_llm_demo.py`. This is a standalone utility meant for experimentation (richer captions, question answering, etc.).
+You can use a small multimodal model (LLaVA OneVision 0.5B) to get rich, detailed descriptions for your photos.
+
+### 1. Batch Captioning (Database Integration)
+To generate detailed `vision_caption` fields for all images in a trip and save them to `labels.csv`:
+
+```bash
+python -m scripts.batch_vision_llm data/trips/my_awesome_trip
+```
+
+This runs systematically over the trip, skipping images that already have a vision caption.
+
+### 2. Interactive Demo
+To experiment with custom prompts on a single image:
+
+```powershell
+python -m scripts.vision_llm_demo data/trips/2025_Annapurna_Nepal `
+  --model-id models/llava_onevision_qwen2_0.5b `
+  --question "Describe this photo with any interesting objects or activities."
+```
 
 ### Setup
 1. Activate the venv:
@@ -272,16 +289,6 @@ You can try a small multimodal model on any MemoGraph photo using `scripts/visio
 ### Usage
 Recommended starter model for GTX 1650-class GPUs: **`llava-hf/llava-onevision-qwen2-0.5b-ov-hf`** (~0.5B parameters, runs in ~3 GB VRAM). Heavier 7B+ vision models may exceed the 4 GB limit unless you use aggressive quantization or CPU inference.
 
-```powershell
-.venv\Scripts\Activate.ps1
-python -m scripts.vision_llm_demo data/trips/2025_Annapurna_Nepal `
-  --model-id models/llava_onevision_qwen2_0.5b `
-  --question "Describe this photo with any interesting objects or activities."
-```
-
-- Finds the first photo in the trip (or use `--image path/to/photo.jpg`).
-- Resizes it to max 512 px, sends it to the multimodal LLM, and prints the response.
-- Writes the output to `<trip>/MemoGraph/llm_vision_demo.txt` by default (override via `--output`).
 - Inference on a GTX 1650 takes ~40 seconds per image (after the initial model load).
 
 Sample output (Annapurna trip, first photo):

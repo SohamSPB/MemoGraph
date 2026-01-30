@@ -304,7 +304,7 @@ Resource logging
 - Behavior:
   - location_resolver.fill_location(trip_folder):
     - Reads datetime_original and GPS fields from labels.csv.
-    - Walks rows in chronological order and, when it finds an image without GPS but within a configured time window of the previous geotagged image, copies that previous GPS.
+    - Walks rows in chronological order and, when it finds an image without GPS but within a configured time window of the previous geotagged image, copies that GPS.
     - The time window is controlled by a config knob in memograph_config.py (e.g. GPS_PROPAGATION_MAX_MINUTES, default ~15).
   - Effect:
     - Images taken a few minutes before/after a geotagged shot will appear on the map at a sensible location.
@@ -345,7 +345,7 @@ Resource logging
   - Add extra Material-style polish (chip ripples, card ripple, transitions on filter/map changes, smoother hover/focus outlines).
   - Surface richer EXIF (shutter/ISO/f-stop/focal length) and device metadata in blog_context.json so the lightbox details panel can show it.
   - Provide quick export/share affordances (download filtered metadata CSV, copy shareable file paths, open original folder).
-  - Replace coarse lat/lon rounding with a proper Leaflet clustering plugin and consider filter-aware marker layers (e.g., show/hide birds/astro chips directly on the map).
+  - Replace coarse lat/lon rounding with a proper Leaflet clustering plugin and consider filter-aware marker layers (e.g., show/hide birds/astro/person markers directly from chips).
   - Add cross-trip search on the hub: build a lightweight manifest so users can search for strings like "Bulbul", "snow", "Mom" and jump to the relevant trip/photo anchor.
       - Optional semantic search: persist CLIP embeddings so fuzzy queries ("snowy yak on a mountain pass") can return relevant shots even if tags do not match exactly.
    
@@ -377,3 +377,20 @@ Resource logging
     - [ ] Pipe those fields into `blog_context.json` plus the static web app (toggle between BLIP captions and VLM prose, show which prompt generated the text).
     - [ ] Support multi-question batches per image (e.g., descriptive paragraph + structured bullet list) while the model stays loaded.
     - [ ] Benchmark other lightweight VLMs (Phi-3.5 VLM, Qwen2-VL, etc.) for quality/latency/VRAM so we know whether we should stick with OneVision or swap later.
+
+23. Web App & Labeling Refinements (Jan 2026 update)
+    - Implemented 3-column layout (Filters | Gallery | Map) in `build_webapp.py` with sticky map and scrollable gallery.
+    - Added "Clear All Filters" button to the sidebar.
+    - Implemented dominant color extraction (`scripts/image_colors.py`) and palette display in gallery/lightbox.
+    - Improved lightbox metadata (full list, mini-map, z-index fix).
+    - Added `scripts/batch_vision_llm.py` for generating detailed VLM descriptions on all trip images.
+    - Refined "sunrise/sunset" labeling in `image_labeler.py` using capture time to filter impossible tags (AM vs PM).
+    - Tightened species detection in `species_detector.py` to avoid "bird" hallucinations on food/butterflies by checking for word boundaries and skipping non-natural image types.
+    - Improved location short-name logic in `build_blog_context.py` to prioritize city/neighborhood over "India".
+    - Improved face count display ("No Faces" vs "Scan Pending") and HOG upsampling for better small-face detection.
+
+24. Bug Fixes & Documentation (Jan 30, 2026)
+    - Fixed critical bug in `build_webapp.py`: TEMPLATE string was terminated with `"` instead of `"""`, causing Python syntax error and blank webapp pages.
+    - Fixed JavaScript syntax error in generated webapp: `'\n'` in Python template was rendered as literal newline instead of escape sequence; changed to `'\\n'`.
+    - Added categorized filter system in webapp sidebar: chips are now grouped into Nature, Structures, People, Food/Drink, Tech, and Others categories for better organization.
+    - Added CLAUDE.md file with project overview, common commands, architecture documentation, and integration points for AI coding assistants.

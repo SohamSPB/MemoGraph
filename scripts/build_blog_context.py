@@ -186,13 +186,32 @@ def _shorten_location(loc: str) -> str:
     loc = (loc or "").strip()
     if not loc:
         return "an unknown place"
-    parts = [p.strip() for p in loc.split(",") if p.strip()]
+    
+    parts = [p.strip() for p in loc.split(",")]
     if not parts:
         return loc
+    
+    # Filter out numeric/code-like parts and country names if possible
+    # (assuming country is often at the end or "India" specifically)
+    meaningful = []
     for p in parts:
-        if any(k in p.lower() for k in ("highway", "road", "pass")):
-            return p
-    return min(parts, key=len)
+        if p.isdigit(): continue # Skip purely numeric
+        if len(p) < 3 and p.isdigit(): continue # Skip short numbers
+        if p.lower() in ("india", "usa", "uk", "nepal"): continue # Skip common countries
+        meaningful.append(p)
+        
+    if not meaningful:
+        return parts[0] # Fallback
+        
+    # Prefer the first 1-2 meaningful parts (usually city/neighborhood)
+    # e.g. "Goregaon West, Mumbai" -> "Goregaon West, Mumbai"
+    # or just "Goregaon West" if it's long enough.
+    
+    candidate = meaningful[0]
+    if len(meaningful) > 1 and len(candidate) < 15:
+         candidate += ", " + meaningful[1]
+         
+    return candidate
 
 
 def _classify_row_themes(row: Dict[str, Any]) -> List[str]:
@@ -523,6 +542,7 @@ def _build_day_context(
                 "noise_score": noise_score,
                 "color_balance_score": color_balance_score,
                 "quality_notes": r.get("quality_notes"),
+                "color_palette": r.get("color_palette", "").split(";") if r.get("color_palette") else [],
             }
         )
 

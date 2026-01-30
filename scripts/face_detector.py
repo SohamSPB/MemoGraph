@@ -26,9 +26,12 @@ import memograph_config as CFG
 from scripts.utils.utils_image import resize_image
 
 def _row_has_face(row):
-	"""Return True if this row already has a faces_detected value (0 or 1)."""
-	val = str(row.get("faces_detected", "")).strip()
-	return val in {"0", "1"}
+	"""Return True if this row already has a valid face scan (faces_count >= 0)."""
+	val = str(row.get("faces_count", "")).strip()
+	# If empty or -1, it's not scanned.
+	if not val or val == "-1":
+		return False
+	return True
 
 def _process_batch(batch_rows, trip_folder, batch_num, log_path, use_cnn_model=False):
 	"""Helper function to detect faces for a batch of rows."""
@@ -49,7 +52,9 @@ def _process_batch(batch_rows, trip_folder, batch_num, log_path, use_cnn_model=F
 					image = np.array(img)
 				
 				model = "cnn" if use_cnn_model else "hog"
-				face_locations = face_recognition.face_locations(image, model=model)
+				# Upsample HOG to detect smaller faces (e.g. groups/distance).
+				upsample = 2 if model == "hog" else 1
+				face_locations = face_recognition.face_locations(image, number_of_times_to_upsample=upsample, model=model)
 				face_count = len(face_locations)
 				face_flag = 1 if face_count > 0 else 0
 				# log(f"[Batch {batch_num}-{i}] {os.path.basename(img_full_path)} -> {'Face' if face_flag else 'No face'}", log_path)

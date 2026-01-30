@@ -37,6 +37,7 @@ import scripts.species_detector as species_detector
 import scripts.generate_ai_captions as generate_ai_captions
 import scripts.image_type_detector as image_type_detector
 import scripts.image_quality as image_quality
+import scripts.image_colors as image_colors
 import scripts.blog_generator as blog_generator
 import scripts.map_visualizer as map_visualizer
 import scripts.build_blog_context as build_blog_context
@@ -163,6 +164,7 @@ def run_pipeline(trip_folder: str, parallel: bool):
 			"Species": species_detector.process_species,
 			"Image Type": image_type_detector.detect_image_types,
 			"Image Quality": image_quality.evaluate_image_quality,
+			"Image Colors": image_colors.process_colors,
 		}
 		for name, func in all_steps.items():
 			start_time_step = time.time()

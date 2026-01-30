@@ -139,35 +139,31 @@ def process_species(csv_path, trip_folder, log_path):
 		image_path = os.path.join(trip_folder, local_path)
 
 		# Decide if this image is a good candidate for biological species
-		# detection. If the coarse labels / captions do not mention any
-		# bird/animal/plant/insect concepts, we skip the specialist CLIP
-		# species matching entirely to avoid hallucinating birds on space
-		# images or purely inanimate scenes.
+		# detection.
+		image_type = str(row.get("image_type", "")).strip()
+		if image_type in ("meme_or_graphic", "document_scan", "chart_or_plot", "screenshot"):
+			log(f"{os.path.basename(image_path)} -> skipped species detection (image_type={image_type})", log_path)
+			row["species_tags"] = row.get("species_tags", "")
+			updated_rows.append(row)
+			continue
+
 		coarse_text = " ".join(
 			str(row.get(field, "")) for field in ("detected_objects", "caption", "caption_ai")
 		).lower()
-		bio_keywords = [
-			"bird",
-			"insect",
-			"animal",
-			"dog",
-			"cat",
-			"horse",
-			"cow",
-			"goat",
-			"sheep",
-			"yak",
-			"deer",
-			"plant",
-			"flower",
-			"tree",
-			"forest",
-			"grass",
-			"leaf",
-		]
-		has_bio_hint = any(keyword in coarse_text for keyword in bio_keywords)
-		bird_keywords = ["bird", "sparrow", "eagle", "owl", "duck", "peacock", "kingfisher"]
-		has_bird_hint = any(keyword in coarse_text for keyword in bird_keywords)
+		
+		# Tokenize for safer keyword matching (avoid "bowl" matching "owl")
+		import re
+		tokens = set(re.findall(r"\w+", coarse_text))
+
+		bio_keywords = {
+			"bird", "insect", "animal", "dog", "cat", "horse", "cow", "goat",
+			"sheep", "yak", "deer", "plant", "flower", "tree", "forest",
+			"grass", "leaf", "nature", "wildlife"
+		}
+		has_bio_hint = not bio_keywords.isdisjoint(tokens)
+		
+		bird_keywords = {"bird", "sparrow", "eagle", "owl", "duck", "peacock", "kingfisher", "crow"}
+		has_bird_hint = not bird_keywords.isdisjoint(tokens)
 
 		if not os.path.exists(image_path):
 			log(f"Missing image: {image_path}", log_path)

@@ -177,6 +177,8 @@ def scan_images(trip_folder: str) -> None:
 			"device_model": device_model,
 			"gps_lat": gps_lat if gps_lat is not None else "",
 			"gps_lon": gps_lon if gps_lon is not None else "",
+			"faces_detected": -1,
+			"faces_count": -1,
 		})
 		rows_out.append(default_map)
 

@@ -8,12 +8,6 @@ MemoGraph folder to browse photos, filter/search, and view them on a map.
 
 - Reads <trip>/MemoGraph/blog_context.json (run build_blog_context first).
 - Writes <trip>/MemoGraph/webapp/index.html with inline CSS/JS and embedded data.
-- Uses:
-    - Gallery with search + filters (themes, faces/selfie/group, text).
-    - Map (Leaflet) to show GPS-tagged photos (when lat/lon available).
-
-Usage:
-    python -m scripts.build_webapp data/trips/2025_Annapurna_Nepal
 """
 
 import json
@@ -42,33 +36,32 @@ TEMPLATE = """<!DOCTYPE html>
       --shadow: 0 10px 30px rgba(0,0,0,0.3);
       --radius: 14px;
       --transition: 180ms ease;
+      --header-height: 64px;
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
       font-family: "Inter", "Segoe UI", sans-serif;
-      background: radial-gradient(circle at 20% 20%, rgba(56,189,248,0.08), transparent 25%),
-                  radial-gradient(circle at 80% 0%, rgba(34,211,238,0.12), transparent 30%),
-                  var(--bg);
+      background: var(--bg);
       color: var(--text);
+      height: 100vh;
+      overflow: hidden;
     }
     .app {
       display: grid;
-      grid-template-rows: auto 1fr;
-      min-height: 100vh;
+      grid-template-rows: var(--header-height) 1fr;
+      height: 100%;
     }
     header {
-      padding: 16px 24px;
+      padding: 0 24px;
       display: flex;
       gap: 16px;
       align-items: center;
       background: linear-gradient(120deg, rgba(56,189,248,0.15), rgba(34,211,238,0.10), rgba(56,189,248,0.05));
       backdrop-filter: blur(6px);
-      position: sticky;
-      top: 0;
-      z-index: 10;
       border-bottom: 1px solid rgba(255,255,255,0.06);
       box-shadow: var(--shadow);
+      z-index: 20;
     }
     .brand {
       font-weight: 700;
@@ -106,7 +99,6 @@ TEMPLATE = """<!DOCTYPE html>
       border: 1px solid rgba(255,255,255,0.08);
       transition: var(--transition);
     }
-    .search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(56,189,248,0.25); }
     .search input {
       flex: 1;
       background: transparent;
@@ -115,138 +107,91 @@ TEMPLATE = """<!DOCTYPE html>
       font-size: 15px;
       outline: none;
     }
-    .filters-bar {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 10px 24px 6px;
-      flex-wrap: wrap;
-    }
-    .filters-bar button {
-      border: none;
-      background: rgba(255,255,255,0.08);
-      color: var(--text);
-      padding: 6px 14px;
-      border-radius: 999px;
-      cursor: pointer;
-      transition: var(--transition);
-    }
-    .filters-bar button:hover { background: rgba(255,255,255,0.2); }
-    .preset-toolbar {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      padding: 0 24px 10px;
-      align-items: center;
-      color: var(--muted);
-      font-size: 0.9rem;
-    }
-    .preset-buttons {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-    .preset-buttons button {
-      border: none;
-      padding: 6px 12px;
-      border-radius: 999px;
-      background: rgba(94,234,212,0.15);
-      color: var(--text);
-      cursor: pointer;
-      transition: transform 150ms ease, background 150ms ease;
-    }
-    .preset-buttons button:hover { transform: translateY(-1px); background: rgba(94,234,212,0.3); }
-    .preset-buttons button.active {
-      background: rgba(94,234,212,0.4);
-      color: #041226;
-    }
-    .quality-pill {
-      border: 1px solid rgba(94,234,212,0.25);
-      background: rgba(56,189,248,0.18);
-      color: var(--text);
-      padding: 6px 16px;
-      border-radius: 999px;
-      cursor: pointer;
-      transition: background 150ms ease, transform 150ms ease;
-    }
-    .quality-pill.active {
-      background: linear-gradient(120deg, var(--accent), var(--accent-2));
-      color: #041021;
-      transform: translateY(-1px);
-    }
-    .custom-presets {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-    .custom-presets select {
-      background: rgba(255,255,255,0.05);
-      color: var(--text);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 8px;
-      padding: 6px 10px;
-      min-width: 160px;
-    }
-    .custom-presets button {
-      border: none;
-      background: rgba(37,99,235,0.3);
-      color: var(--text);
-      padding: 6px 10px;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: background 150ms ease;
-    }
-    .custom-presets button:hover { background: rgba(37,99,235,0.5); }
-    .filters-wrapper {
-      padding: 0 24px 12px;
-    }
-    .filters-wrapper.collapsed {
-      max-height: 0;
+    .app-body {
+      display: grid;
+      grid-template-columns: 260px 1fr 320px;
       overflow: hidden;
-      padding-bottom: 0;
+    }
+    .sidebar {
+      background: rgba(17, 24, 39, 0.5);
+      border-right: 1px solid rgba(255,255,255,0.06);
+      padding: 16px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .sidebar::-webkit-scrollbar { width: 6px; }
+    .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+    
+    .sidebar-section h3 {
+      margin: 0 0 10px;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      color: var(--muted);
+      letter-spacing: 0.5px;
+    }
+    .filters-group {
+      margin-bottom: 16px;
+    }
+    .filters-group-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+      margin: 12px 0 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
     .filters {
       display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      max-height: 96px;
-      overflow-y: auto;
-      padding-right: 4px;
+      flex-direction: column;
+      gap: 6px;
     }
-    .filters::-webkit-scrollbar { height: 6px; }
     .chip {
-      padding: 8px 12px;
-      border-radius: 999px;
+      padding: 6px 12px;
+      border-radius: 6px;
       border: 1px solid rgba(255,255,255,0.08);
       background: rgba(255,255,255,0.04);
       color: var(--text);
       cursor: pointer;
-      transition: background 150ms ease, color 150ms ease, transform 150ms ease;
+      transition: background 150ms ease, color 150ms ease;
       font-size: 13px;
-      position: relative;
-      overflow: hidden;
+      text-align: left;
     }
+    .chip:hover { background: rgba(255,255,255,0.08); }
     .chip.active {
-      background: linear-gradient(120deg, var(--accent), var(--accent-2));
-      color: #0b1222;
-      border-color: transparent;
+      background: linear-gradient(90deg, rgba(56,189,248,0.2), rgba(34,211,238,0.1));
+      color: var(--accent-2);
+      border-color: rgba(56,189,248,0.3);
     }
-    .chip:hover { border-color: rgba(255,255,255,0.3); }
-    .chip:focus-visible {
-      outline: 2px solid var(--accent);
-      outline-offset: 2px;
+    .preset-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
     }
+    .preset-buttons button {
+        border: none;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: rgba(94,234,212,0.15);
+        color: var(--text);
+        cursor: pointer;
+        font-size: 12px;
+    }
+    .preset-buttons button.active { background: rgba(94,234,212,0.4); }
+
     .main {
-      display: grid;
-      grid-template-columns: 2fr 1fr;
-      gap: 12px;
-      padding: 0 24px 24px;
+      padding: 16px;
+      overflow-y: auto;
+      position: relative;
     }
+    .main::-webkit-scrollbar { width: 8px; }
+    .main::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
+    
     .gallery {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-      gap: 12px;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px;
       align-content: start;
     }
     .card {
@@ -256,74 +201,82 @@ TEMPLATE = """<!DOCTYPE html>
       border: 1px solid rgba(255,255,255,0.05);
       box-shadow: var(--shadow);
       transition: transform 180ms ease, box-shadow 220ms ease, border 180ms ease;
-      transform: translateY(0);
+      backface-visibility: hidden;
+      will-change: transform; 
+      contain: layout paint;
     }
     .card:hover {
-      transform: translateY(-2px);
+      transform: translateY(-3px);
       border-color: rgba(56,189,248,0.4);
-      box-shadow: 0 18px 45px rgba(0,0,0,0.5);
+      box-shadow: 0 12px 30px rgba(0,0,0,0.4);
+      z-index: 2;
     }
     .thumb {
       width: 100%;
-      border-radius: 12px;
+      border-radius: 8px;
       overflow: hidden;
       background: #0a0f1d;
       aspect-ratio: 4/3;
       display: grid;
       place-items: center;
+      position: relative;
     }
     .thumb img {
       width: 100%;
       height: 100%;
       object-fit: cover;
       display: block;
-      transition: transform var(--transition);
     }
-    .card:hover .thumb img { transform: scale(1.02); }
-    .title { font-weight: 700; margin: 8px 0 4px; }
-    .meta { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
-    .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+    .color-bar {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        display: flex;
+    }
+    .swatch {
+        flex: 1;
+        height: 100%;
+    }
+    .title { font-weight: 600; font-size: 14px; margin: 8px 0 4px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .meta { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+    .tags { display: flex; flex-wrap: wrap; gap: 4px; }
     .tag {
-      font-size: 11px;
-      padding: 4px 8px;
-      border-radius: 999px;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
       background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.08);
       color: var(--text);
     }
+
     .map-pane {
-      background: var(--card);
-      border-radius: var(--radius);
-      border: 1px solid rgba(255,255,255,0.05);
-      box-shadow: var(--shadow);
-      position: sticky;
-      top: 90px;
-      height: calc(100vh - 140px);
-      overflow: hidden;
+      border-left: 1px solid rgba(255,255,255,0.06);
+      position: relative;
+      z-index: 10;
     }
     #map { width: 100%; height: 100%; }
+
     .empty-state {
       grid-column: 1 / -1;
       text-align: center;
       color: var(--muted);
       padding: 40px 0;
     }
+
     .lightbox {
       position: fixed;
       inset: 0;
-      background: rgba(5,8,18,0.92);
+      background: rgba(5,8,18,0.98);
       display: flex;
       justify-content: center;
       align-items: center;
       opacity: 0;
       pointer-events: none;
       transition: opacity 200ms ease;
-      z-index: 1500;
+      z-index: 3000;
     }
-    .lightbox.show {
-      opacity: 1;
-      pointer-events: auto;
-    }
+    .lightbox.show { opacity: 1; pointer-events: auto; }
     .lightbox-shell {
       width: min(1280px, 96vw);
       height: min(900px, 96vh);
@@ -332,152 +285,102 @@ TEMPLATE = """<!DOCTYPE html>
       gap: 12px;
     }
     .lightbox-content {
-      width: 100%;
       flex: 1;
       background: var(--card);
-      border-radius: 24px;
-      padding: 24px;
+      border-radius: 20px;
+      padding: 20px;
       display: grid;
       grid-template-columns: 2fr 1fr;
-      gap: 18px;
-      position: relative;
-      min-height: 60vh;
+      gap: 20px;
       overflow: hidden;
     }
     .lightbox-img-wrap {
+      border-radius: 12px;
+      overflow: hidden;
+      background: #000;
       position: relative;
-      border-radius: 18px;
-      overflow: hidden;
-      background: #050812;
-    }
-    .lightbox-img-wrap img {
-      width: 100%;
-      height: 60vh;
-      object-fit: contain;
-      background: #050812;
-    }
-    .lightbox-close {
-      position: absolute;
-      top: 16px;
-      right: 16px;
-      background: rgba(255,255,255,0.12);
-      border: none;
-      color: var(--text);
-      padding: 8px 12px;
-      border-radius: 999px;
-      cursor: pointer;
-    }
-    .lightbox-nav {
-      position: absolute;
-      top: 50%;
-      transform: translateY(-50%);
-      width: calc(100% - 32px);
-      display: flex;
-      justify-content: space-between;
-      pointer-events: none;
-    }
-    .lightbox-nav button {
-      pointer-events: auto;
-      border: none;
-      background: rgba(0,0,0,0.4);
-      color: var(--text);
-      padding: 8px 14px;
-      border-radius: 999px;
-      cursor: pointer;
-    }
-    .lightbox-meta h3 {
-      margin: 0 0 6px;
-    }
-    .lightbox-meta ul {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      color: var(--muted);
-      font-size: 0.95rem;
-    }
-    .lightbox-actions {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin: 10px 0;
-    }
-    .lightbox-actions button {
-      border: none;
-      background: rgba(56,189,248,0.2);
-      color: var(--text);
-      padding: 6px 12px;
-      border-radius: 999px;
-      cursor: pointer;
-    }
-    .lightbox-actions button:hover { background: rgba(56,189,248,0.35); }
-    .lightbox-map {
-      width: 100%;
-      height: 150px;
-      border-radius: 16px;
-      overflow: hidden;
-      margin-top: 8px;
-      display: none;
-    }
-    .filmstrip {
-      flex: 0 0 auto;
-      width: 100%;
-      background: rgba(5,8,18,0.95);
-      border-radius: 20px;
-      border: 1px solid rgba(255,255,255,0.12);
-      padding: 14px 18px;
-      display: flex;
-      gap: 14px;
-      overflow-x: auto;
-      align-items: center;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.45);
-    }
-    .filmstrip img {
-      width: 140px;
-      height: 90px;
-      object-fit: cover;
-      border-radius: 10px;
-      cursor: pointer;
-      opacity: 0.65;
-      transition: opacity 150ms ease, transform 150ms ease, border 150ms ease;
-      border: 2px solid transparent;
-    }
-    .filmstrip img.active,
-    .filmstrip img:hover {
-      opacity: 1;
-      transform: translateY(-3px);
-      border-color: var(--accent);
-    }
-    .cluster-icon {
-      width: 34px;
-      height: 34px;
-      border-radius: 50%;
-      background: rgba(56,189,248,0.8);
-      color: #031225;
       display: flex;
       align-items: center;
       justify-content: center;
-      border: 2px solid rgba(255,255,255,0.8);
-      font-weight: 600;
     }
+    .lightbox-img-wrap img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+    .lightbox-close {
+        position: absolute; top: 10px; right: 10px;
+        background: rgba(255,255,255,0.1); border:none; color:#fff;
+        padding: 6px 10px; border-radius: 20px; cursor: pointer;
+        z-index: 10;
+    }
+    .lightbox-meta {
+        overflow-y: auto;
+        padding-right: 10px;
+    }
+    .lightbox-meta h2 { margin-top: 0; font-size: 1.2rem; }
+    .lightbox-meta ul {
+        padding-left: 20px;
+        line-height: 1.6;
+        color: #ccc;
+        list-style: disc;
+        font-size: 0.95rem;
+    }
+    .lightbox-map {
+        height: 180px;
+        width: 100%;
+        margin-top: 15px;
+        border-radius: 8px;
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,0.1);
+    }
+    .lightbox-colors {
+        display: flex;
+        height: 12px;
+        width: 100%;
+        margin: 10px 0;
+        border-radius: 6px;
+        overflow: hidden;
+    }
+    .lightbox-actions {
+        margin-top: 15px;
+        display: flex;
+        gap: 10px;
+    }
+    .lightbox-actions button {
+        background: rgba(56,189,248,0.2);
+        border: 1px solid rgba(56,189,248,0.3);
+        color: var(--text);
+        padding: 8px 16px;
+        border-radius: 999px;
+        cursor: pointer;
+        font-size: 13px;
+        transition: background 0.2s;
+    }
+    .lightbox-actions button:hover { background: rgba(56,189,248,0.3); }
+    
+    .filmstrip {
+        height: 100px;
+        display: flex;
+        gap: 10px;
+        overflow-x: auto;
+        padding: 10px;
+        background: rgba(0,0,0,0.3);
+        border-radius: 12px;
+    }
+    .filmstrip img {
+        height: 100%;
+        border-radius: 6px;
+        opacity: 0.5;
+        cursor: pointer;
+        transition: opacity 0.2s;
+    }
+    .filmstrip img.active { opacity: 1; border: 2px solid var(--accent); }
+
     @media (max-width: 1024px) {
-      .main { grid-template-columns: 1fr; }
-      .map-pane { height: 360px; position: relative; top: 0; }
-      .lightbox-shell {
-        width: min(640px, 96vw);
-        height: min(850px, 96vh);
-      }
-      .lightbox-content {
-        grid-template-columns: 1fr;
-        max-height: 90vh;
-      }
-      .lightbox-img-wrap img { height: 45vh; }
-      .filmstrip {
-        border-radius: 14px;
-        padding: 10px 12px;
-      }
+      .app-body { grid-template-columns: 1fr; }
+      .sidebar, .map-pane { display: none; }
+      .lightbox-content { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -486,614 +389,350 @@ TEMPLATE = """<!DOCTYPE html>
     <header>
       <button class="back-btn" id="backBtn">← Trips</button>
       <div class="brand">
-        <span>MemoGraph Browser</span>
+        <span>MemoGraph</span>
         <span class="trip-name" id="tripName">Trip</span>
       </div>
       <label class="search">
-        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="5"/><path d="M11 11l4 4"/></svg>
-        <input id="search" type="text" placeholder="Search captions, tags, species, scenes..." />
+        <input id="search" type="text" placeholder="Search captions, tags..." />
       </label>
     </header>
-    <div class="filters-bar">
-      <button id="filterToggle">Hide Filters</button>
-    </div>
-    <div class="preset-toolbar">
-      <div style="min-width:120px;">Quick filters:</div>
-      <div class="preset-buttons" id="presetButtons"></div>
-      <button class="quality-pill" id="bestQualityBtn">Best Balanced</button>
-      <div class="custom-presets">
-        <select id="customPresetSelect"></select>
-        <button id="applyPresetBtn">Apply</button>
-        <button id="savePresetBtn">Save current</button>
-        <button id="deletePresetBtn">Delete</button>
+    
+    <div class="app-body">
+      <div class="sidebar">
+        <button id="clearFiltersBtn" style="width:100%;padding:10px;margin-bottom:16px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#fca5a5;cursor:pointer;border-radius:8px;font-weight:600;transition:all 0.2s;">Clear All Filters</button>
+        <div class="sidebar-section">
+            <h3>Quick Presets</h3>
+            <div class="preset-buttons" id="presetButtons"></div>
+        </div>
+        <div class="sidebar-section">
+            <h3>Categories</h3>
+            <div id="filters"></div>
+        </div>
+      </div>
+
+      <div class="main">
+        <div class="gallery" id="gallery"></div>
+      </div>
+
+      <div class="map-pane">
+        <div id="map"></div>
       </div>
     </div>
-    <div class="filters-wrapper" id="filtersWrapper">
-      <div class="filters" id="filters"></div>
-    </div>
-    <div class="main">
-      <div class="gallery" id="gallery"></div>
-      <div class="map-pane"><div id="map"></div></div>
-    </div>
+  </div>
+
+  <div id="lightbox" class="lightbox">
+     <div class="lightbox-shell">
+        <div class="lightbox-content">
+           <button class="lightbox-close" id="lightboxClose">✕ Close</button>
+           <div class="lightbox-img-wrap">
+              <button id="navPrev" style="position:absolute;left:15px;z-index:10;background:rgba(0,0,0,0.6);color:#fff;border:none;width:40px;height:40px;border-radius:50%;cursor:pointer;font-size:18px;">◀</button>
+              <img id="lightboxImage" src="">
+              <button id="navNext" style="position:absolute;right:15px;z-index:10;background:rgba(0,0,0,0.6);color:#fff;border:none;width:40px;height:40px;border-radius:50%;cursor:pointer;font-size:18px;">▶</button>
+           </div>
+           <div class="lightbox-meta">
+              <h2 id="lightboxTitle"></h2>
+              <div id="lightboxColors" class="lightbox-colors"></div>
+              <ul id="lightboxMeta"></ul>
+              <div class="lightbox-actions">
+                <button id="openOriginalBtn">Open Original</button>
+                <button id="copyMetaBtn">Copy Info</button>
+              </div>
+              <div id="lightboxMap" class="lightbox-map"></div>
+           </div>
+        </div>
+        <div class="filmstrip" id="filmstrip"></div>
+     </div>
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
   <script>
-    // Embedded data (blog_context)
     const data = __DATA_PLACEHOLDER__;
-    // Paths:
     const TRIP_NAME = data.trip_name || "MemoGraph Trip";
-    // - MemoGraph assets (thumbnails/css) live one level up from webapp/
-    // - Original trip images live two levels up (trip root).
     const MEMO_BASE = "../";
     const TRIP_BASE = "../../";
     const MASTER_BASE = "../../../index.html";
 
-    // Collect all images
     const images = [];
     (data.days || []).forEach(day => {
       (day.images || []).forEach(img => {
-        images.push({
-          ...img,
-          day_number: day.day_number,
-          date: day.date,
-          _index: images.length
-        });
+        images.push({ ...img, day_number: day.day_number, date: day.date });
       });
     });
 
-    // Derive a set of theme chips (from day themes + detected/yolo/places)
-    const chipSet = new Set(["mountains","water","towns","temples","markets","food","stays","astro","wildlife","selfie","group"]);
+    const chipSet = new Set();
     images.forEach(img => {
       (img.detected_objects || []).forEach(t => chipSet.add(t.toLowerCase()));
       (img.yolo_objects || []).forEach(t => chipSet.add(t.toLowerCase()));
-      (img.places_scenes || []).forEach(t => {
-        const name = t.split("(")[0].trim().toLowerCase();
-        chipSet.add(name);
-      });
+      (img.places_scenes || []).forEach(t => chipSet.add(t.split("(")[0].trim().toLowerCase()));
+      (img.species_tags || []).forEach(t => chipSet.add(t.toLowerCase()));
     });
     const chips = Array.from(chipSet).filter(Boolean).sort();
 
-    const filtersEl = document.getElementById('filters');
-    const filtersWrapper = document.getElementById('filtersWrapper');
-    const filterToggle = document.getElementById('filterToggle');
-    const galleryEl = document.getElementById('gallery');
-    const searchInput = document.getElementById('search');
-    const tripNameEl = document.getElementById('tripName');
-    const backBtn = document.getElementById('backBtn');
-    const presetButtonsEl = document.getElementById('presetButtons');
-    const customPresetSelect = document.getElementById('customPresetSelect');
-    const applyPresetBtn = document.getElementById('applyPresetBtn');
-    const savePresetBtn = document.getElementById('savePresetBtn');
-    const deletePresetBtn = document.getElementById('deletePresetBtn');
-    const bestQualityBtn = document.getElementById('bestQualityBtn');
+    let activeChips = new Set();
+    let map, lightboxMap;
+    let markers = [], lightboxMarker;
+    let filteredImages = images.slice();
+    let currentLightboxIndex = 0;
 
-    const lightbox = document.getElementById('lightbox') || (function() {
-      const div = document.createElement('div');
-      div.className = 'lightbox';
-      div.id = 'lightbox';
-      div.innerHTML = `
-        <div class="lightbox-shell">
-          <div class="lightbox-content">
-            <button class="lightbox-close" id="lightboxClose">Close ✕</button>
-            <div class="lightbox-img-wrap">
-              <img id="lightboxImage" src="" alt="">
-              <div class="lightbox-nav">
-                <button id="navPrev">◀</button>
-                <button id="navNext">▶</button>
-              </div>
-            </div>
-            <div class="lightbox-meta">
-              <h3 id="lightboxTitle">Photo details</h3>
-              <ul id="lightboxMeta"></ul>
-              <div class="lightbox-actions">
-                <button id="copyDetailsBtn">Copy details</button>
-                <button id="openOriginalBtn">Open photo</button>
-              </div>
-              <div class="lightbox-map" id="lightboxMap"></div>
-            </div>
-          </div>
-          <div class="filmstrip" id="filmstrip"></div>
-        </div>`;
-      document.body.appendChild(div);
-      return div;
-    })();
-    const lightboxImage = document.getElementById('lightboxImage');
+    const galleryEl = document.getElementById('gallery');
+    const filtersEl = document.getElementById('filters');
+    const searchInput = document.getElementById('search');
+    const mapEl = document.getElementById('map');
+    const lightbox = document.getElementById('lightbox');
+    const lightboxImg = document.getElementById('lightboxImage');
     const lightboxTitle = document.getElementById('lightboxTitle');
     const lightboxMeta = document.getElementById('lightboxMeta');
+    const lightboxColors = document.getElementById('lightboxColors');
     const filmstripEl = document.getElementById('filmstrip');
-    const navPrev = document.getElementById('navPrev');
-    const navNext = document.getElementById('navNext');
-    const lightboxClose = document.getElementById('lightboxClose');
-    const lightboxMapEl = document.getElementById('lightboxMap');
-    const copyDetailsBtn = document.getElementById('copyDetailsBtn');
+    const clearFiltersBtn = document.getElementById('clearFiltersBtn');
     const openOriginalBtn = document.getElementById('openOriginalBtn');
+    const copyMetaBtn = document.getElementById('copyMetaBtn');
 
-    const PRESET_DEFS = [
-      { id: "birds", label: "Birds", tokens: ["birds"] },
-      { id: "landscapes", label: "Landscapes", tokens: ["landscape"] },
-      { id: "astro", label: "Astro", tokens: ["astro", "galaxy"] },
-      { id: "people", label: "People", tokens: ["selfie", "group"] }
-    ];
-    const STORAGE_KEY = "memograph_filters_v1";
-    const storedPresets = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
-    let customPresets = storedPresets[TRIP_NAME] || [];
-
-    let activeChips = new Set();
-    let map;
-    let markers = [];
-    let filteredImages = images.slice();
-    let currentFilteredIndex = 0;
-    let filtersCollapsed = false;
-    let lightboxVisible = false;
-    let lightboxMapInstance = null;
-    let lightboxMapMarker = null;
-    let latestDetailText = "";
-    let currentFullSrc = "";
-    let bestOnly = false;
-
-    tripNameEl.textContent = TRIP_NAME;
-    backBtn.onclick = () => { window.location.href = MASTER_BASE; };
-    filterToggle.onclick = () => {
-      filtersCollapsed = !filtersCollapsed;
-      filtersWrapper.classList.toggle('collapsed', filtersCollapsed);
-      filterToggle.textContent = filtersCollapsed ? 'Show Filters' : 'Hide Filters';
+    document.getElementById('tripName').textContent = TRIP_NAME;
+    document.getElementById('backBtn').onclick = () => window.location.href = MASTER_BASE;
+    document.getElementById('lightboxClose').onclick = () => lightbox.classList.remove('show');
+    document.getElementById('navPrev').onclick = (e) => { e.stopPropagation(); showLightbox(currentLightboxIndex - 1); };
+    document.getElementById('navNext').onclick = (e) => { e.stopPropagation(); showLightbox(currentLightboxIndex + 1); };
+    
+    clearFiltersBtn.onclick = () => {
+        activeChips.clear();
+        searchInput.value = "";
+        renderFilters();
+        renderGallery();
     };
-    bestQualityBtn.onclick = () => {
-      bestOnly = !bestOnly;
-      bestQualityBtn.classList.toggle('active', bestOnly);
-      render();
-    };
-    const closeLightbox = () => {
-      lightbox.classList.remove('show');
-      lightboxVisible = false;
-    };
-    lightboxClose.onclick = closeLightbox;
-    lightbox.onclick = (ev) => {
-      if (ev.target === lightbox) closeLightbox();
-    };
-    navPrev.onclick = (ev) => { ev.stopPropagation(); stepLightbox(-1); };
-    navNext.onclick = (ev) => { ev.stopPropagation(); stepLightbox(1); };
-    document.addEventListener('keydown', (ev) => {
-      if (!lightboxVisible) return;
-      if (ev.key === 'ArrowLeft') {
-        ev.preventDefault();
-        stepLightbox(-1);
-      } else if (ev.key === 'ArrowRight') {
-        ev.preventDefault();
-        stepLightbox(1);
-      } else if (ev.key === 'Escape') {
-        ev.preventDefault();
-        closeLightbox();
-      }
-    });
-
-    copyDetailsBtn.onclick = async () => {
-      if (!latestDetailText) return;
-      try {
-        await navigator.clipboard.writeText(latestDetailText);
-      } catch (err) {
-        console.warn("Clipboard write failed", err);
-      }
-    };
-
+    
     openOriginalBtn.onclick = () => {
-      if (!currentFullSrc) return;
-      window.open(currentFullSrc, "_blank");
+        const img = filteredImages[currentLightboxIndex];
+        if (img) window.open(TRIP_BASE + (img.local_path || img.image_name), '_blank');
     };
 
-    function updateMiniMap(lat, lon) {
-      if (!lightboxMapEl) return;
-      if (lat == null || lon == null) {
-        lightboxMapEl.style.display = "none";
-        if (lightboxMapInstance) {
-          lightboxMapInstance.remove();
-          lightboxMapInstance = null;
-          lightboxMapMarker = null;
-        }
-        return;
-      }
-      lightboxMapEl.style.display = "block";
-      if (!lightboxMapInstance) {
-        lightboxMapInstance = L.map(lightboxMapEl, { zoomControl: false, attributionControl: false });
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          maxZoom: 19
-        }).addTo(lightboxMapInstance);
-      }
-      lightboxMapInstance.setView([lat, lon], 10);
-      if (lightboxMapMarker) {
-        lightboxMapMarker.setLatLng([lat, lon]);
-      } else {
-        lightboxMapMarker = L.circleMarker([lat, lon], { radius: 6, color: "#5eead4", fillOpacity: 0.9 }).addTo(lightboxMapInstance);
-      }
-    }
+    copyMetaBtn.onclick = () => {
+        const text = Array.from(lightboxMeta.querySelectorAll('li')).map(li => li.innerText).join('\\n');
+        navigator.clipboard.writeText(text).then(() => alert('Info copied to clipboard!'));
+    };
 
-    function renderChips() {
+    const CATEGORIES = {
+      "Nature": ["bird", "insect", "flower", "plant", "tree", "forest", "mountain", "valley", "lake", "river", "waterfall", "landscape", "wildlife", "animal", "yak", "cat", "dog", "sunrise", "sunset", "night sky", "stars", "moon", "eclipse", "galaxy", "nebula", "milky way", "star cluster", "astrophotography", "rock", "stone"],
+      "Structures": ["building", "home stay", "guesthouse", "homestay", "hotel", "hotel room", "market", "bazaar", "street market", "temple", "monastery", "stupa", "church", "mosque", "palace", "fort", "castle", "monument", "historical gate", "bridge", "suspension bridge", "city", "cityscape", "town", "village", "street", "narrow street", "highway", "road", "mountain road", "bus on a mountain road", "sign", "billboard", "poster", "wall", "lamp", "light", "street light", "window", "door", "furniture", "chair", "table", "fence", "gate", "pole", "wire", "road sign"],
+      "People": ["person", "group of people", "selfie", "group"],
+      "Food/Drink": ["food", "thali", "curry", "tea", "chai", "coffee", "cafe", "restaurant", "plate of food", "street food stall", "bowl of curry", "cup of tea", "cup of coffee", "glass of chai", "dessert plate", "pizza", "burger"],
+      "Tech": ["circuit board", "electronics", "computer chip", "wiring", "soldering", "motherboard", "screen", "monitor", "keyboard", "mouse", "laptop", "smartphone", "tablet", "television", "appliance", "tool"],
+    };
+
+    function renderFilters() {
       filtersEl.innerHTML = '';
+      const categorized = { "Nature": [], "Structures": [], "People": [], "Food/Drink": [], "Tech": [], "Others": [] };
+      
       chips.forEach(ch => {
-        const btn = document.createElement('button');
-        btn.className = 'chip';
-        btn.textContent = ch;
-        if (activeChips.has(ch)) btn.classList.add('active');
-        btn.onclick = () => {
-          if (activeChips.has(ch)) activeChips.delete(ch);
-          else activeChips.add(ch);
-          renderChips();
-          render();
-        };
-        filtersEl.appendChild(btn);
-      });
-    }
-
-    function matchesFilters(img, term) {
-      // text match against multiple fields
-      const haystack = [
-        img.caption || '',
-        img.caption_ai || '',
-        (img.species_tags || []).join(' '),
-        (img.detected_objects || []).join(' '),
-        (img.yolo_objects || []).join(' '),
-        (img.places_scenes || []).join(' '),
-        img.location_full || '',
-        img.location_short || ''
-      ].join(' ').toLowerCase();
-      if (term && !haystack.includes(term)) return false;
-
-      // chip filters
-      if (activeChips.size === 0) return true;
-      const tags = new Set();
-      (img.detected_objects || []).forEach(t => tags.add(t.toLowerCase()));
-      (img.yolo_objects || []).forEach(t => tags.add(t.toLowerCase()));
-      (img.places_scenes || []).forEach(t => tags.add(t.split('(')[0].trim().toLowerCase()));
-      (img.species_tags || []).forEach(t => tags.add(t.toLowerCase()));
-      // faces-derived tags
-      const fc = Number(img.faces_count || 0);
-      if (fc === 1) tags.add('selfie');
-      if (fc >= 2) tags.add('group');
-      // day themes could also be added if needed
-
-      // require that each active chip is present in tags
-      for (const ch of activeChips) {
-        if (!tags.has(ch)) return false;
-      }
-      return true;
-    }
-
-    function matchesQuality(img) {
-      if (!bestOnly) return true;
-      const score = Number(img.quality_score || 0);
-      const sharpness = Number(img.sharpness_score || 0);
-      const exposure = Number(img.exposure_score || 0);
-      return score >= 0.7 && sharpness >= 0.4 && exposure >= 0.5;
-    }
-
-    function render() {
-      const term = searchInput.value.trim().toLowerCase();
-      const result = images.filter(img => matchesFilters(img, term) && matchesQuality(img));
-      const ordered = bestOnly
-        ? [...result].sort((a, b) => Number(b.quality_score || 0) - Number(a.quality_score || 0))
-        : result;
-      filteredImages = ordered;
-
-      galleryEl.innerHTML = '';
-      if (!ordered.length) {
-        const empty = document.createElement('div');
-        empty.className = 'empty-state';
-        empty.textContent = 'No photos match your filters.';
-        galleryEl.appendChild(empty);
-      } else {
-        ordered.forEach((img, idx) => {
-          const card = document.createElement('div');
-          card.className = 'card';
-          const thumb = document.createElement('div');
-          thumb.className = 'thumb';
-          const imgTag = document.createElement('img');
-          imgTag.loading = 'lazy';
-          // Prefer thumbnails; fallback to original image path.
-          const thumbSrc = img.thumbnail
-            ? MEMO_BASE + img.thumbnail
-            : TRIP_BASE + (img.local_path || img.image_name || '');
-          imgTag.src = thumbSrc;
-          imgTag.alt = img.caption_ai || img.caption || img.image_name;
-          thumb.appendChild(imgTag);
-          card.appendChild(thumb);
-
-          const title = document.createElement('div');
-          title.className = 'title';
-          title.textContent = img.caption_ai || img.caption || img.image_name;
-          card.appendChild(title);
-
-          const meta = document.createElement('div');
-          meta.className = 'meta';
-          const qualityScore = Number(img.quality_score || 0);
-          const metaBits = [
-            `Day ${img.day_number}`,
-            img.date,
-            img.location_short || '-'
-          ];
-          if (qualityScore) {
-            metaBits.push(`Quality ${(qualityScore * 100).toFixed(0)}%`);
+        let found = false;
+        for (const cat in CATEGORIES) {
+          if (CATEGORIES[cat].includes(ch)) {
+            categorized[cat].push(ch);
+            found = true;
+            break;
           }
-          meta.textContent = metaBits.filter(Boolean).join(' • ');
-          card.appendChild(meta);
+        }
+        if (!found) categorized["Others"].push(ch);
+      });
 
-          const tagsWrap = document.createElement('div');
-          tagsWrap.className = 'tags';
-          const pushTag = (t) => {
-            const span = document.createElement('span');
-            span.className = 'tag';
-            span.textContent = t;
-            tagsWrap.appendChild(span);
+      for (const cat in categorized) {
+        if (!categorized[cat].length) continue;
+        const group = document.createElement('div');
+        group.className = 'filters-group';
+        group.innerHTML = `<div class="filters-group-title">${cat}</div>`;
+        const container = document.createElement('div');
+        container.className = 'filters';
+        categorized[cat].forEach(ch => {
+          const btn = document.createElement('div');
+          btn.className = 'chip';
+          if (activeChips.has(ch)) btn.classList.add('active');
+          btn.textContent = ch;
+          btn.onclick = () => {
+            if (activeChips.has(ch)) activeChips.delete(ch); else activeChips.add(ch);
+            renderFilters();
+            renderGallery();
           };
-          (img.species_tags || []).slice(0,3).forEach(pushTag);
-          (img.detected_objects || []).slice(0,2).forEach(pushTag);
-          (img.places_scenes || []).slice(0,1).forEach(t => pushTag(t.split('(')[0].trim()));
-          const fc = Number(img.faces_count || 0);
-          if (fc === 1) pushTag('selfie');
-          if (fc >= 2) pushTag('group');
-          if (img.quality_notes) pushTag(`quality: ${img.quality_notes}`);
-
-          card.appendChild(tagsWrap);
-          card.onclick = () => openLightbox(idx);
-          galleryEl.appendChild(card);
+          container.appendChild(btn);
         });
+        group.appendChild(container);
+        filtersEl.appendChild(group);
       }
-
-      renderMap(ordered);
-      renderFilmstrip();
     }
 
     function initMap() {
-      map = L.map('map', { zoomControl: true });
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '© OpenStreetMap'
-      }).addTo(map);
-      map.setView([20,0], 2);
+      map = L.map('map', { zoomControl: false }).setView([20, 0], 2);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
     }
-
-    function clusterImagesForMap(list) {
-      const clusterMap = new Map();
-      list.forEach(img => {
-        if (img.gps_lat == null || img.gps_lon == null) return;
-        const key = `${img.gps_lat.toFixed(2)}|${img.gps_lon.toFixed(2)}`;
-        if (!clusterMap.has(key)) {
-          clusterMap.set(key, { lat: img.gps_lat, lon: img.gps_lon, items: [] });
-        }
-        clusterMap.get(key).items.push(img);
-      });
-      return Array.from(clusterMap.values());
-    }
-
-    function renderMap(list) {
+    
+    function updateMap() {
       if (!map) initMap();
-      // Clear markers
       markers.forEach(m => m.remove());
       markers = [];
-
-      const clusters = clusterImagesForMap(list);
-      const coords = [];
-      clusters.forEach(cluster => {
-        coords.push([cluster.lat, cluster.lon]);
-        if (cluster.items.length > 1) {
-          const marker = L.marker([cluster.lat, cluster.lon], {
-            icon: L.divIcon({ className: 'cluster-icon', html: cluster.items.length.toString(), iconSize: [36, 36] })
-          }).addTo(map);
-          marker.on('click', () => {
-            const previews = cluster.items.slice(0, 4).map(item => {
-              const imgSrc = item.thumbnail
-                ? MEMO_BASE + item.thumbnail
-                : TRIP_BASE + (item.local_path || item.image_name || '');
-              return `<div style="margin-bottom:6px;">
-                        <div style="font-weight:600;">${item.caption_ai || item.caption || item.image_name}</div>
-                        <img src="${imgSrc}" style="width:150px;height:90px;object-fit:cover;border-radius:8px;" />
-                      </div>`;
-            }).join('');
-            marker.bindPopup(previews || `${cluster.items.length} photos`).openPopup();
-          });
-          markers.push(marker);
-        } else {
-          const img = cluster.items[0];
-          const marker = L.marker([img.gps_lat, img.gps_lon]).addTo(map);
-          const popupImg = img.thumbnail
-            ? MEMO_BASE + img.thumbnail
-            : TRIP_BASE + (img.local_path || img.image_name || '');
-          marker.bindPopup(
-            `<div style="font-weight:600;">${img.caption_ai || img.caption || img.image_name}</div>
-             <div style="color:#999;font-size:12px;margin:4px 0;">Day ${img.day_number} · ${img.location_short || ''}</div>
-             <img src="${popupImg}" alt="" style="width:180px;max-height:140px;object-fit:cover;border-radius:8px;">`
-          );
-          markers.push(marker);
+      const bounds = [];
+      filteredImages.forEach(img => {
+        if (img.gps_lat && img.gps_lon) {
+           const m = L.circleMarker([img.gps_lat, img.gps_lon], { radius: 5, color: '#38bdf8', weight: 2, fillOpacity: 0.8 }).addTo(map);
+           markers.push(m);
+           bounds.push([img.gps_lat, img.gps_lon]);
         }
       });
-      if (coords.length) {
-        const bounds = L.latLngBounds(coords);
-        map.fitBounds(bounds.pad(0.25));
+      if (bounds.length) map.fitBounds(bounds, { padding: [20, 20] });
+    }
+
+    function renderGallery() {
+      const term = searchInput.value.toLowerCase();
+      filteredImages = images.filter(img => {
+        const text = [img.caption, img.caption_ai, ...(img.detected_objects||[]), ...(img.species_tags||[])].join(' ').toLowerCase();
+        if (term && !text.includes(term)) return false;
+        if (activeChips.size) {
+           const imgTags = new Set([...(img.detected_objects||[]), ...(img.species_tags||[])].map(s=>s.toLowerCase()));
+           for (let c of activeChips) if (!imgTags.has(c)) return false;
+        }
+        return true;
+      });
+
+      galleryEl.innerHTML = '';
+      if (!filteredImages.length) {
+        galleryEl.innerHTML = '<div class="empty-state">No photos match your filters</div>';
+      } else {
+        filteredImages.forEach((img, idx) => {
+           const card = document.createElement('div');
+           card.className = 'card';
+           
+           const thumbSrc = img.thumbnail ? MEMO_BASE + img.thumbnail : TRIP_BASE + (img.local_path||img.image_name);
+           let colorsHtml = '';
+           if (img.color_palette && img.color_palette.length) {
+               colorsHtml = `<div class="color-bar">${img.color_palette.map(c => `<div class="swatch" style="background:${c}"></div>`).join('')}</div>`;
+           }
+
+           card.innerHTML = `
+             <div class="thumb">
+               <img src="${thumbSrc}" loading="lazy">
+               ${colorsHtml}
+             </div>
+             <div class="title" title="${img.caption_ai || img.caption}">${img.caption_ai || img.caption || "Untitled"}</div>
+             <div class="meta">
+               ${img.location_short || "Unknown"} • Day ${img.day_number}
+               ${img.quality_score ? ` • Q ${(img.quality_score*100).toFixed(0)}%` : ""}
+             </div>
+             <div class="tags"></div>
+           `;
+           
+           const tagsDiv = card.querySelector('.tags');
+           (img.species_tags||[]).slice(0,1).forEach(t => {
+               const s = document.createElement('span'); s.className='tag'; s.textContent=t; tagsDiv.appendChild(s);
+           });
+           
+           const fcVal = img.faces_count;
+           if (String(fcVal) === "-1") {
+               const s = document.createElement('span'); s.className='tag'; s.style.color='#fca5a5'; s.textContent='Scan Pending'; tagsDiv.appendChild(s);
+           } else {
+               const fc = Number(fcVal || 0);
+               if (fc === 0) {
+                   const s = document.createElement('span'); s.className='tag'; s.style.color='#9ca3af'; s.textContent='No Faces'; tagsDiv.appendChild(s);
+               } else {
+                   const s = document.createElement('span'); s.className='tag'; s.style.color='#86efac'; s.textContent=`${fc} Face${fc>1?'s':''}`; tagsDiv.appendChild(s);
+               }
+           }
+
+           card.onclick = () => showLightbox(idx);
+           galleryEl.appendChild(card);
+        });
       }
+      updateMap();
+    }
+
+    function showLightbox(idx) {
+        if (idx < 0 || idx >= filteredImages.length) return;
+        currentLightboxIndex = idx;
+        const img = filteredImages[idx];
+        const src = TRIP_BASE + (img.local_path || img.image_name);
+        lightboxImg.src = src;
+        lightboxTitle.textContent = img.caption_ai || img.caption || "Photo Details";
+        
+        // Colors
+        lightboxColors.innerHTML = "";
+        if (img.color_palette && img.color_palette.length) {
+            lightboxColors.innerHTML = img.color_palette.map(c => `<div style="flex:1;background:${c};height:100%"></div>`).join('');
+        }
+
+        // Detailed Metadata
+        lightboxMeta.innerHTML = `
+           <li><strong>Location:</strong> ${img.location_full || img.location_short || "Unknown"}</li>
+           <li><strong>Captured:</strong> ${img.time}</li>
+           <li><strong>Type:</strong> ${img.image_type || "Unknown"}</li>
+           <li><strong>Device:</strong> ${img.device_model || "Unknown"}</li>
+           <li><strong>Faces:</strong> ${img.faces_count === -1 ? "Pending" : img.faces_count}</li>
+           <li><strong>Tags:</strong> ${(img.detected_objects||[]).join(', ') || 'None'}</li>
+           <li><strong>Species:</strong> ${(img.species_tags||[]).join(', ') || 'None'}</li>
+           <li><strong>Quality:</strong> ${img.quality_score ? (img.quality_score*100).toFixed(0)+'%' : 'N/A'} ${img.quality_notes ? '('+img.quality_notes+')' : ''}</li>
+           <li><strong>Balance:</strong> Exp ${(img.exposure_score*100).toFixed(0)}% · Con ${(img.contrast_score*100).toFixed(0)}% · Shp ${(img.sharpness_score*100).toFixed(0)}% · Noi ${(img.noise_score*100).toFixed(0)}%</li>
+        `;
+        
+        if (img.vision_caption) {
+            const vli = document.createElement('li');
+            vli.innerHTML = `<strong>AI Description:</strong> <span style="color:var(--accent-2)">${img.vision_caption}</span>`;
+            lightboxMeta.appendChild(vli);
+        }
+
+        // Mini Map
+        const mapContainer = document.getElementById('lightboxMap');
+        if (img.gps_lat && img.gps_lon) {
+            mapContainer.style.display = 'block';
+            if (!lightboxMap) {
+                lightboxMap = L.map(mapContainer, { zoomControl: false, attributionControl: false });
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(lightboxMap);
+            }
+            lightboxMap.setView([img.gps_lat, img.gps_lon], 13);
+            if (lightboxMarker) lightboxMarker.remove();
+            lightboxMarker = L.circleMarker([img.gps_lat, img.gps_lon], { radius: 7, color: "#5eead4", weight: 3, fillOpacity: 0.9 }).addTo(lightboxMap);
+            
+            const linkLi = document.createElement('li');
+            linkLi.innerHTML = `<strong>Map:</strong> <a href="https://maps.google.com/?q=${img.gps_lat},${img.gps_lon}" target="_blank" style="color:var(--accent)">Open in Google Maps</a>`;
+            lightboxMeta.appendChild(linkLi);
+        } else {
+            mapContainer.style.display = 'none';
+        }
+
+        lightbox.classList.add('show');
+        setTimeout(() => { if(lightboxMap) lightboxMap.invalidateSize(); }, 300);
+        renderFilmstrip();
     }
 
     function renderFilmstrip() {
-      filmstripEl.innerHTML = '';
-      filteredImages.forEach((img, idx) => {
-        const thumb = document.createElement('img');
-        thumb.src = img.thumbnail
-          ? MEMO_BASE + img.thumbnail
-          : TRIP_BASE + (img.local_path || img.image_name || '');
-        thumb.classList.toggle('active', idx === currentFilteredIndex);
-        thumb.onclick = (ev) => {
-          ev.stopPropagation();
-          openLightbox(idx);
-        };
-        filmstripEl.appendChild(thumb);
-      });
+        filmstripEl.innerHTML = '';
+        filteredImages.forEach((img, i) => {
+            const thumb = document.createElement('img');
+            thumb.src = img.thumbnail ? MEMO_BASE + img.thumbnail : TRIP_BASE + (img.local_path||img.image_name);
+            if (i === currentLightboxIndex) thumb.classList.add('active');
+            thumb.onclick = (e) => { e.stopPropagation(); showLightbox(i); };
+            filmstripEl.appendChild(thumb);
+        });
+        const active = filmstripEl.querySelector('.active');
+        if (active) active.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
-    function openLightbox(idx) {
-      if (!filteredImages.length) return;
-      currentFilteredIndex = (idx + filteredImages.length) % filteredImages.length;
-      const img = filteredImages[currentFilteredIndex];
-      const fullSrc = TRIP_BASE + (img.local_path || img.image_name || '');
-      lightboxImage.src = fullSrc;
-      currentFullSrc = fullSrc;
-      lightboxTitle.textContent = img.caption_ai || img.caption || img.image_name;
+    // Keyboard navigation
+    document.addEventListener('keydown', (e) => {
+        if (!lightbox.classList.contains('show')) return;
+        if (e.key === 'ArrowLeft') showLightbox(currentLightboxIndex - 1);
+        else if (e.key === 'ArrowRight') showLightbox(currentLightboxIndex + 1);
+        else if (e.key === 'Escape') lightbox.classList.remove('show');
+    });
 
-      const metaEntries = [];
-      if (img.location_full || img.location_short) {
-        metaEntries.push(`<strong>Location:</strong> ${img.location_full || img.location_short}`);
-      }
-      if (img.time) {
-        metaEntries.push(`<strong>Captured:</strong> ${img.time}`);
-      }
-      if (img.image_type) {
-        metaEntries.push(`<strong>Type:</strong> ${img.image_type}`);
-      }
-      if (img.device_model) {
-        metaEntries.push(`<strong>Device:</strong> ${img.device_model}`);
-      }
-      if (typeof img.faces_count !== "undefined") {
-        metaEntries.push(`<strong>Faces:</strong> ${img.faces_count}`);
-      }
-      if (img.species_tags && img.species_tags.length) {
-        metaEntries.push(`<strong>Species:</strong> ${img.species_tags.join(', ')}`);
-      }
-      if (img.detected_objects && img.detected_objects.length) {
-        metaEntries.push(`<strong>Detected objects:</strong> ${img.detected_objects.join(', ')}`);
-      }
-      if (img.places_scenes && img.places_scenes.length) {
-        metaEntries.push(`<strong>Scenes:</strong> ${img.places_scenes.join(', ')}`);
-      }
-      if (img.yolo_objects && img.yolo_objects.length) {
-        metaEntries.push(`<strong>YOLO:</strong> ${img.yolo_objects.join(', ')}`);
-      }
-      const qualityScore = Number(img.quality_score || 0);
-      if (qualityScore) {
-        const note = img.quality_notes ? ` (${img.quality_notes})` : "";
-        metaEntries.push(`<strong>Quality:</strong> ${(qualityScore * 100).toFixed(0)}%${note}`);
-      }
-      const subMetrics = [];
-      const exposureScore = Number(img.exposure_score || 0);
-      if (exposureScore) subMetrics.push(`Exposure ${(exposureScore * 100).toFixed(0)}%`);
-      const contrastScore = Number(img.contrast_score || 0);
-      if (contrastScore) subMetrics.push(`Contrast ${(contrastScore * 100).toFixed(0)}%`);
-      const sharpnessScore = Number(img.sharpness_score || 0);
-      if (sharpnessScore) subMetrics.push(`Sharpness ${(sharpnessScore * 100).toFixed(0)}%`);
-      const noiseScore = Number(img.noise_score || 0);
-      if (noiseScore) subMetrics.push(`Noise ${(noiseScore * 100).toFixed(0)}%`);
-      if (subMetrics.length) {
-        metaEntries.push(`<strong>Balance metrics:</strong> ${subMetrics.join(' · ')}`);
-      }
-      if (img.gps_lat != null && img.gps_lon != null) {
-        const link = `https://maps.google.com/?q=${img.gps_lat},${img.gps_lon}`;
-        metaEntries.push(`<strong>Map:</strong> <a href="${link}" target="_blank">Open location</a>`);
-      }
-      lightboxMeta.innerHTML = metaEntries.map(entry => `<li>${entry}</li>`).join('') || '<li>No additional metadata</li>';
-      latestDetailText = [
-        img.caption_ai || img.caption || img.image_name,
-        img.location_full || img.location_short ? `Location: ${img.location_full || img.location_short}` : "",
-        img.time ? `Captured: ${img.time}` : "",
-        img.device_model ? `Device: ${img.device_model}` : "",
-        qualityScore ? `Quality: ${(qualityScore * 100).toFixed(0)}%` : "",
-        img.quality_notes ? `Quality notes: ${img.quality_notes}` : "",
-        img.species_tags && img.species_tags.length ? `Species: ${img.species_tags.join(', ')}` : "",
-        img.detected_objects && img.detected_objects.length ? `Objects: ${img.detected_objects.join(', ')}` : ""
-      ].filter(Boolean).join('\\n');
-      updateMiniMap(img.gps_lat, img.gps_lon);
-      lightbox.classList.add('show');
-      lightboxVisible = true;
-      renderFilmstrip();
-    }
+    searchInput.oninput = renderGallery;
+    renderFilters();
+    renderGallery();
 
-    function stepLightbox(delta) {
-      if (!filteredImages.length) return;
-      openLightbox(currentFilteredIndex + delta);
-    }
-
-    function setActiveChipsFromArray(arr) {
-      activeChips = new Set((arr || []).map(s => s.toLowerCase()));
-      renderChips();
-      render();
-    }
-
-    function renderPresetButtons() {
-      presetButtonsEl.innerHTML = "";
-      PRESET_DEFS.forEach(preset => {
-        const btn = document.createElement('button');
-        btn.textContent = preset.label;
-        btn.onclick = () => setActiveChipsFromArray(preset.tokens);
-        presetButtonsEl.appendChild(btn);
-      });
-    }
-
-    function persistCustomPresets() {
-      storedPresets[TRIP_NAME] = customPresets;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(storedPresets));
-    }
-
-    function renderCustomPresetOptions() {
-      customPresetSelect.innerHTML = "";
-      if (!customPresets.length) {
-        const opt = document.createElement('option');
-        opt.value = "";
-        opt.textContent = "No saved filters";
-        customPresetSelect.appendChild(opt);
-        applyPresetBtn.disabled = true;
-        deletePresetBtn.disabled = true;
-        return;
-      }
-      applyPresetBtn.disabled = false;
-      deletePresetBtn.disabled = false;
-      customPresets.forEach(preset => {
-        const opt = document.createElement('option');
-        opt.value = preset.name;
-        opt.textContent = preset.name;
-        customPresetSelect.appendChild(opt);
-      });
-    }
-
-    renderPresetButtons();
-    renderCustomPresetOptions();
-    applyPresetBtn.onclick = () => {
-      const name = customPresetSelect.value;
-      const preset = customPresets.find(p => p.name === name);
-      if (preset) setActiveChipsFromArray(preset.tokens);
-    };
-    savePresetBtn.onclick = () => {
-      const tokens = Array.from(activeChips);
-      if (!tokens.length) {
-        alert("Select at least one chip before saving.");
-        return;
-      }
-      const proposed = `Preset ${customPresets.length + 1}`;
-      const name = prompt("Name for this filter preset:", proposed);
-      if (!name) return;
-      customPresets = customPresets.filter(p => p.name !== name);
-      customPresets.push({ name, tokens });
-      persistCustomPresets();
-      renderCustomPresetOptions();
-      customPresetSelect.value = name;
-    };
-    deletePresetBtn.onclick = () => {
-      const name = customPresetSelect.value;
-      if (!name) return;
-      if (!confirm(`Delete preset "${name}"?`)) return;
-      customPresets = customPresets.filter(p => p.name !== name);
-      persistCustomPresets();
-      renderCustomPresetOptions();
-    };
-
-    renderChips();
-    searchInput.addEventListener('input', render);
-    render();
   </script>
-
 </body>
 </html>
 """
 
-
 def _sanitize_thumbnail_name(rel_path: str) -> str:
 	name_without_ext = os.path.splitext(rel_path)[0]
-	safe_name = name_without_ext.replace("\\", "_").replace("/", "_")
+	# Use os.sep and handle common separators
+	safe_name = name_without_ext.replace("/", "_").replace("\\\\", "_")
 	return f"{safe_name}.jpg"
 
 
@@ -1126,13 +765,13 @@ def _attach_thumbnails(trip_folder: str, memo_dir: str, data: dict) -> int:
 
 			if needs_build:
 				if create_thumbnail(src_path, dest_path, max_size=getattr(CFG, "THUMBNAIL_MAX_SIZE", 320)):
-					created += 1
+						created += 1
 				else:
-					# Skip attaching if generation failed.
 					continue
 
 			if os.path.exists(dest_path):
-				image["thumbnail"] = os.path.join(thumb_subdir, thumb_name).replace("\\", "/")
+				# Ensure correct slash for web URL
+				image["thumbnail"] = os.path.join(thumb_subdir, thumb_name).replace("\\\\", "/")
 
 	return created
 

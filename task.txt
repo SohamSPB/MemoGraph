@@ -271,7 +271,7 @@
         - Gallery builder:
             - scripts/build_face_gallery.py:
                 - Expects per-person reference photos under
-                  models/faces/known/<PersonName>/.
+                  models/faces/known/<PersonName>/. 
                 - Uses face_recognition to extract clean encodings when a
                   single clear face is present in each image.
                 - Writes encodings + labels to FACE_GALLERY_PATH.
@@ -456,7 +456,7 @@
             - The window is controlled by a config knob in `memograph_config.py` (e.g. `GPS_PROPAGATION_MAX_MINUTES`, default ~15 minutes).
             - This is logged so future agents can see when GPS was inferred vs read from EXIF.
         - Early map preview:
-            - After location resolution (including propagation), `run_all.py` generates an initial `trip_map.html` so the user can open a basic map while faces/captions/species are still running.
+            - After location resolution (including propagation), `run_all.py` generates an initial `trip_map.html` so the user can open a basic map while heavier AI steps (faces, captions, species, etc.) continue in the background.
         - Final map + overview page:
             - At the end of the pipeline, `map_visualizer.create_map` is called again to rebuild `trip_map.html` with captions/species/image_type.
             - `map_visualizer.create_overview_page(trip_folder)` builds `trip_overview.html`, which:
@@ -494,7 +494,7 @@
         - Clicking any thumbnail launches a redesigned lightbox with the hero image centered, metadata panel (location, time, image_type, device, faces_count, species, detected objects, Places/YOLO tags, Google Maps link), copy/open buttons, keyboard nav (Left/Right arrows + Esc), and a Leaflet mini-map when GPS is available.
         - The previous/next filmstrip now spans the full width under the lightbox with larger thumbnail previews, making the experience closer to native photo apps.
         - Leaflet markers use coarse clustering (rounded lat/lon) with preview popups for multi-photo clusters, and the modal overlay now sits above the map thanks to a higher z-index so no overlay bleeding occurs.
-        - The master hub (data/trips/index.html) lists every processed trip with stacked thumbnail previews, ranges, counts, top themes/species, and deep links into <trip>/MemoGraph/webapp/index.html.
+        - The master hub (data/trips/index.html) lists every processed trip with stacked thumbnail previews, ranges, counts, top themes/species, and deep links into `<trip>/MemoGraph/webapp/index.html`.
     - Upcoming enhancements to keep on the task list:
         - [ ] Polish the Material look/feel (chip ripple animations, gallery card ripple, smoother transitions when filters or map markers change).
         - [ ] Enrich metadata by parsing additional EXIF fields (shutter speed, aperture, ISO, focal length) into blog_context.json so the lightbox details panel can show it.
@@ -534,3 +534,18 @@
 21. Postpone dlib GPU support:
     - dlib will run on CPU for now due to persistent runtime issues with GPU.
     - Move dlib GPU related files and reports to `tests/results`.
+
+22. Web App & Labeling Refinements (Jan 2026 update)
+    - DONE: Implemented 3-column layout (Filters | Gallery | Map) in `build_webapp.py`.
+    - DONE: Added "Clear All Filters" button to the sidebar.
+    - DONE: Implemented dominant color extraction (`scripts/image_colors.py`) and palette display in gallery/lightbox.
+    - DONE: Improved lightbox metadata (full list, mini-map, z-index fix).
+    - DONE: Added `scripts/batch_vision_llm.py` for generating detailed VLM descriptions on all trip images.
+    - DONE: Refined "sunrise/sunset" labeling in `image_labeler.py` using capture time to filter impossible tags.
+    - DONE: Tightened species detection in `species_detector.py` to avoid "bird" hallucinations on food/butterflies by checking for word boundaries and skipping non-natural image types.
+    - DONE: Improved location short-name logic in `build_blog_context.py` to prioritize city/neighborhood over "India".
+    - DONE: Improved face count display ("No Faces" vs "Scan Pending") and HOG upsampling for better small-face detection.
+    - DONE: Fixed critical syntax error in `build_webapp.py` where TEMPLATE string termination used single quote instead of triple quotes, causing blank webapp pages.
+    - DONE: Fixed JavaScript newline escape sequence in `build_webapp.py` (`'\n'` → `'\\n'`) to prevent syntax errors in generated HTML.
+    - DONE: Added categorized filter system (Nature, Structures, People, Food/Drink, Tech, Others) for better tag organization in webapp sidebar.
+    - DONE: Added CLAUDE.md for AI coding assistant guidance on the repository structure and commands.

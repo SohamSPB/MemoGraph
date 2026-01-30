@@ -13,6 +13,7 @@ import os
 import torch
 import clip
 from PIL import Image
+from datetime import datetime
 
 from scripts.utils.utils_io import (
 	read_csv_dict,
@@ -26,6 +27,41 @@ from scripts.utils.utils_image import resize_image
 def _row_has_labels(row):
 	"""Return True if this row already has CLIP labels."""
 	return bool((row.get("detected_objects") or "").strip())
+
+def _refine_sun_labels(labels, datetime_str):
+	"""Filter sunrise/sunset based on hour of day."""
+	if not datetime_str or not any(x in labels for x in ("sunrise", "sunset")):
+		return labels
+	
+	try:
+		# Parse flexible formats
+		dt = None
+		for fmt in ("%Y:%m:%d %H:%M:%S", "%Y-%m-%d %H:%M:%S"):
+			try:
+				dt = datetime.strptime(datetime_str, fmt)
+				break
+			except ValueError:
+				continue
+		
+		if not dt:
+			return labels
+
+		h = dt.hour
+		# Sunrise window: ~4 AM to 11 AM
+		if 4 <= h < 12:
+			if "sunset" in labels:
+				labels.remove("sunset")
+		
+		# Sunset window: ~4 PM to 9 PM (16 to 21)
+		# But practically, anything after noon is rarely "sunrise".
+		elif h >= 12:
+			if "sunrise" in labels:
+				labels.remove("sunrise")
+				
+	except Exception:
+		pass
+	
+	return labels
 
 def label_images(trip_folder):
 	memo_dir, logs_dir = CFG.ensure_memograph_folder(trip_folder)
@@ -48,34 +84,44 @@ def label_images(trip_folder):
 
 	concepts = [
 		# Nature / landscapes / people
-		"a bird", "a flower", "a plant", "a tree", "a forest",
-		"a mountain", "a valley", "a lake", "a river", "a waterfall",
-		"a landscape", "a person", "a group of people",
-		"an insect", "an animal", "a cat", "a dog", "a yak", "a horse",
+		"bird", "flower", "plant", "tree", "forest",
+		"mountain", "valley", "lake", "river", "waterfall",
+		"landscape", "person", "group of people",
+		"insect", "animal", "cat", "dog", "yak", "horse",
 
 		# Astro / night sky
-		"a night sky", "stars", "the Milky Way", "the galaxy", "a nebula",
-		"a star cluster", "an astrophotography photo", "the moon", "the sun",
-		"an eclipse", "the Andromeda galaxy", "the Orion nebula",
+		"night sky", "stars", "Milky Way", "galaxy", "nebula",
+		"star cluster", "astrophotography", "moon", "sun",
+		"eclipse", "Andromeda galaxy", "Orion nebula",
 
 		# Temples / monuments / heritage / city
-		"a temple", "a monastery", "a stupa", "a church", "a mosque",
-		"a palace", "a fort", "a castle", "a monument", "a historical gate",
-		"a cityscape", "a street market", "a bazaar", "a narrow street",
-		"a building", "a museum", "an art gallery", "an old town square",
+		"temple", "monastery", "stupa", "church", "mosque",
+		"palace", "fort", "castle", "monument", "historical gate",
+		"cityscape", "street market", "bazaar", "narrow street",
+		"building", "museum", "art gallery", "old town square",
 
 		# Food / cafes / restaurants
-		"a plate of food", "a thali", "a street food stall", "a bowl of curry",
-		"a cup of tea", "a cup of coffee", "a glass of chai",
-		"a restaurant interior", "a cafe", "a dessert plate", "a pizza", "a burger",
+		"plate of food", "thali", "street food stall", "bowl of curry",
+		"cup of tea", "cup of coffee", "glass of chai",
+		"restaurant interior", "cafe", "dessert plate", "pizza", "burger",
 
 		# Stays / camps / roads
-		"a hotel room", "a guesthouse", "a homestay", "a campsite", "a tent",
-		"a campfire", "a mountain road", "a hiking trail", "a suspension bridge",
-		"a bus on a mountain road", "a highway through the mountains",
+		"hotel room", "guesthouse", "homestay", "campsite", "tent",
+		"campfire", "mountain road", "hiking trail", "suspension bridge",
+		"bus on a mountain road", "highway through the mountains",
 
 		# Other scenes
-		"a sunrise", "a sunset", "a cityscape at night",
+		"sunrise", "sunset", "cityscape at night",
+
+		# Electronics / indoor objects
+		"circuit board", "electronics", "computer chip", "wiring", "soldering",
+		"motherboard", "screen", "monitor", "keyboard", "mouse", "laptop",
+		"smartphone", "tablet", "television", "appliance", "tool",
+
+		# Everyday objects / structures
+		"sign", "billboard", "poster", "rock", "stone", "wall", "lamp",
+		"light", "street light", "window", "door", "furniture", "chair",
+		"table", "fence", "gate", "pole", "wire", "road sign",
 	]
 	text_tokens = clip.tokenize(concepts).to(device)
 
@@ -110,6 +156,9 @@ def label_images(trip_folder):
 
 			topk = similarity[0].topk(5)
 			top_labels = [concepts[i] for i in topk.indices.cpu().numpy()]
+			
+			# Refine sunrise/sunset based on time
+			top_labels = _refine_sun_labels(top_labels, r.get("datetime_original", ""))
 
 			# Coarse species categories (kept in both detected_objects and species_tags).
 			species_keywords = [
