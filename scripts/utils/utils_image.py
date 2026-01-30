@@ -8,7 +8,7 @@ Shared image utilities (e.g., resizing) used across MemoGraph scripts.
 
 import os
 
-from PIL import Image
+from PIL import Image, ImageOps
 
 import memograph_config as CFG
 
@@ -16,8 +16,14 @@ import memograph_config as CFG
 def resize_image(image: Image.Image, max_size: int | None = None) -> Image.Image:
 	"""Resize image to a max size, preserving aspect ratio.
 
+	Applies EXIF orientation correction before resizing to ensure
+	images are processed in the correct orientation for AI models.
+
 	If max_size is None, falls back to CFG.MAX_IMAGE_SIZE.
 	"""
+	# Apply EXIF orientation to fix rotated images (e.g., portrait photos)
+	image = ImageOps.exif_transpose(image)
+
 	if max_size is None:
 		max_size = getattr(CFG, "MAX_IMAGE_SIZE", 1024)
 	if max(image.size) > max_size:
@@ -28,6 +34,7 @@ def resize_image(image: Image.Image, max_size: int | None = None) -> Image.Image
 def create_thumbnail(src_path: str, dest_path: str, max_size: int | None = None, quality: int = 85) -> bool:
 	"""Create a JPEG thumbnail for the given source image.
 
+	Applies EXIF orientation correction so thumbnails display correctly.
 	Returns True when the thumbnail is written successfully.
 	"""
 	if not os.path.exists(src_path):
@@ -42,10 +49,10 @@ def create_thumbnail(src_path: str, dest_path: str, max_size: int | None = None,
 
 	try:
 		with Image.open(src_path) as img:
+			# Apply EXIF orientation to fix rotated images
+			img = ImageOps.exif_transpose(img)
 			if img.mode not in ("RGB", "L"):
 				img = img.convert("RGB")
-			else:
-				img = img.copy()
 			img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
 			img.save(dest_path, format="JPEG", quality=quality, optimize=True)
 		return True
@@ -59,6 +66,9 @@ def extract_dominant_colors(image: Image.Image, num_colors: int = 3) -> list[str
 	Returns a list of hex strings (e.g. ['#ff0000', '#00ff00']).
 	"""
 	try:
+		# Apply EXIF orientation for consistency
+		image = ImageOps.exif_transpose(image)
+
 		if image.mode != "RGB":
 			image = image.convert("RGB")
 
