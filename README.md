@@ -321,6 +321,70 @@ The current static viewer covers the basics (search, filters, lightbox, map, mul
 - Semantic search ideas: optionally store CLIP embeddings to support fuzzy queries like "snowy yak on a mountain pass" without pre-defined tags.
 - Quality-aware browsing: leverage the new per-image quality metrics (exposure/color/contrast/sharpness/noise) to highlight the most balanced photos in the UI.
 
+## Batch GPU Processing (New!)
+
+MemoGraph now includes a unified GPU model manager that loads all AI models (CLIP, BLIP, LLaVA) once and processes images through all models in a single pass. This is significantly more efficient than the traditional approach of loading/unloading models for each step.
+
+### Quick Start
+
+```bash
+# Activate venv
+source .venv/bin/activate
+
+# Process all trips with all models
+python -m scripts.batch_gpu_processor --all-trips
+
+# Process a single trip
+python -m scripts.batch_gpu_processor data/trips/my_awesome_trip
+
+# Force reprocess all images (even if already processed)
+python -m scripts.batch_gpu_processor --all-trips --force
+
+# Use only specific models
+python -m scripts.batch_gpu_processor --all-trips --models clip blip
+```
+
+Or use the convenience script:
+
+```bash
+./scan_all_trips.sh                    # Process all trips
+./scan_all_trips.sh --reset            # Reset and reprocess all trips
+./scan_all_trips.sh data/trips/MyTrip  # Process single trip
+```
+
+### Performance Benchmarks (RTX 3060 12GB)
+
+| Metric | Value |
+|--------|-------|
+| **GPU VRAM Used** | ~4.4GB (36% of 12GB) |
+| **System RAM** | ~7GB (45%) |
+| **CPU Usage** | ~15% |
+| **Throughput** | 0.29 images/second (~3.5s per image) |
+
+### Sample Run (138 images across 3 trips)
+
+| Trip | Images | Time | Speed |
+|------|--------|------|-------|
+| 2025_Annapurna_Nepal | 97 | 317s | 0.31 img/s |
+| Home | 25 | 92s | 0.27 img/s |
+| Vengurla | 16 | 52s | 0.31 img/s |
+| **Total** | **138** | **8.0 min** | **0.29 img/s** |
+
+### Models Loaded Simultaneously
+
+| Model | VRAM | Purpose |
+|-------|------|---------|
+| CLIP ViT-B/32 | ~0.5GB | Object/scene detection |
+| BLIP | ~0.5GB | Image captioning |
+| LLaVA 0.5B | ~2GB | Detailed AI descriptions |
+| Processing buffers | ~1.5GB | Tensor operations |
+
+### New Files
+
+- `scripts/gpu_model_manager.py` - Unified GPU model manager with resource monitoring
+- `scripts/batch_gpu_processor.py` - Batch processor for all trips
+- `scan_all_trips.sh` - Convenience script with venv activation
+
 ## Vision LLM (Batch & Demo)
 
 You can use a small multimodal model (LLaVA OneVision 0.5B) to get rich, detailed descriptions for your photos.

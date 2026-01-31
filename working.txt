@@ -440,3 +440,74 @@ Resource logging
         - Image Sizes Used (config variables and defaults per script)
         - Pipeline Dependency Graph (ASCII art)
         - CSV Column Dependencies (which script writes/reads each column)
+
+29. Model Accuracy Improvements (Jan 31, 2026)
+    - Expanded `image_labeler.py` concept list from ~80 to ~130 labels
+    - Added confidence threshold filtering (5% minimum) in `image_labeler.py`
+    - Fixed biological_species set (removed astro terms, added plant/grass/bush/tree)
+    - Increased BLIP max_length from 40 to 60 in `caption_filler.py`
+    - Expanded species_prompts to 150+ species in `species_detector.py`
+    - Lowered species detection confidence threshold from 20.0 to 15.0
+    - Fixed bird model triggering to only use detected_objects (not captions)
+    - Added vision_caption to blog_context.json output
+
+30. Unified Batch GPU Processing (Jan 31, 2026)
+    - Created `scripts/gpu_model_manager.py`:
+        - Singleton GPU model manager that loads CLIP, BLIP, LLaVA once
+        - Real-time resource monitoring (CPU, RAM, GPU) with background thread
+        - Process images through all models in single pass
+        - ResourceSnapshot dataclass for tracking resource usage over time
+        - ProcessingStats for timing and throughput metrics
+    - Created `scripts/batch_gpu_processor.py`:
+        - Unified batch processor that uses the GPU model manager
+        - Processes all trips with shared model instances (no reload between trips)
+        - Incremental saves every 5 images to prevent data loss
+        - Detailed logging with per-image timing
+        - CLI: `python -m scripts.batch_gpu_processor --all-trips [--force] [--models clip blip llava]`
+    - Created `scan_all_trips.sh`:
+        - Convenience wrapper that activates venv automatically
+        - Reports GPU status before and after processing
+        - Supports --reset flag for clean reprocessing
+    - Updated `memograph_config.py` with new settings:
+        - ENABLE_BATCH_GPU_PROCESSOR = True
+        - BATCH_GPU_MODELS = ['clip', 'blip', 'llava']
+        - BATCH_SAVE_INTERVAL = 5
+        - ENABLE_VISION_LLM = True
+    - Updated `run_all.py` to import batch_vision_llm and add Vision LLM step
+
+    Performance benchmarks (RTX 3060 12GB, 138 images):
+    ┌───────────────────────┬───────────────────────┐
+    │ Metric                │ Value                 │
+    ├───────────────────────┼───────────────────────┤
+    │ GPU VRAM Used         │ ~4.4GB (36% of 12GB)  │
+    │ System RAM            │ ~7GB (45%)            │
+    │ CPU Usage             │ ~15%                  │
+    │ Throughput            │ 0.29 img/s (~3.5s/img)│
+    │ Total Time            │ 8.0 minutes           │
+    │ Images Processed      │ 138 (all successful)  │
+    └───────────────────────┴───────────────────────┘
+
+    Per-trip breakdown:
+    ┌──────────────────────┬────────┬─────────┬───────────┐
+    │ Trip                 │ Images │ Time    │ Speed     │
+    ├──────────────────────┼────────┼─────────┼───────────┤
+    │ 2025_Annapurna_Nepal │ 97     │ 317.4s  │ 0.31 img/s│
+    │ Home                 │ 25     │ 92.3s   │ 0.27 img/s│
+    │ Vengurla             │ 16     │ 51.9s   │ 0.31 img/s│
+    └──────────────────────┴────────┴─────────┴───────────┘
+
+    Models loaded simultaneously:
+    ┌─────────────────────┬─────────┬─────────────────────────────┐
+    │ Model               │ VRAM    │ Purpose                     │
+    ├─────────────────────┼─────────┼─────────────────────────────┤
+    │ CLIP ViT-B/32       │ ~0.5GB  │ Object/scene detection      │
+    │ BLIP                │ ~0.5GB  │ Image captioning            │
+    │ LLaVA 0.5B          │ ~2GB    │ Detailed AI descriptions    │
+    │ Processing buffers  │ ~1.5GB  │ Tensor operations           │
+    └─────────────────────┴─────────┴─────────────────────────────┘
+
+31. TODO: Batch Image Processing for Higher Throughput
+    - Implement batch CLIP processing (2-4 images at once)
+    - Implement batch BLIP processing
+    - Add pipeline parallelization (run CLIP while LLaVA processes previous image)
+    - Target throughput: 0.5-1.0 img/s (2-3x current speed)

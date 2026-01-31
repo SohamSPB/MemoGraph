@@ -525,6 +525,7 @@ def _build_day_context(
                 "location_short": _shorten_location(r.get("location_inferred", "")),
                 "caption": r.get("caption"),
                 "caption_ai": r.get("caption_ai"),
+                "vision_caption": r.get("vision_caption"),  # Detailed AI description from Vision LLM
                 "species_tags": img_species,
                 "detected_objects": detected,
                 "image_type": r.get("image_type"),

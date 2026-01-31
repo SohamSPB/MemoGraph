@@ -95,6 +95,23 @@ FACE_DETECTION_PARALLEL_WORKERS = 2
 # This controls the ThreadPoolExecutor size and limits GPU/CPU pressure.
 CAPTION_PARALLEL_WORKERS = 4
 
+# -----------------------------
+# Batch GPU Processor Settings
+# -----------------------------
+# Enable unified batch processing that loads all AI models once.
+# This is more efficient than loading/unloading models for each step.
+ENABLE_BATCH_GPU_PROCESSOR = True
+
+# Which models to load in batch GPU processor
+# Options: 'clip' (object detection), 'blip' (captioning), 'llava' (vision LLM)
+BATCH_GPU_MODELS = ['clip', 'blip', 'llava']
+
+# How often to save progress during batch processing (every N images)
+BATCH_SAVE_INTERVAL = 5
+
+# Enable Vision LLM (LLaVA) for detailed image descriptions
+ENABLE_VISION_LLM = True
+
 
 def get_gpu_memory_mb():
 	"""Get available GPU memory in MB. Returns 0 if no GPU or detection fails."""

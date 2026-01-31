@@ -43,6 +43,7 @@ import scripts.map_visualizer as map_visualizer
 import scripts.build_blog_context as build_blog_context
 import scripts.build_webapp as build_webapp
 import scripts.build_trip_index as build_trip_index
+import scripts.batch_vision_llm as batch_vision_llm
 # import scripts.uploader_gcs  # optional
 
 def get_gpu_memory_usage():
@@ -165,6 +166,10 @@ def run_pipeline(trip_folder: str, parallel: bool):
 			"Species": species_detector.process_species,
 			"Image Type": image_type_detector.detect_image_types,
 		}
+
+		# Vision LLM step (if enabled)
+		if getattr(CFG, "ENABLE_VISION_LLM", False):
+			gpu_steps["Vision LLM"] = batch_vision_llm.process_trip
 
 		# CPU-only steps (can run in parallel with GPU steps)
 		cpu_steps = {

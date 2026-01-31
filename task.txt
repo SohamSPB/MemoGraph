@@ -572,19 +572,50 @@
         - faces_count > 0: "X face(s) detected" with names if available
     - DONE: Updated README with pipeline execution tables, image size reference, dependency graph, CSV column mapping
 
-24. NEXT: Model Accuracy Improvements (Planned)
-    - [ ] Review and optimize `image_labeler.py` (CLIP object/scene detection)
-        - Expand concept list for better coverage
-        - Tune confidence thresholds
-        - Add more granular scene categories
-    - [ ] Review and optimize `caption_filler.py` (BLIP captioning)
-        - Experiment with different BLIP prompts
-        - Improve caption cleaning/post-processing
-    - [ ] Review and optimize `species_detector.py`
-        - Expand species_prompts with more regional species
-        - Improve bird model integration
-        - Add plant/insect specialist models
-    - [ ] Review and optimize `batch_vision_llm.py`
-        - Standardize prompt for consistent output
-        - Improve structured analysis extraction
-        - Consider multi-prompt approach for richer descriptions
+24. Model Accuracy Improvements (DONE - Jan 31, 2026)
+    - [x] Review and optimize `image_labeler.py` (CLIP object/scene detection)
+        - DONE: Expanded concept list from ~80 to ~130 labels
+        - DONE: Added 5% confidence threshold filtering
+        - DONE: Fixed biological_species set (removed astro terms, added plants)
+    - [x] Review and optimize `caption_filler.py` (BLIP captioning)
+        - DONE: Increased max_length from 40 to 60 for richer captions
+    - [x] Review and optimize `species_detector.py`
+        - DONE: Expanded species_prompts to 150+ species
+        - DONE: Lowered confidence threshold from 20.0 to 15.0
+        - DONE: Fixed bird model to only trigger on detected_objects (not captions)
+    - [x] Review and optimize `batch_vision_llm.py`
+        - DONE: Added vision_caption to blog_context.json output
+
+25. Unified Batch GPU Processing (DONE - Jan 31, 2026)
+    - [x] Created `scripts/gpu_model_manager.py` - Unified GPU model manager
+        - Loads CLIP, BLIP, LLaVA once and keeps them in memory
+        - Real-time resource monitoring (CPU, RAM, GPU)
+        - Process images through all models in single pass
+    - [x] Created `scripts/batch_gpu_processor.py` - Batch processor for all trips
+        - CLI: `python -m scripts.batch_gpu_processor --all-trips [--force] [--models clip blip llava]`
+        - Processes 138 images in 8 minutes (0.29 img/s)
+        - Peak GPU: 4.4GB, RAM: 7GB, CPU: 15%
+    - [x] Created `scan_all_trips.sh` - Convenience wrapper with venv activation
+    - [x] Updated `memograph_config.py` with batch processing settings
+    - [x] Updated `run_all.py` to include Vision LLM step
+
+    Benchmark Results (RTX 3060 12GB):
+    | Trip                 | Images | Time    | Speed     |
+    |----------------------|--------|---------|-----------|
+    | 2025_Annapurna_Nepal | 97     | 317.4s  | 0.31 img/s|
+    | Home                 | 25     | 92.3s   | 0.27 img/s|
+    | Vengurla             | 16     | 51.9s   | 0.31 img/s|
+    | TOTAL                | 138    | 8.0 min | 0.29 img/s|
+
+26. NEXT: Batch Image Processing for Higher Throughput
+    - [ ] Implement batch CLIP processing (2-4 images at once)
+    - [ ] Implement batch BLIP processing (2-4 images at once)
+    - [ ] Add pipeline parallelization (run CLIP while LLaVA processes previous image)
+    - [ ] Target throughput: 0.5-1.0 img/s (2-3x current speed)
+    - [ ] Add progress bar / ETA display for long-running batches
+
+27. Future Enhancements
+    - [ ] Add plant/insect specialist models alongside bird model
+    - [ ] Implement semantic search with CLIP embeddings
+    - [ ] Add cross-trip search on master hub
+    - [ ] Support larger VLMs (7B+) with quantization for better descriptions
