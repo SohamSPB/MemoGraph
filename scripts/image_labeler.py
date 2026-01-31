@@ -83,45 +83,82 @@ def label_images(trip_folder):
 	model, preprocess = clip.load("ViT-B/32", device=device)
 
 	concepts = [
-		# Nature / landscapes / people
-		"bird", "flower", "plant", "tree", "forest",
-		"mountain", "valley", "lake", "river", "waterfall",
-		"landscape", "person", "group of people",
-		"insect", "animal", "cat", "dog", "yak", "horse",
+		# Nature / landscapes
+		"mountain", "valley", "lake", "river", "waterfall", "ocean", "beach",
+		"forest", "jungle", "desert", "snow", "glacier", "cliff", "cave",
+		"landscape", "scenic view", "panorama", "hill", "meadow", "field",
+
+		# Wildlife - Birds
+		"bird", "eagle", "sparrow", "crow", "pigeon", "parrot", "peacock",
+		"owl", "kingfisher", "heron", "duck", "swan", "vulture", "hawk",
+
+		# Wildlife - Animals
+		"animal", "dog", "cat", "horse", "cow", "goat", "sheep", "yak",
+		"elephant", "tiger", "deer", "monkey", "buffalo", "donkey", "camel",
+
+		# Wildlife - Insects & small creatures
+		"insect", "butterfly", "bee", "dragonfly", "spider", "ant", "beetle",
+		"grasshopper", "moth", "caterpillar", "snail", "frog", "lizard", "snake",
+
+		# Plants & Flowers
+		"flower", "plant", "tree", "grass", "bush", "garden", "rose", "lotus",
+		"sunflower", "tulip", "orchid", "palm tree", "pine tree", "bamboo",
+
+		# People
+		"person", "group of people", "crowd", "selfie", "portrait", "family",
+		"child", "old person", "traveler", "hiker", "local people",
 
 		# Astro / night sky
 		"night sky", "stars", "Milky Way", "galaxy", "nebula",
 		"star cluster", "astrophotography", "moon", "sun",
-		"eclipse", "Andromeda galaxy", "Orion nebula",
+		"eclipse", "Andromeda galaxy", "Orion nebula", "aurora",
 
-		# Temples / monuments / heritage / city
-		"temple", "monastery", "stupa", "church", "mosque",
-		"palace", "fort", "castle", "monument", "historical gate",
-		"cityscape", "street market", "bazaar", "narrow street",
-		"building", "museum", "art gallery", "old town square",
+		# Temples / monuments / heritage
+		"temple", "monastery", "stupa", "church", "mosque", "shrine",
+		"palace", "fort", "castle", "monument", "historical gate", "ruins",
+		"statue", "sculpture", "ancient architecture", "heritage building",
+
+		# Urban / city
+		"cityscape", "street market", "bazaar", "narrow street", "alley",
+		"building", "skyscraper", "museum", "art gallery", "old town square",
+		"shop", "store", "mall", "parking lot", "bus stop", "train station",
 
 		# Food / cafes / restaurants
-		"plate of food", "thali", "street food stall", "bowl of curry",
-		"cup of tea", "cup of coffee", "glass of chai",
-		"restaurant interior", "cafe", "dessert plate", "pizza", "burger",
+		"plate of food", "thali", "street food stall", "bowl of curry", "rice",
+		"cup of tea", "cup of coffee", "glass of chai", "juice", "water bottle",
+		"restaurant interior", "cafe", "dessert plate", "pizza", "burger", "sandwich",
+		"fruit", "vegetables", "bread", "noodles", "soup", "salad", "ice cream",
 
 		# Stays / camps / roads
-		"hotel room", "guesthouse", "homestay", "campsite", "tent",
-		"campfire", "mountain road", "hiking trail", "suspension bridge",
-		"bus on a mountain road", "highway through the mountains",
+		"hotel room", "guesthouse", "homestay", "campsite", "tent", "cabin",
+		"campfire", "mountain road", "hiking trail", "suspension bridge", "pathway",
+		"bus on a mountain road", "highway through the mountains", "tunnel",
 
-		# Other scenes
-		"sunrise", "sunset", "cityscape at night",
+		# Transportation
+		"car", "motorcycle", "bicycle", "bus", "truck", "train", "airplane",
+		"boat", "ship", "ferry", "rickshaw", "taxi", "jeep",
 
-		# Electronics / indoor objects
+		# Time of day
+		"sunrise", "sunset", "dawn", "dusk", "cityscape at night", "golden hour",
+
+		# Indoor scenes
+		"bedroom", "living room", "kitchen", "bathroom", "office", "classroom",
+		"library", "gym", "hospital", "airport", "lobby", "corridor",
+
+		# Electronics / tech
 		"circuit board", "electronics", "computer chip", "wiring", "soldering",
 		"motherboard", "screen", "monitor", "keyboard", "mouse", "laptop",
-		"smartphone", "tablet", "television", "appliance", "tool",
+		"smartphone", "tablet", "television", "camera", "headphones",
 
-		# Everyday objects / structures
+		# Everyday objects
 		"sign", "billboard", "poster", "rock", "stone", "wall", "lamp",
 		"light", "street light", "window", "door", "furniture", "chair",
-		"table", "fence", "gate", "pole", "wire", "road sign",
+		"table", "fence", "gate", "pole", "wire", "road sign", "mirror",
+		"clock", "bag", "umbrella", "hat", "shoes", "clothes",
+
+		# Activities
+		"hiking", "camping", "swimming", "fishing", "cycling", "climbing",
+		"cooking", "eating", "dancing", "playing", "reading", "working",
 	]
 	text_tokens = clip.tokenize(concepts).to(device)
 
@@ -154,29 +191,41 @@ def label_images(trip_folder):
 				txt_features /= txt_features.norm(dim=-1, keepdim=True)
 				similarity = (100.0 * img_features @ txt_features.T).softmax(dim=-1)
 
-			topk = similarity[0].topk(5)
-			top_labels = [concepts[i] for i in topk.indices.cpu().numpy()]
-			
+			# Get top-k with confidence threshold (only keep labels with > 5% confidence)
+			topk = similarity[0].topk(10)  # Get more candidates
+			top_indices = topk.indices.cpu().numpy()
+			top_scores = topk.values.cpu().numpy()
+
+			# Filter by confidence threshold and take top 5
+			MIN_CONFIDENCE = 0.05  # 5% threshold
+			top_labels = []
+			for idx, score in zip(top_indices, top_scores):
+				if score >= MIN_CONFIDENCE and len(top_labels) < 5:
+					top_labels.append(concepts[idx])
+
 			# Refine sunrise/sunset based on time
 			top_labels = _refine_sun_labels(top_labels, r.get("datetime_original", ""))
 
-			# Coarse species categories (kept in both detected_objects and species_tags).
-			species_keywords = [
-				"bird",
-				"flower",
-				"insect",
-				"animal",
-				"cat",
-				"dog",
-				"plant",
-				"galaxy",
-				"nebula",
-				"milky way",
-				"stars",
-				"astrophotography",
-				"star cluster",
-			]
-			species = [l for l in top_labels if any(k in l.lower() for k in species_keywords)]
+			# Coarse species categories - ONLY biological entities
+			# Using exact match to avoid false positives (e.g., "palm tree" != species)
+			biological_species = {
+				# Birds
+				"bird", "eagle", "sparrow", "crow", "pigeon", "parrot", "peacock",
+				"owl", "kingfisher", "heron", "duck", "swan", "vulture", "hawk",
+				# Plants & Flowers
+				"plant", "flower", "grass", "bush", "tree",
+				"rose", "lotus", "sunflower", "orchid", "tulip", "lily",
+				"marigold", "hibiscus", "jasmine", "dahlia", "lavender", "daisy",
+				# Insects
+				"insect", "butterfly", "bee", "dragonfly", "spider", "ant", "beetle",
+				"grasshopper", "moth", "caterpillar", "snail",
+				# Animals
+				"animal", "cat", "dog", "horse", "cow", "goat", "sheep", "yak",
+				"elephant", "tiger", "deer", "monkey", "buffalo", "frog", "lizard", "snake",
+				"fish", "rabbit", "squirrel", "camel",
+			}
+			# Only include if exact match (not substring match)
+			species = [l for l in top_labels if l.lower() in biological_species]
 
 			# Keep all top labels in detected_objects so the CSV always reflects
 			# what CLIP saw (including birds, insects, etc.).

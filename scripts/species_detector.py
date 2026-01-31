@@ -22,55 +22,137 @@ from scripts.utils.utils_image import resize_image
 from scripts.species_models import predict_bird_species
 
 # ------------------------------
-# Species prompts
+# Species prompts - Expanded for better coverage
 # ------------------------------
 species_prompts = {
 	"birds": [
-		"Sparrow",
-		"Pigeon",
-		"Eagle",
-		"Vulture",
-		"Kingfisher",
-		"Bulbul",
-		"Indian Roller",
-		"Crow",
-		"Peacock",
-		"Parrot",
-		"Owl",
+		# Common birds
+		"Sparrow", "House Sparrow", "Tree Sparrow",
+		"Pigeon", "Rock Pigeon", "Dove",
+		"Crow", "House Crow", "Jungle Crow", "Raven",
+		"Eagle", "Golden Eagle", "Bald Eagle",
+		"Vulture", "Griffon Vulture",
+		"Hawk", "Kite", "Black Kite",
+		# Colorful birds
+		"Kingfisher", "Common Kingfisher",
+		"Bulbul", "Red-vented Bulbul", "Red-whiskered Bulbul",
+		"Indian Roller", "Blue Jay",
+		"Peacock", "Peafowl",
+		"Parrot", "Parakeet", "Rose-ringed Parakeet",
+		# Other common birds
+		"Owl", "Barn Owl", "Spotted Owlet",
 		"Woodpecker",
-		"Hornbill",
-		"Duck",
+		"Hornbill", "Great Hornbill",
+		"Duck", "Mallard",
+		"Swan", "Goose",
+		"Heron", "Egret", "Grey Heron",
+		"Stork", "Painted Stork",
+		"Myna", "Common Myna", "Hill Myna",
+		"Starling",
+		"Robin", "Magpie Robin",
+		"Sunbird", "Purple Sunbird",
+		"Drongo", "Black Drongo",
+		"Cuckoo", "Koel",
+		"Warbler", "Tailorbird",
+		"Flamingo",
+		"Pelican",
+		"Cormorant",
 	],
 	"plants": [
-		"Rose",
-		"Lotus",
-		"Tulsi",
-		"Bamboo",
-		"Ficus",
-		"Fern",
-		"Banana plant",
+		# Flowers
+		"Rose", "Red Rose", "White Rose", "Pink Rose",
+		"Lotus", "Water Lily",
 		"Sunflower",
+		"Marigold",
+		"Hibiscus",
+		"Jasmine",
+		"Orchid",
+		"Tulip",
+		"Dahlia",
+		"Bougainvillea",
+		"Lily", "Tiger Lily",
+		"Chrysanthemum",
+		"Lavender",
+		"Daisy",
+		# Trees & Plants
+		"Tulsi", "Holy Basil",
+		"Bamboo",
+		"Ficus", "Banyan Tree", "Peepal Tree",
+		"Fern",
+		"Banana plant", "Banana Tree",
+		"Coconut Palm", "Palm Tree",
+		"Mango Tree",
+		"Neem Tree",
+		"Pine Tree",
+		"Oak Tree",
+		"Eucalyptus",
+		"Rhododendron",
+		"Moss",
+		"Cactus",
+		"Aloe Vera",
 	],
 	"insects": [
-		"Butterfly",
-		"Bee",
-		"Dragonfly",
-		"Ant",
-		"Beetle",
-		"Grasshopper",
+		# Butterflies
+		"Butterfly", "Monarch Butterfly", "Swallowtail Butterfly",
+		"Common Mormon", "Blue Mormon", "Painted Lady",
+		"Moth", "Hawkmoth", "Silk Moth",
+		# Flying insects
+		"Bee", "Honeybee", "Bumblebee",
+		"Wasp", "Hornet",
+		"Dragonfly", "Damselfly",
+		"Fly", "Housefly",
+		"Mosquito",
+		# Crawling insects
+		"Ant", "Red Ant", "Black Ant",
+		"Beetle", "Ladybug", "Ladybird",
+		"Grasshopper", "Cricket",
+		"Cockroach",
+		"Caterpillar",
+		"Praying Mantis",
+		"Termite",
+		# Arachnids
+		"Spider", "Orb Weaver Spider", "Jumping Spider",
+		"Scorpion",
+		"Tick",
 	],
 	"animals": [
-		"Dog",
-		"Cat",
-		"Elephant",
-		"Tiger",
-		"Leopard",
-		"Horse",
-		"Cow",
-		"Goat",
-		"Sheep",
-		"Yak",
-		"Deer",
+		# Domestic animals
+		"Dog", "Puppy", "Stray Dog",
+		"Cat", "Kitten",
+		"Horse", "Pony", "Donkey", "Mule",
+		"Cow", "Bull", "Calf", "Buffalo", "Water Buffalo",
+		"Goat", "Sheep", "Lamb",
+		# Mountain animals
+		"Yak", "Himalayan Yak",
+		"Mountain Goat", "Blue Sheep", "Bharal",
+		"Marmot",
+		# Wild animals
+		"Elephant", "Indian Elephant",
+		"Tiger", "Bengal Tiger",
+		"Leopard", "Snow Leopard",
+		"Lion",
+		"Bear", "Black Bear", "Brown Bear",
+		"Deer", "Spotted Deer", "Sambar",
+		"Antelope", "Nilgai", "Blackbuck",
+		# Primates
+		"Monkey", "Macaque", "Rhesus Macaque", "Langur",
+		"Ape",
+		# Other mammals
+		"Squirrel",
+		"Rabbit", "Hare",
+		"Rat", "Mouse",
+		"Bat",
+		"Fox", "Jackal",
+		"Wild Boar", "Pig",
+		"Camel",
+		# Reptiles & Amphibians
+		"Snake", "Cobra", "Python",
+		"Lizard", "Gecko", "Monitor Lizard",
+		"Crocodile", "Alligator",
+		"Turtle", "Tortoise",
+		"Frog", "Toad",
+		# Fish
+		"Fish", "Goldfish", "Carp",
 	],
 }
 
@@ -97,7 +179,8 @@ def detect_species(image_path, model, preprocess, device):
 		similarity = (100.0 * image_features @ text_features.T).squeeze(0)
 		confidences = similarity.tolist()
 
-	matches = [(all_species[i], conf) for i, conf in enumerate(confidences) if conf > 20.0]
+	# Lower threshold to 15.0 for more permissive species detection
+	matches = [(all_species[i], conf) for i, conf in enumerate(confidences) if conf > 15.0]
 	matches.sort(key=lambda x: -x[1])
 	return [match for match, _ in matches]
 
@@ -162,8 +245,14 @@ def process_species(csv_path, trip_folder, log_path):
 		}
 		has_bio_hint = not bio_keywords.isdisjoint(tokens)
 		
-		bird_keywords = {"bird", "sparrow", "eagle", "owl", "duck", "peacock", "kingfisher", "crow"}
-		has_bird_hint = not bird_keywords.isdisjoint(tokens)
+		# Bird keywords - be more strict to avoid false positives
+		# Only trigger bird model if detected_objects explicitly contains bird-related terms
+		detected_objects_text = str(row.get("detected_objects", "")).lower()
+		detected_tokens = set(re.findall(r"\w+", detected_objects_text))
+		bird_keywords = {"bird", "sparrow", "eagle", "owl", "duck", "peacock", "kingfisher", "crow",
+						 "pigeon", "parrot", "heron", "swan", "vulture", "hawk"}
+		# Only use bird model if detected_objects has bird hints (not just captions which can hallucinate)
+		has_bird_hint = not bird_keywords.isdisjoint(detected_tokens)
 
 		if not os.path.exists(image_path):
 			log(f"Missing image: {image_path}", log_path)

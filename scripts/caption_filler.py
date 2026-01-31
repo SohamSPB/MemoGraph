@@ -30,7 +30,8 @@ def generate_multiple_captions(image, processor, model, num_variations=3):
 	captions = []
 	inputs = processor(image, return_tensors="pt").to(model.device)
 	for _ in range(num_variations):
-		output = model.generate(**inputs, do_sample=True, top_k=50, max_length=40)
+		# Increased max_length from 40 to 60 for more detailed captions
+		output = model.generate(**inputs, do_sample=True, top_k=50, max_length=60)
 		raw = processor.decode(output[0], skip_special_tokens=True)
 		captions.append(clean_caption(raw))
 	return clean_caption_list(captions)
