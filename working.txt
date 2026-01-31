@@ -393,4 +393,50 @@ Resource logging
     - Fixed critical bug in `build_webapp.py`: TEMPLATE string was terminated with `"` instead of `"""`, causing Python syntax error and blank webapp pages.
     - Fixed JavaScript syntax error in generated webapp: `'\n'` in Python template was rendered as literal newline instead of escape sequence; changed to `'\\n'`.
     - Added categorized filter system in webapp sidebar: chips are now grouped into Nature, Structures, People, Food/Drink, Tech, and Others categories for better organization.
-    - Added CLAUDE.md file with project overview, common commands, architecture documentation, and integration points for AI coding assistants.
+
+25. EXIF Orientation & GPU Scaling (Jan 30, 2026)
+    - Fixed EXIF orientation handling in `utils_image.py`:
+        - Added `ImageOps.exif_transpose()` to `resize_image()`, `create_thumbnail()`, and `extract_dominant_colors()`.
+        - This fixes the bug where portrait photos were fed to AI models sideways, causing hallucinated captions (e.g., "computer monitor" for a temple image).
+    - Updated parallel processing settings for RTX 3060 12GB:
+        - `MAX_IMAGE_SIZE`: 256 → 512 (better accuracy with more VRAM)
+        - `PARALLEL_WORKERS`: 2 → 4
+        - `CAPTION_PARALLEL_WORKERS`: 2 → 4
+        - `FACE_DETECTION_PARALLEL_WORKERS`: 1 → 2
+        - `FACE_DETECTION_BATCH_SIZE`: 2 → 4
+    - Added dynamic GPU scaling functions in `memograph_config.py`:
+        - `get_gpu_memory_mb()`: Returns available GPU memory in MB.
+        - `get_dynamic_workers()`: Returns optimal (caption_workers, face_workers, batch_size) based on GPU tier:
+            - < 4GB: Conservative (2, 1, 2)
+            - 4-8GB: Moderate (4, 2, 4)
+            - 8-12GB: High (6, 3, 6)
+            - > 12GB: Maximum (8, 4, 8)
+
+26. Lightbox Redesign (Jan 31, 2026)
+    - Completely redesigned the full-view photo viewer (lightbox) with:
+        - Filename display in header (monospace styling)
+        - Sectioned metadata: Location, Camera Info, Tags & Detection, Quality Analysis
+        - Visual quality meters showing individual scores (Exposure, Contrast, Sharpness, Noise, Color Balance)
+        - GPS coordinates display with Google Maps link
+        - Trip day number and file path
+        - Improved color palette bar visibility
+    - Fixed black overlay flickering in gallery grid view:
+        - Issue was caused by animated bg-effects pseudo-element and card::before opacity transitions
+        - Solution: Made bg-effects static, added GPU acceleration hints, removed hover zoom on images
+    - Fixed face count display logic:
+        - -1 = "Scan pending" (not yet processed)
+        - 0 = "No faces present"
+        - >0 = "X face(s) detected" with names
+
+27. run_all.py Optimization (Jan 31, 2026)
+    - Added parallel execution of CPU and GPU tasks:
+        - CPU tasks (Image Quality, Image Colors) now run in background threads
+        - GPU tasks run sequentially in main thread
+        - Reduces total pipeline time by overlapping CPU-only analysis with GPU steps
+
+28. README Documentation Update (Jan 31, 2026)
+    - Added comprehensive tables:
+        - Execution Order & Resource Type (GPU/CPU/Network requirements per step)
+        - Image Sizes Used (config variables and defaults per script)
+        - Pipeline Dependency Graph (ASCII art)
+        - CSV Column Dependencies (which script writes/reads each column)

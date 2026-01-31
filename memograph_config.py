@@ -41,7 +41,8 @@ LOG_TO_FILE = True
 IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".tiff", ".png", ".jfif")
 # Maximum image size (in pixels) for the longest side before feeding into models.
 # Lower values reduce memory/compute at the cost of some detail.
-MAX_IMAGE_SIZE = 256
+# Recommended: 256 for 4GB GPU, 512 for 8GB+, 1024 for 12GB+ (better accuracy)
+MAX_IMAGE_SIZE = 512
 
 # Physical thumbnail generation for the web app / overview UI.
 # Thumbnails live under <trip>/MemoGraph/thumbnails and default to 320px.
@@ -80,19 +81,61 @@ MIN_AVAILABLE_GPU_MEM_MB = 1024 # e.g., 1GB
 
 # Number of parallel processes to use for top-level analysis steps in run_all.py.
 # Keep this small to avoid overloading CPU/GPU.
-PARALLEL_WORKERS = 2
+PARALLEL_WORKERS = 4
 
 # Batch size for face detection to control memory usage.
-FACE_DETECTION_BATCH_SIZE = 2
+FACE_DETECTION_BATCH_SIZE = 4
 
 # Maximum number of worker processes used *inside* face_detector when running
 # in parallel mode. Set to 1 to avoid nested process pools and reduce the risk
 # of system freezes. Increase cautiously if you have plenty of headroom.
-FACE_DETECTION_PARALLEL_WORKERS = 1
+FACE_DETECTION_PARALLEL_WORKERS = 2
 
 # Maximum number of concurrent images to caption in BLIP-based caption_filler.
 # This controls the ThreadPoolExecutor size and limits GPU/CPU pressure.
-CAPTION_PARALLEL_WORKERS = 2
+CAPTION_PARALLEL_WORKERS = 4
+
+
+def get_gpu_memory_mb():
+	"""Get available GPU memory in MB. Returns 0 if no GPU or detection fails."""
+	try:
+		import torch
+		if not torch.cuda.is_available():
+			return 0
+		try:
+			import pynvml
+			pynvml.nvmlInit()
+			handle = pynvml.nvmlDeviceGetHandleByIndex(0)
+			mem_info = pynvml.nvmlDeviceGetMemoryInfo(handle)
+			return mem_info.free / (1024 * 1024)
+		except Exception:
+			# Fallback: estimate from torch (less accurate)
+			return torch.cuda.get_device_properties(0).total_memory / (1024 * 1024) * 0.8
+	except Exception:
+		return 0
+
+
+def get_dynamic_workers():
+	"""
+	Dynamically determine optimal worker counts based on available GPU memory.
+	Returns (caption_workers, face_workers, batch_size).
+
+	GPU Memory Tiers:
+	- < 4GB:  Conservative (GTX 1650 class) - 2 caption, 1 face, batch 2
+	- 4-8GB:  Moderate (RTX 2060/3050 class) - 4 caption, 2 face, batch 4
+	- 8-12GB: High (RTX 3060/3070 class) - 6 caption, 3 face, batch 6
+	- > 12GB: Maximum (RTX 3080+ class) - 8 caption, 4 face, batch 8
+	"""
+	gpu_mb = get_gpu_memory_mb()
+
+	if gpu_mb < 4000:
+		return (2, 1, 2)  # Conservative
+	elif gpu_mb < 8000:
+		return (4, 2, 4)  # Moderate
+	elif gpu_mb < 12000:
+		return (6, 3, 6)  # High
+	else:
+		return (8, 4, 8)  # Maximum
 
 # Time window (in minutes) within which GPS coordinates can be propagated
 # from a nearby image that has valid lat/lon. This helps fill in missing

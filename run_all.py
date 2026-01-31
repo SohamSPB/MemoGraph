@@ -18,7 +18,7 @@ import psutil
 import csv
 import subprocess
 import shutil
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 
 import memograph_config as CFG
 from scripts.utils.utils_log import get_logger
@@ -159,23 +159,51 @@ def run_pipeline(trip_folder: str, parallel: bool):
 		# Always back up the CSV once before core analysis steps.
 		backup_csv(csv_path, max_backups=CFG.MAX_BACKUPS, log_path=log_path)
 
-		all_steps = {
+		# GPU-bound steps (must run sequentially due to GPU memory constraints)
+		gpu_steps = {
 			**analysis_steps,
 			"Species": species_detector.process_species,
 			"Image Type": image_type_detector.detect_image_types,
+		}
+
+		# CPU-only steps (can run in parallel with GPU steps)
+		cpu_steps = {
 			"Image Quality": image_quality.evaluate_image_quality,
 			"Image Colors": image_colors.process_colors,
 		}
-		for name, func in all_steps.items():
-			start_time_step = time.time()
-			logger.info(f"--- Running Step: {name} ---")
-			if name == "Species":
-				func(csv_path, trip_folder, log_path)
-			else:
-				func(trip_folder)
-			elapsed = time.time() - start_time_step
-			logger.info(f"Step '{name}' finished in {elapsed:.2f} seconds.")
-			resource_data.append((name, *get_resource_usage(main_process)))
+
+		# Start CPU tasks in background threads while GPU tasks run
+		cpu_futures = {}
+		cpu_results = {}
+		with ThreadPoolExecutor(max_workers=2, thread_name_prefix="cpu_task") as cpu_executor:
+			# Submit CPU tasks immediately (they don't need GPU)
+			logger.info("--- Starting CPU tasks in background (Image Quality, Image Colors) ---")
+			for name, func in cpu_steps.items():
+				cpu_futures[name] = cpu_executor.submit(func, trip_folder)
+
+			# Run GPU tasks sequentially (main thread)
+			for name, func in gpu_steps.items():
+				start_time_step = time.time()
+				logger.info(f"--- Running GPU Step: {name} ---")
+				if name == "Species":
+					func(csv_path, trip_folder, log_path)
+				else:
+					func(trip_folder)
+				elapsed = time.time() - start_time_step
+				logger.info(f"GPU Step '{name}' finished in {elapsed:.2f} seconds.")
+				resource_data.append((name, *get_resource_usage(main_process)))
+
+			# Wait for CPU tasks to complete (they should be done by now)
+			logger.info("--- Waiting for background CPU tasks to complete ---")
+			for name, future in cpu_futures.items():
+				start_time_step = time.time()
+				try:
+					future.result()  # Wait for completion
+					elapsed = time.time() - start_time_step
+					logger.info(f"CPU Step '{name}' finished (wait time: {elapsed:.2f} seconds).")
+					resource_data.append((name, *get_resource_usage(main_process)))
+				except Exception as e:
+					logger.error(f"CPU Step '{name}' failed: {e}")
 
 		# --- SEQUENTIAL POST-PROCESSING ---
 		start_time = time.time()

@@ -114,7 +114,7 @@ python -m venv .venv
 
 ## Pipeline Overview
 
-MemoGraph’s `run_all.py` runs the following steps sequentially (each step calls
+MemoGraph's `run_all.py` runs the following steps sequentially (each step calls
 the script named in parentheses):
 
 1. Scan + EXIF ingest (`image_scanner.py`)
@@ -136,6 +136,83 @@ the script named in parentheses):
 Every run writes a complete `MemoGraph` folder containing `labels.csv`, `blog.md`,
 `trip_summary.json`, `trip_map.html`, `trip_overview.html`, `blog_context.json`,
 `webapp/index.html`, per-step logs, and JPEG thumbnails under `MemoGraph/thumbnails`.
+
+### Execution Order & Resource Type
+
+| Step | Script | GPU | CPU | Network | Parallelizable |
+|------|--------|:---:|:---:|:-------:|:--------------:|
+| 1 | `image_scanner.py` | ❌ | ✅ | ❌ | No |
+| 2 | `trip_day_assigner.py` | ❌ | ✅ | ❌ | No |
+| 3 | `location_resolver.py` | ❌ | ✅ | ✅ | No (rate-limited) |
+| 4 | `map_visualizer.py` (preview) | ❌ | ✅ | ❌ | No |
+| 5 | `face_detector.py` | ✅ preferred | ✅ fallback | ❌ | **Yes** (ProcessPool) |
+| 6 | `image_labeler.py` (CLIP) | ✅ required | ❌ | ❌ | No |
+| 7 | `caption_filler.py` (BLIP) | ✅ required | ❌ | ❌ | **Yes** (ThreadPool) |
+| 8 | `generate_ai_captions.py` (BLIP) | ✅ required | ❌ | ❌ | No |
+| 9 | `species_detector.py` (CLIP) | ✅ required | ❌ | ❌ | No |
+| 10 | `image_type_detector.py` (CLIP) | ✅ required | ❌ | ❌ | No |
+| 11 | `image_quality.py` | ❌ | ✅ | ❌ | No |
+| 12 | `image_colors.py` | ❌ | ✅ | ❌ | No |
+| 13 | `blog_generator.py` | ❌ | ✅ | ❌ | No |
+| 14 | `map_visualizer.py` (final) | ❌ | ✅ | ❌ | No |
+| 15 | `build_blog_context.py` | ❌* | ✅ | ❌ | No |
+| 16 | `build_webapp.py` | ❌ | ✅ | ❌ | No |
+
+*Optional GPU if YOLO/Places365 extras enabled via `--include-extras`
+
+### Image Sizes Used
+
+| Script | Config Variable | Default | Purpose |
+|--------|----------------|---------|---------|
+| `face_detector.py` | `MAX_IMAGE_SIZE` | 512px | Face detection (CNN/HOG) |
+| `image_labeler.py` | `MAX_IMAGE_SIZE` | 512px | CLIP object/scene detection |
+| `caption_filler.py` | `MAX_IMAGE_SIZE` | 512px | BLIP captioning |
+| `generate_ai_captions.py` | `MAX_IMAGE_SIZE` | 512px | BLIP AI captions |
+| `species_detector.py` | `MAX_IMAGE_SIZE` | 512px | CLIP species detection |
+| `image_type_detector.py` | `MAX_IMAGE_SIZE` | 512px | CLIP image classification |
+| `image_quality.py` | `QUALITY_MAX_SIZE` | 512px | Histogram/quality analysis |
+| `image_colors.py` | Hardcoded | 150px | Color quantization |
+| `build_webapp.py` | `THUMBNAIL_MAX_SIZE` | 320px | Web gallery thumbnails |
+
+### Pipeline Dependency Graph
+
+```
+image_scanner → trip_day_assigner → location_resolver → map_preview
+                                                            ↓
+                    ┌─────────────────────────────────────────┐
+                    │     ANALYSIS SUITE (sequential)         │
+                    │                                         │
+                    │  GPU Tasks:          CPU Tasks:         │
+                    │  ├─ face_detector    ├─ image_quality   │
+                    │  ├─ image_labeler    └─ image_colors    │
+                    │  ├─ caption_filler                      │
+                    │  ├─ generate_ai_captions                │
+                    │  ├─ species_detector                    │
+                    │  └─ image_type_detector                 │
+                    └─────────────────────────────────────────┘
+                                        ↓
+        blog_generator → map_final → build_blog_context → build_webapp
+                                                              ↓
+                                                        build_trip_index
+```
+
+### CSV Column Dependencies
+
+| Column | Written By | Read By |
+|--------|-----------|---------|
+| `image_name`, `local_path`, `md5sum` | image_scanner | All scripts |
+| `datetime_original`, `device_model` | image_scanner | day_assigner, blog, webapp |
+| `gps_lat`, `gps_lon` | image_scanner, location_resolver | map_visualizer, webapp |
+| `location_inferred` | location_resolver | blog_generator, webapp |
+| `day_number` | trip_day_assigner | blog_generator, webapp |
+| `faces_detected`, `faces_count` | face_detector | blog_context, webapp |
+| `detected_objects` | image_labeler | species_detector, blog, webapp |
+| `caption`, `caption_samples` | caption_filler | blog_generator, webapp |
+| `caption_ai` | generate_ai_captions | blog_generator, webapp |
+| `species_tags` | image_labeler (coarse), species_detector (refined) | blog, webapp |
+| `image_type` | image_type_detector | species_detector, webapp |
+| `quality_score`, `exposure_score`, etc. | image_quality | webapp |
+| `color_palette` | image_colors | webapp |
 
 ## Parallel Execution and Resource Monitoring
 

@@ -548,4 +548,43 @@
     - DONE: Fixed critical syntax error in `build_webapp.py` where TEMPLATE string termination used single quote instead of triple quotes, causing blank webapp pages.
     - DONE: Fixed JavaScript newline escape sequence in `build_webapp.py` (`'\n'` → `'\\n'`) to prevent syntax errors in generated HTML.
     - DONE: Added categorized filter system (Nature, Structures, People, Food/Drink, Tech, Others) for better tag organization in webapp sidebar.
-    - DONE: Added CLAUDE.md for AI coding assistant guidance on the repository structure and commands.
+    - DONE: Added EXIF orientation fix (`ImageOps.exif_transpose()`) in `utils_image.py` to prevent AI models from receiving rotated images.
+    - DONE: Increased parallel processing settings for RTX 3060 12GB GPU: `CAPTION_PARALLEL_WORKERS=4`, `FACE_DETECTION_PARALLEL_WORKERS=2`, `FACE_DETECTION_BATCH_SIZE=4`.
+    - DONE: Increased `MAX_IMAGE_SIZE` from 256 to 512 for better accuracy with higher VRAM GPUs.
+    - DONE: Added `get_gpu_memory_mb()` and `get_dynamic_workers()` functions for automatic GPU-based scaling.
+
+23. Lightbox Redesign & UI Polish (Jan 31, 2026)
+    - DONE: Redesigned lightbox with sectioned metadata display:
+        - Header section with filename (monospace) and caption
+        - Color palette bar with improved visibility
+        - Location section: Address, GPS coordinates, Trip Day, Google Maps link
+        - Camera Info section: Device, Capture time, Image type, File path
+        - Tags & Detection section: Objects, Species, Faces (with names if available)
+        - Quality Analysis section: Visual meters for Overall, Exposure, Contrast, Sharpness, Noise, Color Balance
+        - AI Vision section: Vision LLM caption if available
+    - DONE: Fixed black overlay flickering in gallery grid:
+        - Removed animated bg-effects pseudo-element
+        - Added GPU acceleration (`transform: translateZ(0)`, `backface-visibility: hidden`) to gallery, cards, and thumbs
+        - Removed image hover zoom effect that caused repaints
+    - DONE: Fixed face detection display logic:
+        - faces_count = -1: "Scan pending"
+        - faces_count = 0: "No faces present"
+        - faces_count > 0: "X face(s) detected" with names if available
+    - DONE: Updated README with pipeline execution tables, image size reference, dependency graph, CSV column mapping
+
+24. NEXT: Model Accuracy Improvements (Planned)
+    - [ ] Review and optimize `image_labeler.py` (CLIP object/scene detection)
+        - Expand concept list for better coverage
+        - Tune confidence thresholds
+        - Add more granular scene categories
+    - [ ] Review and optimize `caption_filler.py` (BLIP captioning)
+        - Experiment with different BLIP prompts
+        - Improve caption cleaning/post-processing
+    - [ ] Review and optimize `species_detector.py`
+        - Expand species_prompts with more regional species
+        - Improve bird model integration
+        - Add plant/insect specialist models
+    - [ ] Review and optimize `batch_vision_llm.py`
+        - Standardize prompt for consistent output
+        - Improve structured analysis extraction
+        - Consider multi-prompt approach for richer descriptions
