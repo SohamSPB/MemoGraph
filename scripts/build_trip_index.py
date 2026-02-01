@@ -166,6 +166,37 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       align-items: center;
       gap: 12px;
     }}
+    .nav-btn {{
+      padding: 10px 18px;
+      border-radius: 10px;
+      border: 1px solid var(--card-border);
+      background: var(--card);
+      color: var(--text-secondary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }}
+    .nav-btn:hover {{
+      background: var(--card-hover);
+      color: var(--accent);
+      border-color: var(--accent);
+      transform: scale(1.02);
+    }}
+    .nav-btn.features-btn {{
+      background: var(--gradient-1);
+      border: none;
+      color: white;
+      font-weight: 600;
+    }}
+    .nav-btn.features-btn:hover {{
+      transform: scale(1.05);
+      box-shadow: 0 4px 20px var(--accent-glow);
+    }}
     .info-btn {{
       width: 40px;
       height: 40px;
@@ -678,6 +709,240 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       background-clip: text;
     }}
 
+    /* Features Modal */
+    .features-overlay {{
+      position: fixed;
+      inset: 0;
+      background: rgba(3, 7, 17, 0.95);
+      backdrop-filter: blur(20px);
+      z-index: 2000;
+      display: none;
+      overflow-y: auto;
+      padding: 20px;
+    }}
+    .features-overlay.active {{
+      display: block;
+    }}
+    .features-container {{
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px 0 60px;
+    }}
+    .features-header {{
+      text-align: center;
+      padding: 40px 20px 60px;
+    }}
+    .features-close {{
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: none;
+      background: var(--card);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      z-index: 10;
+    }}
+    .features-close:hover {{
+      background: var(--accent);
+      transform: rotate(90deg);
+    }}
+    .features-logo {{
+      width: 80px;
+      height: 80px;
+      background: var(--gradient-1);
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+      margin: 0 auto 24px;
+      box-shadow: 0 8px 40px var(--accent-glow);
+    }}
+    .features-header h1 {{
+      font-family: "Playfair Display", serif;
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      margin-bottom: 16px;
+    }}
+    .features-header h1 span {{
+      background: var(--gradient-1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }}
+    .features-tagline {{
+      font-size: 1.2rem;
+      color: var(--text-secondary);
+      max-width: 600px;
+      margin: 0 auto 32px;
+    }}
+    .features-badges {{
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }}
+    .feature-badge {{
+      padding: 10px 20px;
+      border-radius: 999px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }}
+    .feature-badge.privacy {{
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+    }}
+    .feature-badge.offline {{
+      background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+      color: white;
+    }}
+    .feature-badge.ai {{
+      background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+      color: white;
+    }}
+    .feature-badge.gpu {{
+      background: linear-gradient(135deg, #f472b6 0%, #ec4899 100%);
+      color: white;
+    }}
+    .features-section {{
+      margin-bottom: 48px;
+    }}
+    .features-section-title {{
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 1.3rem;
+      font-weight: 600;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid var(--card-border);
+    }}
+    .features-section-icon {{
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }}
+    .features-section-icon.privacy {{ background: linear-gradient(135deg, #10b981, #059669); }}
+    .features-section-icon.ai {{ background: linear-gradient(135deg, #06b6d4, #0891b2); }}
+    .features-section-icon.nature {{ background: linear-gradient(135deg, #22c55e, #16a34a); }}
+    .features-section-icon.scene {{ background: linear-gradient(135deg, #f59e0b, #d97706); }}
+    .features-section-icon.people {{ background: linear-gradient(135deg, #ec4899, #db2777); }}
+    .features-section-icon.quality {{ background: linear-gradient(135deg, #8b5cf6, #7c3aed); }}
+    .features-section-icon.output {{ background: linear-gradient(135deg, #3b82f6, #2563eb); }}
+    .features-section-icon.tech {{ background: linear-gradient(135deg, #64748b, #475569); }}
+    .features-grid {{
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 10px;
+    }}
+    .feature-chip {{
+      padding: 12px 16px;
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      text-align: center;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }}
+    .feature-chip:hover {{
+      background: var(--card-hover);
+      border-color: var(--accent);
+      color: var(--accent);
+      transform: translateY(-2px);
+    }}
+    .status-dot {{
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }}
+    .status-dot.done {{
+      background: #10b981;
+      box-shadow: 0 0 6px rgba(16, 185, 129, 0.5);
+    }}
+    .status-dot.partial {{
+      background: #f59e0b;
+      box-shadow: 0 0 6px rgba(245, 158, 11, 0.5);
+    }}
+    .status-dot.todo {{
+      background: #ef4444;
+      box-shadow: 0 0 6px rgba(239, 68, 68, 0.5);
+    }}
+    .features-legend {{
+      display: flex;
+      justify-content: center;
+      gap: 32px;
+      flex-wrap: wrap;
+      margin-bottom: 24px;
+      padding: 16px;
+      background: var(--card);
+      border-radius: 12px;
+      border: 1px solid var(--card-border);
+    }}
+    .legend-item {{
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }}
+    .features-footer {{
+      text-align: center;
+      padding: 40px 20px;
+      border-top: 1px solid var(--card-border);
+      margin-top: 40px;
+    }}
+    .features-footer-text {{
+      font-size: 1.1rem;
+      color: var(--text-secondary);
+      margin-bottom: 24px;
+    }}
+    .features-footer-brand {{
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }}
+    .features-footer-logo {{
+      width: 36px;
+      height: 36px;
+      background: var(--gradient-1);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }}
+    .features-footer-name {{
+      font-family: "Playfair Display", serif;
+      font-size: 1.3rem;
+      font-weight: 700;
+      background: var(--gradient-1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }}
+
     /* Empty State */
     .empty-state {{
       text-align: center;
@@ -746,6 +1011,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         <span class="logo-text">MemoGraph</span>
       </a>
       <div class="nav-actions">
+        <button class="nav-btn features-btn" onclick="toggleFeatures()" title="View All Features">&#x2728; 170+ Features</button>
         <button class="info-btn" onclick="toggleModal()" title="About MemoGraph">i</button>
       </div>
     </nav>
@@ -843,11 +1109,102 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     </div>
   </div>
 
+  <!-- Features Showcase Modal -->
+  <div class="features-overlay" id="featuresModal">
+    <button class="features-close" onclick="toggleFeatures()">&#x2715;</button>
+    <div class="features-container">
+      <div class="features-header">
+        <div class="features-logo">&#x1F4F7;</div>
+        <h1>MemoGraph <span>Features</span></h1>
+        <p class="features-tagline">Your Photos. Your Privacy. Your Memories.</p>
+        <div class="features-badges">
+          <span class="feature-badge privacy">&#x1F512; 100% Private</span>
+          <span class="feature-badge offline">&#x1F4F4; Fully Offline</span>
+          <span class="feature-badge ai">&#x1F916; 6 AI Models</span>
+          <span class="feature-badge gpu">&#x26A1; GPU Accelerated</span>
+        </div>
+      </div>
+      <div class="features-section">
+        <div class="features-section-title"><div class="features-section-icon privacy">&#x1F512;</div>Privacy & Security</div>
+        <div class="features-grid">
+          <div class="feature-chip"><span class="status-dot done"></span>100% Offline</div><div class="feature-chip"><span class="status-dot done"></span>No Cloud Upload</div><div class="feature-chip"><span class="status-dot done"></span>Local Processing</div><div class="feature-chip"><span class="status-dot done"></span>Privacy First</div><div class="feature-chip"><span class="status-dot done"></span>No Internet</div><div class="feature-chip"><span class="status-dot done"></span>Data Stays Local</div><div class="feature-chip"><span class="status-dot done"></span>No Tracking</div><div class="feature-chip"><span class="status-dot done"></span>Self-Hosted</div><div class="feature-chip"><span class="status-dot done"></span>Open Source</div><div class="feature-chip"><span class="status-dot done"></span>No Analytics</div>
+        </div>
+      </div>
+      <div class="features-section">
+        <div class="features-section-title"><div class="features-section-icon ai">&#x1F916;</div>AI Models (6 Integrated)</div>
+        <div class="features-grid">
+          <div class="feature-chip"><span class="status-dot done"></span>CLIP Detection</div><div class="feature-chip"><span class="status-dot done"></span>BLIP Captioning</div><div class="feature-chip"><span class="status-dot done"></span>LLaVA Vision AI</div><div class="feature-chip"><span class="status-dot done"></span>Face Detection</div><div class="feature-chip"><span class="status-dot partial"></span>Face Recognition</div><div class="feature-chip"><span class="status-dot done"></span>Bird Classifier</div><div class="feature-chip"><span class="status-dot done"></span>Species Detector</div><div class="feature-chip"><span class="status-dot done"></span>Quality Analyzer</div><div class="feature-chip"><span class="status-dot done"></span>Color Extractor</div><div class="feature-chip"><span class="status-dot done"></span>Type Classifier</div>
+        </div>
+      </div>
+      <div class="features-section">
+        <div class="features-section-title"><div class="features-section-icon nature">&#x1F33F;</div>Nature & Wildlife (150+ Species)</div>
+        <div class="features-grid">
+          <div class="feature-chip"><span class="status-dot done"></span>60+ Bird Species</div><div class="feature-chip"><span class="status-dot partial"></span>Plant Detection</div><div class="feature-chip"><span class="status-dot partial"></span>Flower Species</div><div class="feature-chip"><span class="status-dot partial"></span>Tree Detection</div><div class="feature-chip"><span class="status-dot partial"></span>Insect Detection</div><div class="feature-chip"><span class="status-dot partial"></span>Butterfly Species</div><div class="feature-chip"><span class="status-dot done"></span>Animal Detection</div><div class="feature-chip"><span class="status-dot done"></span>Wildlife ID</div><div class="feature-chip"><span class="status-dot done"></span>Forest Scenes</div><div class="feature-chip"><span class="status-dot done"></span>Garden Detection</div>
+        </div>
+      </div>
+      <div class="features-section">
+        <div class="features-section-title"><div class="features-section-icon scene">&#x1F3D4;</div>Scenes & Objects (130+ Concepts)</div>
+        <div class="features-grid">
+          <div class="feature-chip"><span class="status-dot done"></span>Mountains</div><div class="feature-chip"><span class="status-dot done"></span>Beaches</div><div class="feature-chip"><span class="status-dot done"></span>Temples</div><div class="feature-chip"><span class="status-dot done"></span>Monuments</div><div class="feature-chip"><span class="status-dot done"></span>Cities</div><div class="feature-chip"><span class="status-dot done"></span>Markets</div><div class="feature-chip"><span class="status-dot done"></span>Food</div><div class="feature-chip"><span class="status-dot done"></span>Vehicles</div><div class="feature-chip"><span class="status-dot done"></span>Night Sky</div><div class="feature-chip"><span class="status-dot done"></span>Astrophotography</div><div class="feature-chip"><span class="status-dot done"></span>Sunsets</div><div class="feature-chip"><span class="status-dot done"></span>Golden Hour</div><div class="feature-chip"><span class="status-dot done"></span>Indoor Scenes</div><div class="feature-chip"><span class="status-dot done"></span>Road Trips</div><div class="feature-chip"><span class="status-dot done"></span>Hiking Trails</div>
+        </div>
+      </div>
+      <div class="features-section">
+        <div class="features-section-title"><div class="features-section-icon people">&#x1F464;</div>People & Portraits</div>
+        <div class="features-grid">
+          <div class="feature-chip"><span class="status-dot done"></span>Face Detection</div><div class="feature-chip"><span class="status-dot done"></span>Face Counting</div><div class="feature-chip"><span class="status-dot partial"></span>People Recognition</div><div class="feature-chip"><span class="status-dot done"></span>Group Photos</div><div class="feature-chip"><span class="status-dot done"></span>Selfie Detection</div><div class="feature-chip"><span class="status-dot partial"></span>Portrait Mode</div><div class="feature-chip"><span class="status-dot done"></span>Family Photos</div><div class="feature-chip"><span class="status-dot done"></span>Crowd Detection</div>
+        </div>
+      </div>
+      <div class="features-section">
+        <div class="features-section-title"><div class="features-section-icon quality">&#x2728;</div>Image Quality Analysis</div>
+        <div class="features-grid">
+          <div class="feature-chip"><span class="status-dot done"></span>Quality Scoring</div><div class="feature-chip"><span class="status-dot done"></span>Sharpness Check</div><div class="feature-chip"><span class="status-dot done"></span>Exposure Analysis</div><div class="feature-chip"><span class="status-dot done"></span>Contrast Check</div><div class="feature-chip"><span class="status-dot done"></span>Noise Detection</div><div class="feature-chip"><span class="status-dot done"></span>Color Balance</div><div class="feature-chip"><span class="status-dot done"></span>Best Photo Filter</div><div class="feature-chip"><span class="status-dot done"></span>Dominant Colors</div><div class="feature-chip"><span class="status-dot done"></span>Color Palettes</div>
+        </div>
+      </div>
+      <div class="features-section">
+        <div class="features-section-title"><div class="features-section-icon output">&#x1F4CA;</div>Output & Visualization</div>
+        <div class="features-grid">
+          <div class="feature-chip"><span class="status-dot done"></span>Interactive Maps</div><div class="feature-chip"><span class="status-dot done"></span>Photo Gallery</div><div class="feature-chip"><span class="status-dot done"></span>Lightbox Viewer</div><div class="feature-chip"><span class="status-dot done"></span>Filmstrip Nav</div><div class="feature-chip"><span class="status-dot done"></span>Filter System</div><div class="feature-chip"><span class="status-dot done"></span>Search Function</div><div class="feature-chip"><span class="status-dot done"></span>Blog Generation</div><div class="feature-chip"><span class="status-dot done"></span>JSON Export</div><div class="feature-chip"><span class="status-dot done"></span>CSV Database</div><div class="feature-chip"><span class="status-dot done"></span>Trip Overview</div><div class="feature-chip"><span class="status-dot done"></span>Thumbnails</div><div class="feature-chip"><span class="status-dot done"></span>Quality Meters</div>
+        </div>
+      </div>
+      <div class="features-section">
+        <div class="features-section-title"><div class="features-section-icon tech">&#x2699;</div>Technical Features</div>
+        <div class="features-grid">
+          <div class="feature-chip"><span class="status-dot done"></span>GPU Accelerated</div><div class="feature-chip"><span class="status-dot done"></span>Batch Processing</div><div class="feature-chip"><span class="status-dot done"></span>Parallel Execution</div><div class="feature-chip"><span class="status-dot done"></span>Incremental Saves</div><div class="feature-chip"><span class="status-dot done"></span>Resume Support</div><div class="feature-chip"><span class="status-dot done"></span>Resource Monitor</div><div class="feature-chip"><span class="status-dot done"></span>Error Recovery</div><div class="feature-chip"><span class="status-dot done"></span>Backup System</div><div class="feature-chip"><span class="status-dot done"></span>EXIF Extraction</div><div class="feature-chip"><span class="status-dot done"></span>GPS Mapping</div><div class="feature-chip"><span class="status-dot done"></span>Day Grouping</div><div class="feature-chip"><span class="status-dot done"></span>Auto Tagging</div>
+        </div>
+      </div>
+      <div class="features-section">
+        <div class="features-section-title"><div class="features-section-icon tech" style="background: linear-gradient(135deg, #ef4444, #dc2626);">&#x1F680;</div>Coming Soon</div>
+        <div class="features-grid">
+          <div class="feature-chip"><span class="status-dot todo"></span>Semantic Search</div><div class="feature-chip"><span class="status-dot todo"></span>Cross-Trip Search</div><div class="feature-chip"><span class="status-dot todo"></span>Plant Classifier</div><div class="feature-chip"><span class="status-dot todo"></span>Insect Classifier</div><div class="feature-chip"><span class="status-dot todo"></span>OCR Text Extract</div><div class="feature-chip"><span class="status-dot todo"></span>Video Support</div>
+        </div>
+      </div>
+      <div class="features-footer">
+        <div class="features-legend">
+          <div class="legend-item"><span class="status-dot done"></span>Complete</div>
+          <div class="legend-item"><span class="status-dot partial"></span>In Progress</div>
+          <div class="legend-item"><span class="status-dot todo"></span>Planned</div>
+        </div>
+        <p class="features-footer-text">170+ Features. Zero Cloud. Complete Privacy.</p>
+        <div class="features-footer-brand">
+          <div class="features-footer-logo">&#x1F4F7;</div>
+          <span class="features-footer-name">MemoGraph</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
-    // Toggle modal
+    // Toggle info modal
     function toggleModal() {{
       const modal = document.getElementById('infoModal');
       modal.classList.toggle('active');
+    }}
+
+    // Toggle features modal
+    function toggleFeatures() {{
+      const modal = document.getElementById('featuresModal');
+      modal.classList.toggle('active');
+      document.body.style.overflow = modal.classList.contains('active') ? 'hidden' : '';
     }}
 
     // Close modal when clicking outside
@@ -895,10 +1252,15 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     document.addEventListener('keydown', (e) => {{
       if (e.key === 'Escape') {{
         document.getElementById('infoModal').classList.remove('active');
+        document.getElementById('featuresModal').classList.remove('active');
+        document.body.style.overflow = '';
       }}
       if (e.key === '/' && e.target.tagName !== 'INPUT') {{
         e.preventDefault();
         document.getElementById('searchInput').focus();
+      }}
+      if (e.key === 'f' && e.target.tagName !== 'INPUT' && !e.ctrlKey && !e.metaKey) {{
+        toggleFeatures();
       }}
     }});
   </script>
