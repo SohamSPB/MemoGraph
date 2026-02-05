@@ -33,30 +33,44 @@ species_prompts = {
 		"Eagle", "Golden Eagle", "Bald Eagle",
 		"Vulture", "Griffon Vulture",
 		"Hawk", "Kite", "Black Kite",
+		# Bee-eaters (common in India/Nepal)
+		"Bee-eater", "Green Bee-eater", "Asian Green Bee-eater",
+		"Blue-tailed Bee-eater", "Chestnut-headed Bee-eater",
+		"Small green bird on branch", "Green bird with long tail",
 		# Colorful birds
-		"Kingfisher", "Common Kingfisher",
+		"Kingfisher", "Common Kingfisher", "White-throated Kingfisher",
 		"Bulbul", "Red-vented Bulbul", "Red-whiskered Bulbul",
 		"Indian Roller", "Blue Jay",
 		"Peacock", "Peafowl",
 		"Parrot", "Parakeet", "Rose-ringed Parakeet",
+		# Flycatchers and small birds
+		"Flycatcher", "Paradise Flycatcher", "Asian Paradise Flycatcher",
+		"Wagtail", "White Wagtail", "Yellow Wagtail",
+		"Shrike", "Long-tailed Shrike",
 		# Other common birds
 		"Owl", "Barn Owl", "Spotted Owlet",
-		"Woodpecker",
-		"Hornbill", "Great Hornbill",
-		"Duck", "Mallard",
-		"Swan", "Goose",
-		"Heron", "Egret", "Grey Heron",
-		"Stork", "Painted Stork",
-		"Myna", "Common Myna", "Hill Myna",
-		"Starling",
-		"Robin", "Magpie Robin",
-		"Sunbird", "Purple Sunbird",
-		"Drongo", "Black Drongo",
-		"Cuckoo", "Koel",
-		"Warbler", "Tailorbird",
+		"Woodpecker", "Golden-backed Woodpecker",
+		"Hornbill", "Great Hornbill", "Indian Grey Hornbill",
+		"Duck", "Mallard", "Spot-billed Duck",
+		"Swan", "Goose", "Bar-headed Goose",
+		"Heron", "Egret", "Grey Heron", "Pond Heron",
+		"Stork", "Painted Stork", "Asian Openbill",
+		"Myna", "Common Myna", "Hill Myna", "Jungle Myna",
+		"Starling", "Asian Pied Starling",
+		"Robin", "Magpie Robin", "Oriental Magpie Robin",
+		"Sunbird", "Purple Sunbird", "Crimson Sunbird",
+		"Drongo", "Black Drongo", "Greater Racket-tailed Drongo",
+		"Cuckoo", "Koel", "Asian Koel",
+		"Warbler", "Tailorbird", "Common Tailorbird",
 		"Flamingo",
 		"Pelican",
-		"Cormorant",
+		"Cormorant", "Little Cormorant",
+		# Himalayan birds
+		"Laughingthrush", "White-crested Laughingthrush",
+		"Barbet", "Coppersmith Barbet", "Blue-throated Barbet",
+		"Minivet", "Scarlet Minivet",
+		"Nuthatch", "Chestnut-bellied Nuthatch",
+		"Tit", "Great Tit", "Green-backed Tit",
 	],
 	"plants": [
 		# Flowers
@@ -92,9 +106,15 @@ species_prompts = {
 		"Aloe Vera",
 	],
 	"insects": [
-		# Butterflies
+		# Butterflies - various species and behaviors
 		"Butterfly", "Monarch Butterfly", "Swallowtail Butterfly",
 		"Common Mormon", "Blue Mormon", "Painted Lady",
+		# Yellow/Sulphur butterflies (common in Asia)
+		"Grass Yellow Butterfly", "Common Grass Yellow", "Sulphur Butterfly",
+		"Common Emigrant", "Mottled Emigrant", "Lemon Emigrant",
+		# Mud-puddling behavior (butterflies drinking minerals from soil)
+		"Mud-puddling butterflies", "Butterflies feeding on minerals",
+		"Yellow butterfly", "Small yellow butterfly",
 		"Moth", "Hawkmoth", "Silk Moth",
 		# Flying insects
 		"Bee", "Honeybee", "Bumblebee",
@@ -241,7 +261,7 @@ def process_species(csv_path, trip_folder, log_path):
 		bio_keywords = {
 			"bird", "insect", "animal", "dog", "cat", "horse", "cow", "goat",
 			"sheep", "yak", "deer", "plant", "flower", "tree", "forest",
-			"grass", "leaf", "nature", "wildlife"
+			"grass", "leaf", "nature", "wildlife", "butterfly", "mud", "puddling"
 		}
 		has_bio_hint = not bio_keywords.isdisjoint(tokens)
 		

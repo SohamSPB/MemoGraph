@@ -354,6 +354,26 @@ Or use the convenience script:
 
 ### Performance Benchmarks (RTX 3060 12GB)
 
+**With Batch Processing (New!)**
+
+The GPU model manager now supports batch processing for CLIP and BLIP, processing multiple images simultaneously for significantly higher throughput:
+
+| Processing Mode | Throughput | Time/Image | GPU Memory | Speedup |
+|-----------------|------------|------------|------------|---------|
+| Sequential | 4.89 img/s | 0.20s | 1907MB (16%) | 1.0x |
+| **Batch (n=4)** | **11.39 img/s** | **0.09s** | 1971MB (16%) | **2.25x** |
+| **Batch (n=8)** | **21.74 img/s** | **0.05s** | 2093MB (17%) | **4.45x** |
+
+```bash
+# Test batch processing performance
+python -m scripts.gpu_model_manager --batch-size 8 --num-images 20
+
+# Compare sequential vs batch
+python -m scripts.gpu_model_manager --batch-size 8 --compare
+```
+
+**Full Pipeline (CLIP + BLIP + LLaVA)**
+
 | Metric | Value |
 |--------|-------|
 | **GPU VRAM Used** | ~4.4GB (36% of 12GB) |

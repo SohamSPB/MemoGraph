@@ -99,6 +99,9 @@ def label_images(trip_folder):
 		# Wildlife - Insects & small creatures
 		"insect", "butterfly", "bee", "dragonfly", "spider", "ant", "beetle",
 		"grasshopper", "moth", "caterpillar", "snail", "frog", "lizard", "snake",
+		# Butterfly variations for better detection (including mud-puddling behavior)
+		"mud-puddling butterflies", "butterflies feeding on minerals",
+		"yellow butterfly", "sulphur butterfly",
 
 		# Plants & Flowers
 		"flower", "plant", "tree", "grass", "bush", "garden", "rose", "lotus",
@@ -216,9 +219,11 @@ def label_images(trip_folder):
 				"plant", "flower", "grass", "bush", "tree",
 				"rose", "lotus", "sunflower", "orchid", "tulip", "lily",
 				"marigold", "hibiscus", "jasmine", "dahlia", "lavender", "daisy",
-				# Insects
+				# Insects (includes butterfly variations)
 				"insect", "butterfly", "bee", "dragonfly", "spider", "ant", "beetle",
 				"grasshopper", "moth", "caterpillar", "snail",
+				"mud-puddling butterflies", "butterflies feeding on minerals",
+				"yellow butterfly", "sulphur butterfly",
 				# Animals
 				"animal", "cat", "dog", "horse", "cow", "goat", "sheep", "yak",
 				"elephant", "tiger", "deer", "monkey", "buffalo", "frog", "lizard", "snake",

@@ -506,8 +506,42 @@ Resource logging
     │ Processing buffers  │ ~1.5GB  │ Tensor operations           │
     └─────────────────────┴─────────┴─────────────────────────────┘
 
-31. TODO: Batch Image Processing for Higher Throughput
-    - Implement batch CLIP processing (2-4 images at once)
-    - Implement batch BLIP processing
-    - Add pipeline parallelization (run CLIP while LLaVA processes previous image)
-    - Target throughput: 0.5-1.0 img/s (2-3x current speed)
+31. Batch Image Processing for Higher Throughput (Feb 1, 2026) - DONE
+    - Implemented batch CLIP processing (process_clip_batch)
+        - Process 2-8 images simultaneously through CLIP encoder
+        - Stack image tensors into single batch for GPU efficiency
+        - Automatic fallback to sequential on batch errors
+    - Implemented batch BLIP processing (process_blip_batch)
+        - Process 2-8 images simultaneously through BLIP
+        - Uses processor padding for variable-size batches
+    - Updated process_batch() with configurable batch_size parameter
+    - Added process_batch_sequential() for low-memory fallback
+    - Added comparison mode (--compare flag) for benchmarking
+
+    Performance benchmarks (RTX 3060 12GB, CLIP + BLIP only):
+    ┌────────────────────┬─────────────┬──────────┬─────────────┐
+    │ Processing Mode    │ Throughput  │ Time/img │ GPU Memory  │
+    ├────────────────────┼─────────────┼──────────┼─────────────┤
+    │ Sequential (n=1)   │ 4.89 img/s  │ 0.20s    │ 1907MB (16%)│
+    │ Batch (n=4)        │ 11.39 img/s │ 0.09s    │ 1971MB (16%)│
+    │ Batch (n=8)        │ 21.74 img/s │ 0.05s    │ 2093MB (17%)│
+    └────────────────────┴─────────────┴──────────┴─────────────┘
+
+    Speedup achieved:
+    - batch_size=4: 2.25x faster
+    - batch_size=8: 4.45x faster
+
+    Usage:
+    ```bash
+    # Test batch processing
+    python -m scripts.gpu_model_manager --batch-size 4 --num-images 20
+
+    # Compare sequential vs batch
+    python -m scripts.gpu_model_manager --batch-size 8 --num-images 16 --compare
+    ```
+
+32. TODO: Future Optimizations
+    - Integrate batch processing into main pipeline (run_all.py)
+    - Add pipeline parallelization (run CLIP batch while LLaVA processes)
+    - Implement dynamic batch sizing based on available GPU memory
+    - Add progress callbacks for UI integration

@@ -182,3 +182,17 @@ ENABLE_FACE_RECOGNITION = False
 FACE_GALLERY_PATH = os.path.join("models", "faces", "face_gallery.pkl")
 # Lower threshold = stricter matches (fewer, more confident).
 FACE_RECOGNITION_THRESHOLD = 0.6
+
+# -----------------------------
+# Pipeline Timing Estimates
+# -----------------------------
+# Approximate seconds per image for each pipeline step (used for pre-flight estimates).
+STEP_TIMING_PER_IMAGE = {
+    "scan": 0.05, "days": 0.01, "location": 0.02,
+    "faces": 0.30, "labels": 0.40, "captions": 0.15,
+    "ai_captions": 0.20, "species": 0.15, "image_type": 0.10,
+    "vision_llm": 2.0, "quality": 0.05, "colors": 0.05,
+    "similar_grouping": 0.20, "bird_refiner": 0.10,
+}
+# Fixed-time steps (seconds, independent of image count).
+STEP_FIXED_TIME = {"blog_map_webapp": 5, "search_index": 1}

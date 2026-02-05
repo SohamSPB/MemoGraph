@@ -943,6 +943,283 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       background-clip: text;
     }}
 
+    /* Global Search */
+    .global-search {{
+      padding: 0 5vw 32px;
+    }}
+    .search-container {{
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }}
+    .search-header {{
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 20px;
+    }}
+    .search-input-wrap {{
+      flex: 1;
+      position: relative;
+    }}
+    .search-input-wrap input {{
+      width: 100%;
+      padding: 16px 20px 16px 50px;
+      background: var(--bg-secondary);
+      border: 2px solid var(--card-border);
+      border-radius: 14px;
+      color: var(--text);
+      font-size: 1.1rem;
+      outline: none;
+      transition: all 0.2s ease;
+    }}
+    .search-input-wrap input::placeholder {{
+      color: var(--muted);
+    }}
+    .search-input-wrap input:focus {{
+      border-color: var(--accent);
+      box-shadow: 0 0 0 4px var(--accent-glow);
+    }}
+    .search-input-wrap .search-icon {{
+      position: absolute;
+      left: 18px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      font-size: 20px;
+    }}
+    .filter-toggle {{
+      padding: 16px 24px;
+      background: var(--chip-bg);
+      border: 1px solid var(--chip-border);
+      border-radius: 12px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }}
+    .filter-toggle:hover {{
+      background: var(--card-hover);
+      border-color: var(--accent);
+      color: var(--accent);
+    }}
+    .filter-toggle.active {{
+      background: var(--accent);
+      color: var(--bg);
+      border-color: var(--accent);
+    }}
+    .quick-filters {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 16px;
+    }}
+    .quick-filter {{
+      padding: 10px 18px;
+      background: var(--chip-bg);
+      border: 1px solid var(--chip-border);
+      border-radius: 999px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }}
+    .quick-filter:hover {{
+      background: var(--card-hover);
+      border-color: var(--accent);
+      color: var(--accent);
+    }}
+    .quick-filter.active {{
+      background: var(--accent);
+      color: var(--bg);
+      border-color: var(--accent);
+    }}
+    .advanced-filters {{
+      display: none;
+      background: var(--bg-secondary);
+      border-radius: 16px;
+      padding: 24px;
+      margin-top: 20px;
+    }}
+    .advanced-filters.active {{
+      display: block;
+    }}
+    .filter-grid {{
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 20px;
+    }}
+    .filter-group {{
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }}
+    .filter-group label {{
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }}
+    .filter-group select {{
+      padding: 12px 16px;
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      color: var(--text);
+      font-size: 0.95rem;
+      cursor: pointer;
+      outline: none;
+    }}
+    .filter-group select:focus {{
+      border-color: var(--accent);
+    }}
+    .filter-checkboxes {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      max-height: 120px;
+      overflow-y: auto;
+    }}
+    .filter-checkbox {{
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      transition: all 0.2s ease;
+    }}
+    .filter-checkbox:hover {{
+      border-color: var(--accent);
+    }}
+    .filter-checkbox.active {{
+      background: var(--accent);
+      color: var(--bg);
+      border-color: var(--accent);
+    }}
+    .color-picker {{
+      display: flex;
+      gap: 8px;
+    }}
+    .color-swatch {{
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: all 0.2s ease;
+    }}
+    .color-swatch:hover, .color-swatch.active {{
+      border-color: var(--text);
+      transform: scale(1.1);
+    }}
+    .search-results {{
+      display: none;
+    }}
+    .search-results.active {{
+      display: block;
+    }}
+    .results-header {{
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 0;
+      border-bottom: 1px solid var(--card-border);
+      margin-bottom: 20px;
+    }}
+    .results-count {{
+      font-size: 1.1rem;
+      color: var(--text-secondary);
+    }}
+    .results-count strong {{
+      color: var(--accent);
+    }}
+    .results-actions {{
+      display: flex;
+      gap: 12px;
+    }}
+    .results-grid {{
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 16px;
+      max-height: 600px;
+      overflow-y: auto;
+      padding: 4px;
+    }}
+    .result-card {{
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-decoration: none;
+      color: inherit;
+    }}
+    .result-card:hover {{
+      border-color: var(--accent);
+      transform: translateY(-4px);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }}
+    .result-thumb {{
+      width: 100%;
+      aspect-ratio: 1;
+      object-fit: cover;
+      background: var(--bg-secondary);
+    }}
+    .result-info {{
+      padding: 12px;
+    }}
+    .result-trip {{
+      font-size: 0.75rem;
+      color: var(--accent);
+      font-weight: 600;
+      margin-bottom: 4px;
+    }}
+    .result-name {{
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }}
+    .result-tags {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 8px;
+    }}
+    .result-tag {{
+      font-size: 0.7rem;
+      padding: 3px 8px;
+      background: var(--chip-bg);
+      border-radius: 6px;
+      color: var(--muted);
+    }}
+    .no-results {{
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--muted);
+    }}
+    .no-results-icon {{
+      font-size: 48px;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }}
+
     /* Empty State */
     .empty-state {{
       text-align: center;
@@ -1042,11 +1319,103 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       </div>
     </div>
 
-    <!-- Controls -->
-    <div class="controls">
+    <!-- Global Search -->
+    <section class="global-search">
+      <div class="search-container">
+        <div class="search-header">
+          <div class="search-input-wrap">
+            <span class="search-icon">&#x1F50D;</span>
+            <input type="text" id="globalSearch" placeholder="Search all {total_photos} photos: butterfly, Nepal, 2025, mountain..." onkeyup="handleGlobalSearch(event)">
+          </div>
+          <button class="filter-toggle" onclick="toggleAdvancedFilters()">
+            <span>&#x2699;</span> Filters
+          </button>
+        </div>
+        <div class="quick-filters">
+          <button class="quick-filter" onclick="quickFilter('bird')">&#x1F426; Birds</button>
+          <button class="quick-filter" onclick="quickFilter('mountain')">&#x26F0; Mountains</button>
+          <button class="quick-filter" onclick="quickFilter('food')">&#x1F35C; Food</button>
+          <button class="quick-filter" onclick="quickFilter('temple')">&#x1F6D5; Temples</button>
+          <button class="quick-filter" onclick="quickFilter('flower')">&#x1F33A; Flowers</button>
+          <button class="quick-filter" onclick="quickFilter('night')">&#x1F303; Night Sky</button>
+          <button class="quick-filter" data-filter="faces" onclick="quickFilter('faces:1+')">&#x1F464; People</button>
+          <button class="quick-filter" onclick="quickFilter('quality:70+')">&#x2B50; Best Quality</button>
+        </div>
+        <div class="advanced-filters" id="advancedFilters">
+          <div class="filter-grid">
+            <div class="filter-group">
+              <label>&#x1F4C5; Year</label>
+              <select id="filterYear" onchange="applyFilters()">
+                <option value="">All Years</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label>&#x1F4CD; Trip</label>
+              <select id="filterTrip" onchange="applyFilters()">
+                <option value="">All Trips</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label>&#x1F4F7; Image Type</label>
+              <select id="filterType" onchange="applyFilters()">
+                <option value="">All Types</option>
+                <option value="natural_photo">Natural Photo</option>
+                <option value="screenshot">Screenshot</option>
+                <option value="document_scan">Document</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label>&#x2B50; Min Quality</label>
+              <select id="filterQuality" onchange="applyFilters()">
+                <option value="0">Any Quality</option>
+                <option value="50">50%+</option>
+                <option value="60">60%+</option>
+                <option value="70">70%+</option>
+                <option value="80">80%+</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label>&#x1F464; Faces</label>
+              <select id="filterFaces" onchange="applyFilters()">
+                <option value="">Any</option>
+                <option value="0">No Faces</option>
+                <option value="1">1+ Face</option>
+                <option value="2">2+ Faces (Group)</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label>&#x23F0; Time of Day</label>
+              <select id="filterTime" onchange="applyFilters()">
+                <option value="">Any Time</option>
+                <option value="morning">Morning</option>
+                <option value="afternoon">Afternoon</option>
+                <option value="evening">Evening</option>
+                <option value="night">Night</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="search-results" id="searchResults">
+        <div class="results-header">
+          <span class="results-count"><strong id="resultCount">0</strong> photos found</span>
+          <div class="results-actions">
+            <button class="quick-filter" onclick="clearSearch()">&#x2715; Clear Search</button>
+          </div>
+        </div>
+        <div class="results-grid" id="resultsGrid"></div>
+        <div class="no-results" id="noResults" style="display:none;">
+          <div class="no-results-icon">&#x1F50E;</div>
+          <p>No photos match your search. Try different keywords or filters.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Trip Controls -->
+    <div class="controls" id="tripControls">
       <div class="search-box">
         <span class="search-icon">&#x1F50D;</span>
-        <input type="text" id="searchInput" placeholder="Search trips by name or location..." onkeyup="filterTrips()">
+        <input type="text" id="searchInput" placeholder="Filter trips by name..." onkeyup="filterTrips()">
       </div>
       <div class="view-controls">
         <select class="sort-select" id="sortSelect" onchange="sortTrips()">
@@ -1194,6 +1563,230 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   </div>
 
   <script>
+    // Search index data
+    let searchIndex = null;
+    let searchResults = [];
+
+    // Load search index on page load
+    async function loadSearchIndex() {{
+      try {{
+        const response = await fetch('search_index.json');
+        if (response.ok) {{
+          searchIndex = await response.json();
+          populateFilters();
+          console.log('Search index loaded:', searchIndex.stats);
+        }}
+      }} catch (e) {{
+        console.log('Search index not available');
+      }}
+    }}
+
+    // Populate filter dropdowns from search index
+    function populateFilters() {{
+      if (!searchIndex) return;
+
+      const yearSelect = document.getElementById('filterYear');
+      searchIndex.facets.years.forEach(year => {{
+        const opt = document.createElement('option');
+        opt.value = year;
+        opt.textContent = year;
+        yearSelect.appendChild(opt);
+      }});
+
+      const tripSelect = document.getElementById('filterTrip');
+      searchIndex.facets.trips.forEach(trip => {{
+        const opt = document.createElement('option');
+        opt.value = trip;
+        opt.textContent = trip.replace(/_/g, ' ');
+        tripSelect.appendChild(opt);
+      }});
+    }}
+
+    // Handle global search
+    function handleGlobalSearch(event) {{
+      if (event.key === 'Enter' || event.type === 'input') {{
+        const query = document.getElementById('globalSearch').value.trim();
+        if (query.length >= 2) {{
+          performSearch(query);
+        }} else if (query.length === 0) {{
+          clearSearch();
+        }}
+      }}
+    }}
+
+    // Perform search
+    function performSearch(query) {{
+      if (!searchIndex) {{
+        alert('Search index not loaded. Process trips first.');
+        return;
+      }}
+
+      const lowerQuery = query.toLowerCase();
+      const tokens = lowerQuery.split(/\s+/);
+
+      // Parse special filters
+      let minQuality = 0;
+      let minFaces = -1;
+      const textTokens = [];
+
+      tokens.forEach(token => {{
+        if (token.startsWith('quality:')) {{
+          minQuality = parseInt(token.replace('quality:', '').replace('+', '')) || 0;
+        }} else if (token.startsWith('faces:')) {{
+          minFaces = parseInt(token.replace('faces:', '').replace('+', '')) || 0;
+        }} else {{
+          textTokens.push(token);
+        }}
+      }});
+
+      const textQuery = textTokens.join(' ');
+
+      // Filter images
+      searchResults = searchIndex.images.filter(img => {{
+        // Quality filter
+        if (minQuality > 0 && img.quality < minQuality) return false;
+
+        // Faces filter
+        if (minFaces >= 0 && img.faces_count < minFaces) return false;
+
+        // Text search
+        if (textQuery && !img._search.includes(textQuery)) return false;
+
+        return true;
+      }});
+
+      // Apply additional dropdown filters
+      applyDropdownFilters();
+
+      displayResults();
+    }}
+
+    // Apply dropdown filters
+    function applyDropdownFilters() {{
+      const year = document.getElementById('filterYear').value;
+      const trip = document.getElementById('filterTrip').value;
+      const type = document.getElementById('filterType').value;
+      const quality = parseInt(document.getElementById('filterQuality').value) || 0;
+      const faces = document.getElementById('filterFaces').value;
+      const time = document.getElementById('filterTime').value;
+
+      if (year || trip || type || quality || faces || time) {{
+        searchResults = searchResults.filter(img => {{
+          if (year && img.year != year) return false;
+          if (trip && img.trip !== trip) return false;
+          if (type && img.image_type !== type) return false;
+          if (quality && img.quality < quality) return false;
+          if (faces === '0' && img.faces_count !== 0) return false;
+          if (faces === '1' && img.faces_count < 1) return false;
+          if (faces === '2' && img.faces_count < 2) return false;
+          if (time && img.time_of_day !== time && !img.time_of_day.includes(time)) return false;
+          return true;
+        }});
+      }}
+    }}
+
+    // Apply filters from dropdowns
+    function applyFilters() {{
+      const query = document.getElementById('globalSearch').value.trim();
+      if (query.length >= 2) {{
+        performSearch(query);
+      }} else if (searchIndex) {{
+        // If no text query, search all with filters
+        searchResults = [...searchIndex.images];
+        applyDropdownFilters();
+        if (searchResults.length < searchIndex.images.length) {{
+          displayResults();
+        }}
+      }}
+    }}
+
+    // Quick filter buttons
+    function quickFilter(filter) {{
+      document.getElementById('globalSearch').value = filter;
+      performSearch(filter);
+
+      // Update button states
+      document.querySelectorAll('.quick-filter').forEach(btn => {{
+        btn.classList.remove('active');
+        if (btn.textContent.toLowerCase().includes(filter.split(':')[0]) ||
+            btn.getAttribute('onclick')?.includes(filter)) {{
+          btn.classList.add('active');
+        }}
+      }});
+    }}
+
+    // Display search results
+    function displayResults() {{
+      const resultsSection = document.getElementById('searchResults');
+      const resultsGrid = document.getElementById('resultsGrid');
+      const noResults = document.getElementById('noResults');
+      const countEl = document.getElementById('resultCount');
+      const tripGrid = document.getElementById('tripGrid');
+      const tripControls = document.getElementById('tripControls');
+
+      resultsSection.classList.add('active');
+      tripGrid.style.display = 'none';
+      tripControls.style.display = 'none';
+
+      countEl.textContent = searchResults.length;
+
+      if (searchResults.length === 0) {{
+        resultsGrid.style.display = 'none';
+        noResults.style.display = 'block';
+        return;
+      }}
+
+      noResults.style.display = 'none';
+      resultsGrid.style.display = 'grid';
+
+      // Limit to first 100 for performance
+      const displayResults = searchResults.slice(0, 100);
+
+      resultsGrid.innerHTML = displayResults.map(img => `
+        <a class="result-card" href="${{img.trip}}/MemoGraph/webapp/index.html#${{img.filename}}" title="${{img.filename}}">
+          <img class="result-thumb" src="${{img.thumbnail}}" alt="${{img.filename}}" loading="lazy" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect fill=%22%23334%22 width=%22100%22 height=%22100%22/><text x=%2250%22 y=%2255%22 text-anchor=%22middle%22 fill=%22%23666%22 font-size=%2214%22>No Thumb</text></svg>'">
+          <div class="result-info">
+            <div class="result-trip">${{img.trip.replace(/_/g, ' ')}}</div>
+            <div class="result-name">${{img.filename}}</div>
+            <div class="result-tags">
+              ${{img.tags.slice(0, 3).map(t => `<span class="result-tag">${{t}}</span>`).join('')}}
+            </div>
+          </div>
+        </a>
+      `).join('');
+
+      if (searchResults.length > 100) {{
+        resultsGrid.innerHTML += `<div style="grid-column: 1/-1; text-align: center; padding: 20px; color: var(--muted);">Showing first 100 of ${{searchResults.length}} results</div>`;
+      }}
+    }}
+
+    // Clear search
+    function clearSearch() {{
+      document.getElementById('globalSearch').value = '';
+      document.getElementById('filterYear').value = '';
+      document.getElementById('filterTrip').value = '';
+      document.getElementById('filterType').value = '';
+      document.getElementById('filterQuality').value = '0';
+      document.getElementById('filterFaces').value = '';
+      document.getElementById('filterTime').value = '';
+
+      document.getElementById('searchResults').classList.remove('active');
+      document.getElementById('tripGrid').style.display = '';
+      document.getElementById('tripControls').style.display = '';
+
+      document.querySelectorAll('.quick-filter').forEach(btn => btn.classList.remove('active'));
+
+      searchResults = [];
+    }}
+
+    // Toggle advanced filters
+    function toggleAdvancedFilters() {{
+      const filters = document.getElementById('advancedFilters');
+      const toggle = document.querySelector('.filter-toggle');
+      filters.classList.toggle('active');
+      toggle.classList.toggle('active');
+    }}
+
     // Toggle info modal
     function toggleModal() {{
       const modal = document.getElementById('infoModal');
@@ -1254,15 +1847,19 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         document.getElementById('infoModal').classList.remove('active');
         document.getElementById('featuresModal').classList.remove('active');
         document.body.style.overflow = '';
+        clearSearch();
       }}
       if (e.key === '/' && e.target.tagName !== 'INPUT') {{
         e.preventDefault();
-        document.getElementById('searchInput').focus();
+        document.getElementById('globalSearch').focus();
       }}
       if (e.key === 'f' && e.target.tagName !== 'INPUT' && !e.ctrlKey && !e.metaKey) {{
         toggleFeatures();
       }}
     }});
+
+    // Load search index on page load
+    document.addEventListener('DOMContentLoaded', loadSearchIndex);
   </script>
 </body>
 </html>

@@ -933,6 +933,26 @@ TEMPLATE = """<!DOCTYPE html>
     });
     const chips = Array.from(chipSet).filter(Boolean).sort();
 
+    // Smart title extraction: prefer vision_caption's first sentence over caption_ai
+    function getSmartTitle(img) {
+      // If vision_caption exists, extract a concise title from it
+      if (img.vision_caption && img.vision_caption.length > 20) {
+        let vc = img.vision_caption;
+        // Get first sentence
+        let first = vc.split(/\.\s/)[0];
+        // Remove generic openings like "The image captures..."
+        first = first.replace(/^The image (captures|shows|features|depicts|presents|displays)\s+(a\s+)?(moment of [^,]+,\s+(featuring|with)\s+)?/i, '');
+        first = first.replace(/^In the [^,]+,\s*/i, '');
+        first = first.replace(/^(A|An|The)\s+(serene|tranquil|vibrant|beautiful|stunning)\s+(scene|moment|view|image)\s+(of|in|featuring|with)\s+/i, '');
+        // Capitalize first letter
+        first = first.charAt(0).toUpperCase() + first.slice(1);
+        // Trim to reasonable length
+        if (first.length > 120) first = first.substring(0, 117) + '...';
+        if (first.length > 10) return first;
+      }
+      return img.caption_ai || img.caption || "Untitled";
+    }
+
     let activeChips = new Set();
     let map, lightboxMap;
     let markers = [], lightboxMarker;
@@ -1091,12 +1111,12 @@ TEMPLATE = """<!DOCTYPE html>
 
           card.innerHTML = `
             <div class="thumb">
-              <img src="${thumbSrc}" loading="lazy" alt="${img.caption_ai || img.caption || ''}">
+              <img src="${thumbSrc}" loading="lazy" alt="${getSmartTitle(img)}">
               ${colorsHtml}
               ${qualityBadge}
             </div>
             <div class="card-content">
-              <div class="title" title="${img.caption_ai || img.caption || ''}">${img.caption_ai || img.caption || "Untitled"}</div>
+              <div class="title" title="${getSmartTitle(img)}">${getSmartTitle(img)}</div>
               <div class="meta">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
                 ${img.location_short || "Unknown"} &bull; Day ${img.day_number}
@@ -1232,7 +1252,7 @@ TEMPLATE = """<!DOCTYPE html>
       lightboxMeta.innerHTML = `
         <div class="lightbox-header">
           <div class="lightbox-filename">${img.image_name || 'Unknown'}</div>
-          <h2 class="lightbox-caption">${img.caption_ai || img.caption || "Untitled Photo"}</h2>
+          <h2 class="lightbox-caption">${getSmartTitle(img)}</h2>
           ${colorsHtml}
         </div>
 
