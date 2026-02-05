@@ -56,6 +56,24 @@ def is_interrupted():
 	"""Check if pipeline was interrupted by Ctrl+C."""
 	return _interrupted
 
+_STEP_COUNTER = 0
+
+def _step_banner(name, category=""):
+	"""Print a visible banner to separate pipeline steps in terminal output."""
+	global _STEP_COUNTER
+	_STEP_COUNTER += 1
+	cat_label = f"  [{category}]" if category else ""
+	line = f"  Step {_STEP_COUNTER}: {name}{cat_label}"
+	width = max(60, len(line) + 4)
+	bar = "=" * width
+	print(f"\n{bar}")
+	print(line)
+	print(f"{bar}\n")
+
+def _step_done(name, elapsed):
+	"""Print a compact completion line after a step finishes."""
+	print(f"  >> {name} done in {elapsed:.1f}s\n")
+
 def _kill_child_processes():
 	"""Kill all child processes of the current process."""
 	try:
@@ -132,9 +150,10 @@ def get_resource_usage(p):
 
 def run_pipeline(trip_folder: str, parallel: bool, auto_yes: bool = False,
                   is_reset: bool = False):
-	global _interrupted, _ctrl_c_count
+	global _interrupted, _ctrl_c_count, _STEP_COUNTER
 	_interrupted = False
 	_ctrl_c_count = 0
+	_STEP_COUNTER = 0
 
 	# Install graceful interrupt handler
 	signal.signal(signal.SIGINT, _interrupt_handler)
@@ -191,39 +210,44 @@ def run_pipeline(trip_folder: str, parallel: bool, auto_yes: bool = False,
 			logger.info("Resource check passed.")
 
 		# --- SEQUENTIAL PRE-PROCESSING ---
+		_step_banner("Scanning Images", "EXIF")
 		start_time = time.time()
 		logger.info("--- STEP 1: Scanning Images ---")
 		image_scanner.scan_images(trip_folder)
 		elapsed = time.time() - start_time
 		logger.info(f"STEP 1 finished in {elapsed:.2f} seconds.")
+		_step_done("Scan Images", elapsed)
 		resource_data.append(("STEP 1", *get_resource_usage(main_process)))
 		_record_step("Scan Images", "completed", elapsed)
 
+		_step_banner("Assigning Day Numbers", "CPU")
 		start_time = time.time()
 		logger.info("--- STEP 2: Assigning Day Numbers ---")
 		trip_day_assigner.assign_days(trip_folder)
 		elapsed = time.time() - start_time
 		logger.info(f"STEP 2 finished in {elapsed:.2f} seconds.")
+		_step_done("Assign Days", elapsed)
 		resource_data.append(("STEP 2", *get_resource_usage(main_process)))
 		_record_step("Assign Days", "completed", elapsed)
 
+		_step_banner("Resolving Locations", "GPS")
 		start_time = time.time()
 		logger.info("--- STEP 3: Resolving Locations ---")
 		location_resolver.fill_location(trip_folder)
 		elapsed = time.time() - start_time
 		logger.info(f"STEP 3 finished in {elapsed:.2f} seconds.")
+		_step_done("Resolve Locations", elapsed)
 		resource_data.append(("STEP 3", *get_resource_usage(main_process)))
 		_record_step("Resolve Locations", "completed", elapsed)
 
-		# --- EARLY MAP PREVIEW ---
-		# Generate an initial map as soon as GPS/locations are available so
-		# users can start exploring the trip while heavier steps are running.
+		_step_banner("Map Preview", "HTML")
 		start_time = time.time()
 		logger.info("--- STEP 4: Creating Initial Map Preview ---")
 		points_preview = map_visualizer.load_geo_points(csv_path, trip_folder)
 		map_visualizer.create_map(points_preview, map_path)
 		elapsed = time.time() - start_time
 		logger.info(f"STEP 4 finished in {elapsed:.2f} seconds.")
+		_step_done("Map Preview", elapsed)
 		resource_data.append(("STEP 4 (map_preview)", *get_resource_usage(main_process)))
 		_record_step("Map Preview", "completed", elapsed)
 
@@ -269,6 +293,7 @@ def run_pipeline(trip_folder: str, parallel: bool, auto_yes: bool = False,
 			if _interrupted:
 				logger.warning("Pipeline interrupted before step: %s", name)
 				raise KeyboardInterrupt
+			_step_banner(name, "GPU")
 			start_time_step = time.time()
 			logger.info(f"--- Running GPU Step: {name} ---")
 			try:
@@ -278,6 +303,7 @@ def run_pipeline(trip_folder: str, parallel: bool, auto_yes: bool = False,
 					func(trip_folder)
 				elapsed = time.time() - start_time_step
 				logger.info(f"GPU Step '{name}' finished in {elapsed:.2f} seconds.")
+				_step_done(name, elapsed)
 				resource_data.append((name, *get_resource_usage(main_process)))
 				_record_step(name, "completed", elapsed)
 			except KeyboardInterrupt:
@@ -301,6 +327,7 @@ def run_pipeline(trip_folder: str, parallel: bool, auto_yes: bool = False,
 		# Run CPU tasks in parallel with each other (they don't conflict)
 		if _interrupted:
 			raise KeyboardInterrupt
+		_step_banner("Image Quality + Colors", "CPU")
 		cpu_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="cpu_task")
 		try:
 			logger.info("--- Running CPU tasks (Image Quality, Image Colors) ---")
@@ -336,12 +363,14 @@ def run_pipeline(trip_folder: str, parallel: bool, auto_yes: bool = False,
 
 		if _interrupted:
 			raise KeyboardInterrupt
+		_step_banner("Grouping Similar Images", "GPU")
 		start_time = time.time()
 		logger.info("--- STEP 7a: Grouping Similar Images ---")
 		try:
 			similar_image_grouper.process_similar_images(trip_folder)
 			elapsed = time.time() - start_time
 			logger.info(f"STEP 7a finished in {elapsed:.2f} seconds.")
+			_step_done("Similar Grouping", elapsed)
 			resource_data.append(("Similar Image Grouper", *get_resource_usage(main_process)))
 			_record_step("Similar Grouping", "completed", elapsed)
 		except Exception as e:
@@ -351,12 +380,14 @@ def run_pipeline(trip_folder: str, parallel: bool, auto_yes: bool = False,
 
 		if _interrupted:
 			raise KeyboardInterrupt
+		_step_banner("Refining Bird Species", "GPU")
 		start_time = time.time()
 		logger.info("--- STEP 7b: Refining Bird Species ---")
 		try:
 			bird_species_refiner.refine_bird_species(trip_folder)
 			elapsed = time.time() - start_time
 			logger.info(f"STEP 7b finished in {elapsed:.2f} seconds.")
+			_step_done("Bird Refiner", elapsed)
 			resource_data.append(("Bird Species Refiner", *get_resource_usage(main_process)))
 			_record_step("Bird Refiner", "completed", elapsed)
 		except Exception as e:
@@ -367,20 +398,24 @@ def run_pipeline(trip_folder: str, parallel: bool, auto_yes: bool = False,
 		# --- SEQUENTIAL POST-PROCESSING ---
 		if _interrupted:
 			raise KeyboardInterrupt
+		_step_banner("Generating Blog", "OUTPUT")
 		start_time = time.time()
 		logger.info("--- STEP 9: Generating Blog ---")
 		blog_generator.generate_blog(trip_folder)
 		elapsed = time.time() - start_time
 		logger.info(f"STEP 9 finished in {elapsed:.2f} seconds.")
+		_step_done("Generate Blog", elapsed)
 		resource_data.append(("STEP 9", *get_resource_usage(main_process)))
 		_record_step("Generate Blog", "completed", elapsed)
 
+		_step_banner("Final Map + Overview", "OUTPUT")
 		start_time = time.time()
 		logger.info("--- STEP 10: Creating Final Map ---")
 		points = map_visualizer.load_geo_points(csv_path, trip_folder)
 		map_visualizer.create_map(points, map_path)
 		elapsed = time.time() - start_time
 		logger.info(f"STEP 10 finished in {elapsed:.2f} seconds.")
+		_step_done("Final Map", elapsed)
 		resource_data.append(("STEP 10 (map_final)", *get_resource_usage(main_process)))
 		_record_step("Final Map", "completed", elapsed)
 
@@ -392,6 +427,7 @@ def run_pipeline(trip_folder: str, parallel: bool, auto_yes: bool = False,
 		except Exception as e:
 			logger.error("Failed to create overview page: %s", e)
 
+		_step_banner("Blog Context", "OUTPUT")
 		start_time = time.time()
 		logger.info("--- STEP 11: Building Blog Context ---")
 		build_blog_context.build_blog_context(
@@ -400,15 +436,18 @@ def run_pipeline(trip_folder: str, parallel: bool, auto_yes: bool = False,
 		)
 		elapsed = time.time() - start_time
 		logger.info(f"STEP 11 finished in {elapsed:.2f} seconds.")
+		_step_done("Blog Context", elapsed)
 		resource_data.append(("STEP 11 (blog_context)", *get_resource_usage(main_process)))
 		_record_step("Blog Context", "completed", elapsed)
 
+		_step_banner("Building Web App", "OUTPUT")
 		start_time = time.time()
 		logger.info("--- STEP 12: Building Web App ---")
 		try:
 			build_webapp.build_webapp(trip_folder)
 			elapsed = time.time() - start_time
 			logger.info(f"STEP 12 finished in {elapsed:.2f} seconds.")
+			_step_done("Build Webapp", elapsed)
 			resource_data.append(("STEP 12 (webapp)", *get_resource_usage(main_process)))
 			_record_step("Build Webapp", "completed", elapsed)
 		except Exception as e:
@@ -416,12 +455,14 @@ def run_pipeline(trip_folder: str, parallel: bool, auto_yes: bool = False,
 			logger.error("Failed to build web app: %s", e)
 			_record_step("Build Webapp", "failed", elapsed)
 
+		_step_banner("Updating Trip Index", "OUTPUT")
 		start_time = time.time()
 		logger.info("--- STEP 13: Updating Trip Index ---")
 		try:
 			index_path = build_trip_index.build_trip_index(CFG.DATA_ROOT)
 			elapsed = time.time() - start_time
 			logger.info(f"STEP 13 finished in {elapsed:.2f} seconds.")
+			_step_done("Trip Index", elapsed)
 			logger.info("Trip index updated at: %s", index_path)
 			resource_data.append(("STEP 13 (trip_index)", *get_resource_usage(main_process)))
 			_record_step("Trip Index", "completed", elapsed)
@@ -430,12 +471,14 @@ def run_pipeline(trip_folder: str, parallel: bool, auto_yes: bool = False,
 			logger.error("Failed to update trip index: %s", e)
 			_record_step("Trip Index", "failed", elapsed)
 
+		_step_banner("Global Search Index", "OUTPUT")
 		start_time = time.time()
 		logger.info("--- STEP 14: Building Global Search Index ---")
 		try:
 			search_index_path = build_search_index.build_search_index(CFG.DATA_ROOT)
 			elapsed = time.time() - start_time
 			logger.info(f"STEP 14 finished in {elapsed:.2f} seconds.")
+			_step_done("Search Index", elapsed)
 			logger.info("Search index updated at: %s", search_index_path)
 			resource_data.append(("STEP 14 (search_index)", *get_resource_usage(main_process)))
 			_record_step("Search Index", "completed", elapsed)
