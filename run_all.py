@@ -56,6 +56,21 @@ def is_interrupted():
 	"""Check if pipeline was interrupted by Ctrl+C."""
 	return _interrupted
 
+def _kill_child_processes():
+	"""Kill all child processes of the current process."""
+	try:
+		parent = psutil.Process(os.getpid())
+		children = parent.children(recursive=True)
+		for child in children:
+			try:
+				child.kill()
+			except psutil.NoSuchProcess:
+				pass
+		# Wait briefly for processes to actually terminate
+		psutil.wait_procs(children, timeout=3)
+	except Exception:
+		pass
+
 import memograph_config as CFG
 from scripts.utils.utils_log import get_logger
 from scripts.utils.utils_io import backup_csv
@@ -448,6 +463,11 @@ def run_pipeline(trip_folder: str, parallel: bool, auto_yes: bool = False,
 		else:
 			interrupted_at = "before first step"
 		logger.warning("Pipeline interrupted by user at: %s", interrupted_at)
+
+		# Kill any lingering child processes (e.g. face_recognition's
+		# internal multiprocessing workers) so they don't keep printing
+		# output after the pipeline has stopped.
+		_kill_child_processes()
 	except Exception as e:
 		logger.exception("[ERROR] Pipeline failed: %s", e)
 		raise
