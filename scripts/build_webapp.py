@@ -360,8 +360,9 @@ TEMPLATE = """<!DOCTYPE html>
       bottom: 0;
       left: 0;
       right: 0;
-      height: 4px;
+      height: 6px;
       display: flex;
+      z-index: 2;
     }
     .swatch { flex: 1; height: 100%; }
 

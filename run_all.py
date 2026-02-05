@@ -317,45 +317,34 @@ def run_pipeline(trip_folder: str, parallel: bool, auto_yes: bool = False,
 				_record_step(name, "failed", elapsed)
 				raise
 
-		# CPU-only steps run AFTER GPU steps to avoid CSV race conditions.
-		# (Previously ran in parallel but GPU steps overwrote color/quality data.)
+		# CPU-only steps run AFTER GPU steps and SEQUENTIALLY to avoid
+		# CSV race conditions (both read/write labels.csv).
 		cpu_steps = {
 			"Image Quality": image_quality.evaluate_image_quality,
 			"Image Colors": image_colors.process_colors,
 		}
 
-		# Run CPU tasks in parallel with each other (they don't conflict)
-		if _interrupted:
-			raise KeyboardInterrupt
-		_step_banner("Image Quality + Colors", "CPU")
-		cpu_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="cpu_task")
-		try:
-			logger.info("--- Running CPU tasks (Image Quality, Image Colors) ---")
-			cpu_futures = {}
-			for name, func in cpu_steps.items():
-				cpu_futures[name] = cpu_executor.submit(func, trip_folder)
-
-			for name, future in cpu_futures.items():
-				start_time_step = time.time()
-				try:
-					future.result()
-					elapsed = time.time() - start_time_step
-					logger.info(f"CPU Step '{name}' finished in {elapsed:.2f} seconds.")
-					resource_data.append((name, *get_resource_usage(main_process)))
-					_record_step(name, "completed", elapsed)
-				except KeyboardInterrupt:
-					elapsed = time.time() - start_time_step
-					_record_step(name, "interrupted", elapsed)
-					raise
-				except Exception as e:
-					elapsed = time.time() - start_time_step
-					logger.error(f"CPU Step '{name}' failed: {e}")
-					_record_step(name, "failed", elapsed)
-		except KeyboardInterrupt:
-			cpu_executor.shutdown(wait=False, cancel_futures=True)
-			raise
-		finally:
-			cpu_executor.shutdown(wait=False)
+		for name, func in cpu_steps.items():
+			if _interrupted:
+				raise KeyboardInterrupt
+			_step_banner(name, "CPU")
+			start_time_step = time.time()
+			logger.info(f"--- Running CPU Step: {name} ---")
+			try:
+				func(trip_folder)
+				elapsed = time.time() - start_time_step
+				logger.info(f"CPU Step '{name}' finished in {elapsed:.2f} seconds.")
+				_step_done(name, elapsed)
+				resource_data.append((name, *get_resource_usage(main_process)))
+				_record_step(name, "completed", elapsed)
+			except KeyboardInterrupt:
+				elapsed = time.time() - start_time_step
+				_record_step(name, "interrupted", elapsed)
+				raise
+			except Exception as e:
+				elapsed = time.time() - start_time_step
+				logger.error(f"CPU Step '{name}' failed: {e}")
+				_record_step(name, "failed", elapsed)
 
 		# --- LABEL REFINEMENT STEPS ---
 		# These steps improve detection accuracy by grouping similar images
