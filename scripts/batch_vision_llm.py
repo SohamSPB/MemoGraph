@@ -75,49 +75,55 @@ def process_trip(trip_folder: str):
         return
 
     updated_count = 0
-    for idx, (row_idx, img_path) in enumerate(to_process, 1):
-        try:
-            image = Image.open(img_path).convert("RGB")
-            # Resize to max 1024 to keep VRAM usage reasonable
-            if max(image.size) > 1024:
-                image.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
+    try:
+        for idx, (row_idx, img_path) in enumerate(to_process, 1):
+            try:
+                image = Image.open(img_path).convert("RGB")
+                # Resize to max 1024 to keep VRAM usage reasonable
+                if max(image.size) > 1024:
+                    image.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
 
-            messages = [
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "image"},
-                        {"type": "text", "text": DEFAULT_PROMPT},
-                    ],
-                }
-            ]
-            text_prompt = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-            inputs = processor(text=text_prompt, images=image, return_tensors="pt").to(device)
+                messages = [
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "image"},
+                            {"type": "text", "text": DEFAULT_PROMPT},
+                        ],
+                    }
+                ]
+                text_prompt = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+                inputs = processor(text=text_prompt, images=image, return_tensors="pt").to(device)
 
-            with torch.inference_mode():
-                output_ids = model.generate(
-                    **inputs,
-                    max_new_tokens=256,
-                    temperature=0.1,
-                    do_sample=False 
-                )
-            
-            # Decode
-            generated_text = processor.decode(output_ids[0], skip_special_tokens=True)
-            
-            # Post-process: remove system/user prompts if leaked (though decode usually handles this)
-            if "assistant\n" in generated_text:
-                generated_text = generated_text.split("assistant\n")[-1].strip()
+                with torch.inference_mode():
+                    output_ids = model.generate(
+                        **inputs,
+                        max_new_tokens=256,
+                        temperature=0.1,
+                        do_sample=False
+                    )
 
-            rows[row_idx]["vision_caption"] = generated_text
-            updated_count += 1
-            log(f"[{idx}/{len(to_process)}] {os.path.basename(img_path)}: {generated_text[:60]}...", log_path)
+                # Decode
+                generated_text = processor.decode(output_ids[0], skip_special_tokens=True)
 
-            if updated_count % 5 == 0:
-                write_csv_dict(csv_path, rows, rows[0].keys())
+                # Post-process: remove system/user prompts if leaked (though decode usually handles this)
+                if "assistant\n" in generated_text:
+                    generated_text = generated_text.split("assistant\n")[-1].strip()
 
-        except Exception as e:
-            log(f"Failed to caption {img_path}: {e}", log_path)
+                rows[row_idx]["vision_caption"] = generated_text
+                updated_count += 1
+                log(f"[{idx}/{len(to_process)}] {os.path.basename(img_path)}: {generated_text[:60]}...", log_path)
+
+                if updated_count % 5 == 0:
+                    write_csv_dict(csv_path, rows, rows[0].keys())
+
+            except Exception as e:
+                log(f"Failed to caption {img_path}: {e}", log_path)
+    except KeyboardInterrupt:
+        log(f"[INTERRUPTED] Vision LLM captioning interrupted after {updated_count} images. Saving progress...", log_path)
+        if updated_count:
+            write_csv_dict(csv_path, rows, rows[0].keys())
+        raise
 
     if updated_count:
         write_csv_dict(csv_path, rows, rows[0].keys())

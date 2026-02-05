@@ -231,114 +231,120 @@ def process_species(csv_path, trip_folder, log_path):
 		write_csv_dict(csv_path, updated_rows, updated_rows[0].keys())
 		log("Incremental save: species_tags flushed to CSV.", log_path)
 
-	for row in rows:
-		# Skip rows that already have species_tags so that re-running the script
-		# acts as a resume operation, only filling in missing tags.
-		if _row_has_species(row):
-			updated_rows.append(row)
-			continue
+	try:
+		for row in rows:
+			# Skip rows that already have species_tags so that re-running the script
+			# acts as a resume operation, only filling in missing tags.
+			if _row_has_species(row):
+				updated_rows.append(row)
+				continue
 
-		local_path = row.get("local_path", "")
-		image_path = os.path.join(trip_folder, local_path)
+			local_path = row.get("local_path", "")
+			image_path = os.path.join(trip_folder, local_path)
 
-		# Decide if this image is a good candidate for biological species
-		# detection.
-		image_type = str(row.get("image_type", "")).strip()
-		if image_type in ("meme_or_graphic", "document_scan", "chart_or_plot", "screenshot"):
-			log(f"{os.path.basename(image_path)} -> skipped species detection (image_type={image_type})", log_path)
-			row["species_tags"] = row.get("species_tags", "")
-			updated_rows.append(row)
-			continue
+			# Decide if this image is a good candidate for biological species
+			# detection.
+			image_type = str(row.get("image_type", "")).strip()
+			if image_type in ("meme_or_graphic", "document_scan", "chart_or_plot", "screenshot"):
+				log(f"{os.path.basename(image_path)} -> skipped species detection (image_type={image_type})", log_path)
+				row["species_tags"] = row.get("species_tags", "")
+				updated_rows.append(row)
+				continue
 
-		coarse_text = " ".join(
-			str(row.get(field, "")) for field in ("detected_objects", "caption", "caption_ai")
-		).lower()
-		
-		# Tokenize for safer keyword matching (avoid "bowl" matching "owl")
-		import re
-		tokens = set(re.findall(r"\w+", coarse_text))
+			coarse_text = " ".join(
+				str(row.get(field, "")) for field in ("detected_objects", "caption", "caption_ai")
+			).lower()
 
-		bio_keywords = {
-			"bird", "insect", "animal", "dog", "cat", "horse", "cow", "goat",
-			"sheep", "yak", "deer", "plant", "flower", "tree", "forest",
-			"grass", "leaf", "nature", "wildlife", "butterfly", "mud", "puddling"
-		}
-		has_bio_hint = not bio_keywords.isdisjoint(tokens)
-		
-		# Bird keywords - be more strict to avoid false positives
-		# Only trigger bird model if detected_objects explicitly contains bird-related terms
-		detected_objects_text = str(row.get("detected_objects", "")).lower()
-		detected_tokens = set(re.findall(r"\w+", detected_objects_text))
-		bird_keywords = {"bird", "sparrow", "eagle", "owl", "duck", "peacock", "kingfisher", "crow",
-						 "pigeon", "parrot", "heron", "swan", "vulture", "hawk"}
-		# Only use bird model if detected_objects has bird hints (not just captions which can hallucinate)
-		has_bird_hint = not bird_keywords.isdisjoint(detected_tokens)
+			# Tokenize for safer keyword matching (avoid "bowl" matching "owl")
+			import re
+			tokens = set(re.findall(r"\w+", coarse_text))
 
-		if not os.path.exists(image_path):
-			log(f"Missing image: {image_path}", log_path)
-			# Preserve any existing coarse species tags from image_labeler
-			row["species_tags"] = row.get("species_tags", "")
-			updated_rows.append(row)
-			continue
+			bio_keywords = {
+				"bird", "insect", "animal", "dog", "cat", "horse", "cow", "goat",
+				"sheep", "yak", "deer", "plant", "flower", "tree", "forest",
+				"grass", "leaf", "nature", "wildlife", "butterfly", "mud", "puddling"
+			}
+			has_bio_hint = not bio_keywords.isdisjoint(tokens)
 
-		# If there is no biological hint, do not run CLIP species matching;
-		# keep whatever coarse tags are already present (often astrophotography
-		# / galaxy related for space images).
-		if not has_bio_hint:
-			log(
-				f"{os.path.basename(image_path)} -> skipped species detection (no bio hints)",
-				log_path,
-			)
-			row["species_tags"] = row.get("species_tags", "")
-			updated_count += 1
-		else:
-			bird_tags_used = False
-			# Prefer the specialist bird model when enabled and the coarse text
-			# clearly indicates a bird.
-			if CFG.ENABLE_BIRD_MODEL and has_bird_hint:
-				try:
-					raw_image = Image.open(image_path).convert("RGB")
-					raw_image = resize_image(raw_image)
-					bird_preds = predict_bird_species(raw_image, topk=getattr(CFG, "BIRD_TOPK", 3))
-					if bird_preds:
-						bird_names = [name for name, _ in bird_preds]
-						row["species_tags"] = ", ".join(bird_names)
+			# Bird keywords - be more strict to avoid false positives
+			# Only trigger bird model if detected_objects explicitly contains bird-related terms
+			detected_objects_text = str(row.get("detected_objects", "")).lower()
+			detected_tokens = set(re.findall(r"\w+", detected_objects_text))
+			bird_keywords = {"bird", "sparrow", "eagle", "owl", "duck", "peacock", "kingfisher", "crow",
+							 "pigeon", "parrot", "heron", "swan", "vulture", "hawk"}
+			# Only use bird model if detected_objects has bird hints (not just captions which can hallucinate)
+			has_bird_hint = not bird_keywords.isdisjoint(detected_tokens)
+
+			if not os.path.exists(image_path):
+				log(f"Missing image: {image_path}", log_path)
+				# Preserve any existing coarse species tags from image_labeler
+				row["species_tags"] = row.get("species_tags", "")
+				updated_rows.append(row)
+				continue
+
+			# If there is no biological hint, do not run CLIP species matching;
+			# keep whatever coarse tags are already present (often astrophotography
+			# / galaxy related for space images).
+			if not has_bio_hint:
+				log(
+					f"{os.path.basename(image_path)} -> skipped species detection (no bio hints)",
+					log_path,
+				)
+				row["species_tags"] = row.get("species_tags", "")
+				updated_count += 1
+			else:
+				bird_tags_used = False
+				# Prefer the specialist bird model when enabled and the coarse text
+				# clearly indicates a bird.
+				if CFG.ENABLE_BIRD_MODEL and has_bird_hint:
+					try:
+						raw_image = Image.open(image_path).convert("RGB")
+						raw_image = resize_image(raw_image)
+						bird_preds = predict_bird_species(raw_image, topk=getattr(CFG, "BIRD_TOPK", 3))
+						if bird_preds:
+							bird_names = [name for name, _ in bird_preds]
+							row["species_tags"] = ", ".join(bird_names)
+							log(
+								f"{os.path.basename(image_path)} -> bird model: {row.get('species_tags', '')}",
+								log_path,
+							)
+							bird_tags_used = True
+							updated_count += 1
+					except Exception as e:
 						log(
-							f"{os.path.basename(image_path)} -> bird model: {row.get('species_tags', '')}",
+							f"{os.path.basename(image_path)} -> bird model failed ({e}), falling back to CLIP.",
 							log_path,
 						)
-						bird_tags_used = True
-						updated_count += 1
-				except Exception as e:
-					log(
-						f"{os.path.basename(image_path)} -> bird model failed ({e}), falling back to CLIP.",
-						log_path,
-					)
 
-			# If bird model did not provide tags (not enabled, no hint, or failed),
-			# fall back to CLIP species prompts.
-			if not bird_tags_used:
-				try:
-					tags = detect_species(image_path, model, preprocess, device)
-					species_tags = tags[:3]
-					if species_tags:
-						# Only override if we have confident species predictions; otherwise
-						# keep whatever coarse tags were already present.
-						row["species_tags"] = ", ".join(species_tags)
-					else:
+				# If bird model did not provide tags (not enabled, no hint, or failed),
+				# fall back to CLIP species prompts.
+				if not bird_tags_used:
+					try:
+						tags = detect_species(image_path, model, preprocess, device)
+						species_tags = tags[:3]
+						if species_tags:
+							# Only override if we have confident species predictions; otherwise
+							# keep whatever coarse tags were already present.
+							row["species_tags"] = ", ".join(species_tags)
+						else:
+							row["species_tags"] = row.get("species_tags", "")
+						log(f"{os.path.basename(image_path)} -> {row.get('species_tags', '')}", log_path)
+						if species_tags:
+							updated_count += 1
+					except Exception as e:
+						log(f"Failed to process {image_path} - {e}", log_path)
 						row["species_tags"] = row.get("species_tags", "")
-					log(f"{os.path.basename(image_path)} -> {row.get('species_tags', '')}", log_path)
-					if species_tags:
-						updated_count += 1
-				except Exception as e:
-					log(f"Failed to process {image_path} - {e}", log_path)
-					row["species_tags"] = row.get("species_tags", "")
 
-		updated_rows.append(row)
+			updated_rows.append(row)
 
-		# Periodic incremental save so that long runs can resume with minimal loss.
-		if updated_count and updated_count % 10 == 0:
-			_flush()
+			# Periodic incremental save so that long runs can resume with minimal loss.
+			if updated_count and updated_count % 10 == 0:
+				_flush()
+	except KeyboardInterrupt:
+		log(f"[INTERRUPTED] Species detection interrupted after {updated_count} images. Saving progress...", log_path)
+		if updated_rows:
+			write_csv_dict(csv_path, updated_rows, updated_rows[0].keys())
+		raise
 
 	write_csv_dict(csv_path, updated_rows, updated_rows[0].keys())
 	log("Species detection complete.", log_path)

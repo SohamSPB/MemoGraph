@@ -105,63 +105,70 @@ def process_faces(trip_folder):
 
 	is_parallel = os.environ.get("MEMOGRAPH_PARALLEL_EXECUTION", "false").lower() == "true"
 
-	if is_parallel:
-		# In parallel pipeline runs, we avoid creating a large nested process pool by
-		# default. Instead we iterate batches sequentially with the CNN model (GPU)
-		# unless FACE_DETECTION_PARALLEL_WORKERS is explicitly increased.
-		batches = [rows[i:i + CFG.FACE_DETECTION_BATCH_SIZE] for i in range(0, len(rows), CFG.FACE_DETECTION_BATCH_SIZE)]
-		updated_rows = []
+	try:
+		if is_parallel:
+			# In parallel pipeline runs, we avoid creating a large nested process pool by
+			# default. Instead we iterate batches sequentially with the CNN model (GPU)
+			# unless FACE_DETECTION_PARALLEL_WORKERS is explicitly increased.
+			batches = [rows[i:i + CFG.FACE_DETECTION_BATCH_SIZE] for i in range(0, len(rows), CFG.FACE_DETECTION_BATCH_SIZE)]
+			updated_rows = []
 
-		if getattr(CFG, "FACE_DETECTION_PARALLEL_WORKERS", 1) and CFG.FACE_DETECTION_PARALLEL_WORKERS > 1:
-			log(
-				f"Running face detection in PARALLEL (CNN model) with "
-				f"{CFG.FACE_DETECTION_PARALLEL_WORKERS} workers and batch size {CFG.FACE_DETECTION_BATCH_SIZE}...",
-				log_path,
-			)
-			with concurrent.futures.ProcessPoolExecutor(max_workers=CFG.FACE_DETECTION_PARALLEL_WORKERS) as executor:
-				future_to_batch = {
-					executor.submit(_process_batch, batch, trip_folder, i, log_path, use_cnn_model=True): i
-					for i, batch in enumerate(batches, 1)
-				}
+			if getattr(CFG, "FACE_DETECTION_PARALLEL_WORKERS", 1) and CFG.FACE_DETECTION_PARALLEL_WORKERS > 1:
+				log(
+					f"Running face detection in PARALLEL (CNN model) with "
+					f"{CFG.FACE_DETECTION_PARALLEL_WORKERS} workers and batch size {CFG.FACE_DETECTION_BATCH_SIZE}...",
+					log_path,
+				)
+				executor = concurrent.futures.ProcessPoolExecutor(max_workers=CFG.FACE_DETECTION_PARALLEL_WORKERS)
+				try:
+					future_to_batch = {
+						executor.submit(_process_batch, batch, trip_folder, i, log_path, use_cnn_model=True): i
+						for i, batch in enumerate(batches, 1)
+					}
 
-				for future in concurrent.futures.as_completed(future_to_batch):
-					batch_num = future_to_batch[future]
-					try:
-						processed_batch = future.result()
-						updated_rows.extend(processed_batch)
-						faces_in_batch = sum(1 for row in processed_batch if row.get("faces_detected") == 1)
-						log(f"Batch {batch_num} completed. Found {faces_in_batch} faces.", log_path)
-						# We only flush at the end for the parallel branch to avoid
-						# excessive contention; resume behavior is still handled by
-						# _row_has_face on reruns.
-					except Exception as e:
-						log(f"Batch {batch_num} generated an exception: {e}", log_path)
+					for future in concurrent.futures.as_completed(future_to_batch):
+						batch_num = future_to_batch[future]
+						try:
+							processed_batch = future.result()
+							updated_rows.extend(processed_batch)
+							faces_in_batch = sum(1 for row in processed_batch if row.get("faces_detected") == 1)
+							log(f"Batch {batch_num} completed. Found {faces_in_batch} faces.", log_path)
+						except Exception as e:
+							log(f"Batch {batch_num} generated an exception: {e}", log_path)
+				except KeyboardInterrupt:
+					executor.shutdown(wait=False, cancel_futures=True)
+					raise
+				finally:
+					executor.shutdown(wait=False)
+			else:
+				log(
+					f"Running face detection in SEQUENTIAL (CNN model) mode with batch size {CFG.FACE_DETECTION_BATCH_SIZE}...",
+					log_path,
+				)
+				for i, batch in enumerate(batches, 1):
+					processed_batch = _process_batch(batch, trip_folder, i, log_path, use_cnn_model=True)
+					updated_rows.extend(processed_batch)
+					faces_in_batch = sum(1 for row in processed_batch if row.get("faces_detected") == 1)
+					log(f"Batch {i} completed. Found {faces_in_batch} faces.", log_path)
+					# Periodic incremental save in sequential CNN mode.
+					if i % 5 == 0:
+						rows = sorted(updated_rows, key=lambda r: r.get('image_name', ''))
+						_flush()
+
+			updated_rows.sort(key=lambda r: r.get('image_name', ''))
+			rows = updated_rows
+			total_faces_found = sum(1 for row in rows if row.get("faces_detected") == 1)
+
 		else:
-			log(
-				f"Running face detection in SEQUENTIAL (CNN model) mode with batch size {CFG.FACE_DETECTION_BATCH_SIZE}...",
-				log_path,
-			)
-			for i, batch in enumerate(batches, 1):
-				processed_batch = _process_batch(batch, trip_folder, i, log_path, use_cnn_model=True)
-				updated_rows.extend(processed_batch)
-				faces_in_batch = sum(1 for row in processed_batch if row.get("faces_detected") == 1)
-				log(f"Batch {i} completed. Found {faces_in_batch} faces.", log_path)
-				# Periodic incremental save in sequential CNN mode.
-				if i % 5 == 0:
-					rows = sorted(updated_rows, key=lambda r: r.get('image_name', ''))
-					_flush()
-
-		updated_rows.sort(key=lambda r: r.get('image_name', ''))
-		rows = updated_rows
-		total_faces_found = sum(1 for row in rows if row.get("faces_detected") == 1)
-
-	else:
-		log("Running face detection in SEQUENTIAL (HOG model) mode...", log_path)
-		# Sequential processing can also benefit from batching logic, though memory pressure is lower
-		processed_rows = _process_batch(rows, trip_folder, 1, log_path, use_cnn_model=False)
-		rows = processed_rows
-		total_faces_found = sum(1 for row in rows if row.get("faces_detected") == 1)
-		# Single flush at end is sufficient here; resume behavior is via _row_has_face.
+			log("Running face detection in SEQUENTIAL (HOG model) mode...", log_path)
+			processed_rows = _process_batch(rows, trip_folder, 1, log_path, use_cnn_model=False)
+			rows = processed_rows
+			total_faces_found = sum(1 for row in rows if row.get("faces_detected") == 1)
+	except KeyboardInterrupt:
+		log("[INTERRUPTED] Face detection interrupted. Saving progress...", log_path)
+		if rows:
+			write_csv_dict(csv_path, rows, rows[0].keys())
+		raise
 
 	if rows:
 		write_csv_dict(csv_path, rows, rows[0].keys())

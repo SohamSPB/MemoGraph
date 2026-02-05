@@ -172,81 +172,86 @@ def label_images(trip_folder):
 		write_csv_dict(csv_path, rows, rows[0].keys())
 		log("Incremental save: labels flushed to CSV.", log_path)
 
-	for i, r in enumerate(rows, 1):
-		# Skip rows that already have labels so re-running the script naturally
-		# resumes only on missing entries.
-		if _row_has_labels(r):
-			continue
+	try:
+		for i, r in enumerate(rows, 1):
+			# Skip rows that already have labels so re-running the script naturally
+			# resumes only on missing entries.
+			if _row_has_labels(r):
+				continue
 
-		img_path = os.path.join(trip_folder, r.get("local_path", ""))
-		if not os.path.exists(img_path):
-			log(f"[{i}] Missing image: {img_path}", log_path)
-			continue
+			img_path = os.path.join(trip_folder, r.get("local_path", ""))
+			if not os.path.exists(img_path):
+				log(f"[{i}] Missing image: {img_path}", log_path)
+				continue
 
-		try:
-			image = Image.open(img_path).convert("RGB")
-			image = resize_image(image)
-			image = preprocess(image).unsqueeze(0).to(device)
-			with torch.no_grad():
-				img_features = model.encode_image(image)
-				txt_features = model.encode_text(text_tokens)
-				img_features /= img_features.norm(dim=-1, keepdim=True)
-				txt_features /= txt_features.norm(dim=-1, keepdim=True)
-				similarity = (100.0 * img_features @ txt_features.T).softmax(dim=-1)
+			try:
+				image = Image.open(img_path).convert("RGB")
+				image = resize_image(image)
+				image = preprocess(image).unsqueeze(0).to(device)
+				with torch.no_grad():
+					img_features = model.encode_image(image)
+					txt_features = model.encode_text(text_tokens)
+					img_features /= img_features.norm(dim=-1, keepdim=True)
+					txt_features /= txt_features.norm(dim=-1, keepdim=True)
+					similarity = (100.0 * img_features @ txt_features.T).softmax(dim=-1)
 
-			# Get top-k with confidence threshold (only keep labels with > 5% confidence)
-			topk = similarity[0].topk(10)  # Get more candidates
-			top_indices = topk.indices.cpu().numpy()
-			top_scores = topk.values.cpu().numpy()
+				# Get top-k with confidence threshold (only keep labels with > 5% confidence)
+				topk = similarity[0].topk(10)  # Get more candidates
+				top_indices = topk.indices.cpu().numpy()
+				top_scores = topk.values.cpu().numpy()
 
-			# Filter by confidence threshold and take top 5
-			MIN_CONFIDENCE = 0.05  # 5% threshold
-			top_labels = []
-			for idx, score in zip(top_indices, top_scores):
-				if score >= MIN_CONFIDENCE and len(top_labels) < 5:
-					top_labels.append(concepts[idx])
+				# Filter by confidence threshold and take top 5
+				MIN_CONFIDENCE = 0.05  # 5% threshold
+				top_labels = []
+				for idx, score in zip(top_indices, top_scores):
+					if score >= MIN_CONFIDENCE and len(top_labels) < 5:
+						top_labels.append(concepts[idx])
 
-			# Refine sunrise/sunset based on time
-			top_labels = _refine_sun_labels(top_labels, r.get("datetime_original", ""))
+				# Refine sunrise/sunset based on time
+				top_labels = _refine_sun_labels(top_labels, r.get("datetime_original", ""))
 
-			# Coarse species categories - ONLY biological entities
-			# Using exact match to avoid false positives (e.g., "palm tree" != species)
-			biological_species = {
-				# Birds
-				"bird", "eagle", "sparrow", "crow", "pigeon", "parrot", "peacock",
-				"owl", "kingfisher", "heron", "duck", "swan", "vulture", "hawk",
-				# Plants & Flowers
-				"plant", "flower", "grass", "bush", "tree",
-				"rose", "lotus", "sunflower", "orchid", "tulip", "lily",
-				"marigold", "hibiscus", "jasmine", "dahlia", "lavender", "daisy",
-				# Insects (includes butterfly variations)
-				"insect", "butterfly", "bee", "dragonfly", "spider", "ant", "beetle",
-				"grasshopper", "moth", "caterpillar", "snail",
-				"mud-puddling butterflies", "butterflies feeding on minerals",
-				"yellow butterfly", "sulphur butterfly",
-				# Animals
-				"animal", "cat", "dog", "horse", "cow", "goat", "sheep", "yak",
-				"elephant", "tiger", "deer", "monkey", "buffalo", "frog", "lizard", "snake",
-				"fish", "rabbit", "squirrel", "camel",
-			}
-			# Only include if exact match (not substring match)
-			species = [l for l in top_labels if l.lower() in biological_species]
+				# Coarse species categories - ONLY biological entities
+				# Using exact match to avoid false positives (e.g., "palm tree" != species)
+				biological_species = {
+					# Birds
+					"bird", "eagle", "sparrow", "crow", "pigeon", "parrot", "peacock",
+					"owl", "kingfisher", "heron", "duck", "swan", "vulture", "hawk",
+					# Plants & Flowers
+					"plant", "flower", "grass", "bush", "tree",
+					"rose", "lotus", "sunflower", "orchid", "tulip", "lily",
+					"marigold", "hibiscus", "jasmine", "dahlia", "lavender", "daisy",
+					# Insects (includes butterfly variations)
+					"insect", "butterfly", "bee", "dragonfly", "spider", "ant", "beetle",
+					"grasshopper", "moth", "caterpillar", "snail",
+					"mud-puddling butterflies", "butterflies feeding on minerals",
+					"yellow butterfly", "sulphur butterfly",
+					# Animals
+					"animal", "cat", "dog", "horse", "cow", "goat", "sheep", "yak",
+					"elephant", "tiger", "deer", "monkey", "buffalo", "frog", "lizard", "snake",
+					"fish", "rabbit", "squirrel", "camel",
+				}
+				# Only include if exact match (not substring match)
+				species = [l for l in top_labels if l.lower() in biological_species]
 
-			# Keep all top labels in detected_objects so the CSV always reflects
-			# what CLIP saw (including birds, insects, etc.).
-			r["detected_objects"] = "; ".join(top_labels)
-			# Store coarse categories in species_tags; more detailed species
-			# detection can refine/override this later.
-			if species:
-				r["species_tags"] = "; ".join(species)
-			updated += 1
-			log(f"[{i}] {os.path.basename(img_path)} -> {top_labels}", log_path)
-		except Exception as e:
-			log(f"[{i}] Failed on {img_path}: {e}", log_path)
+				# Keep all top labels in detected_objects so the CSV always reflects
+				# what CLIP saw (including birds, insects, etc.).
+				r["detected_objects"] = "; ".join(top_labels)
+				# Store coarse categories in species_tags; more detailed species
+				# detection can refine/override this later.
+				if species:
+					r["species_tags"] = "; ".join(species)
+				updated += 1
+				log(f"[{i}] {os.path.basename(img_path)} -> {top_labels}", log_path)
+			except Exception as e:
+				log(f"[{i}] Failed on {img_path}: {e}", log_path)
 
-		# Periodic incremental save so that long runs can resume with minimal loss.
-		if updated and updated % 10 == 0:
-			_flush()
+			# Periodic incremental save so that long runs can resume with minimal loss.
+			if updated and updated % 10 == 0:
+				_flush()
+	except KeyboardInterrupt:
+		log(f"[INTERRUPTED] Labeling interrupted after {updated} images. Saving progress...", log_path)
+		write_csv_dict(csv_path, rows, rows[0].keys())
+		raise
 
 	write_csv_dict(csv_path, rows, rows[0].keys())
 	log(f"Labeling complete. Updated {updated} rows. Saved: {csv_path}", log_path)

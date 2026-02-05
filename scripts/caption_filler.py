@@ -92,64 +92,70 @@ def fill_captions(trip_folder):
 		write_csv_dict(csv_path, rows, rows[0].keys())
 		log("Incremental save: captions flushed to CSV.", log_path)
 	
-	if os.environ.get("MEMOGRAPH_PARALLEL_EXECUTION", "false").lower() == "true":
-		log(
-			f"Running BLIP captioning in parallel mode with up to {CFG.CAPTION_PARALLEL_WORKERS} workers...",
-			log_path,
-		)
-		# Using ThreadPoolExecutor because GPU operations are often not GIL-bound.
-		# Limit workers via config to keep GPU/CPU usage under control.
-		max_workers = max(1, getattr(CFG, "CAPTION_PARALLEL_WORKERS", 2))
-		with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-			# Only submit rows that don't already have a caption (idempotent behavior).
-			futures = {
-				executor.submit(_process_image_for_captioning, row, trip_folder, processor, model, i, log_path): i
-				for i, row in enumerate(rows, 1)
-				if not _row_has_caption(row)
-			}
-			pending = len(futures)
-			completed_since_flush = 0
-
-			for future in concurrent.futures.as_completed(futures):
-				idx = futures[future]
-				try:
-					result_row, is_updated = future.result()
-					rows[idx - 1] = result_row  # Update the original rows list
-					if is_updated:
-						updated += 1
-					completed_since_flush += 1
-					if completed_since_flush >= 10:
-						_flush()
-						completed_since_flush = 0
-				except Exception as e:
-					log(f"[{idx}] Error processing image for captioning: {e}", log_path)
-	else:
-		log("Running BLIP captioning in sequential mode...", log_path)
-		for i, r in enumerate(rows, 1):
-			# Skip rows that already have a caption (resume-friendly).
-			if _row_has_caption(r):
-				continue
-
-			local_path = r.get("local_path", "")
-			img_path = os.path.join(trip_folder, local_path)
-			if not os.path.exists(img_path):
-				log(f"[{i}] Missing image: {img_path}", log_path)
-				continue
-
+	try:
+		if os.environ.get("MEMOGRAPH_PARALLEL_EXECUTION", "false").lower() == "true":
+			log(
+				f"Running BLIP captioning in parallel mode with up to {CFG.CAPTION_PARALLEL_WORKERS} workers...",
+				log_path,
+			)
+			max_workers = max(1, getattr(CFG, "CAPTION_PARALLEL_WORKERS", 2))
+			executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
 			try:
-				image = Image.open(img_path).convert("RGB")
-				captions = generate_multiple_captions(image, processor, model, num_variations=4)
-				if captions:
-					r["caption"] = captions[0]
-					r["caption_samples"] = "|".join(captions)
-					log(f"[{i}] Captioned: {os.path.basename(img_path)} -> {captions[0]}", log_path)
-					updated += 1
-			except Exception as e:
-				log(f"[{i}] Failed to caption {img_path}: {e}", log_path)
+				futures = {
+					executor.submit(_process_image_for_captioning, row, trip_folder, processor, model, i, log_path): i
+					for i, row in enumerate(rows, 1)
+					if not _row_has_caption(row)
+				}
+				pending = len(futures)
+				completed_since_flush = 0
 
-			# Periodic incremental save in sequential mode.
-			if i % 10 == 0:
-				_flush()
+				for future in concurrent.futures.as_completed(futures):
+					idx = futures[future]
+					try:
+						result_row, is_updated = future.result()
+						rows[idx - 1] = result_row
+						if is_updated:
+							updated += 1
+						completed_since_flush += 1
+						if completed_since_flush >= 10:
+							_flush()
+							completed_since_flush = 0
+					except Exception as e:
+						log(f"[{idx}] Error processing image for captioning: {e}", log_path)
+			except KeyboardInterrupt:
+				executor.shutdown(wait=False, cancel_futures=True)
+				raise
+			finally:
+				executor.shutdown(wait=False)
+		else:
+			log("Running BLIP captioning in sequential mode...", log_path)
+			for i, r in enumerate(rows, 1):
+				if _row_has_caption(r):
+					continue
+
+				local_path = r.get("local_path", "")
+				img_path = os.path.join(trip_folder, local_path)
+				if not os.path.exists(img_path):
+					log(f"[{i}] Missing image: {img_path}", log_path)
+					continue
+
+				try:
+					image = Image.open(img_path).convert("RGB")
+					captions = generate_multiple_captions(image, processor, model, num_variations=4)
+					if captions:
+						r["caption"] = captions[0]
+						r["caption_samples"] = "|".join(captions)
+						log(f"[{i}] Captioned: {os.path.basename(img_path)} -> {captions[0]}", log_path)
+						updated += 1
+				except Exception as e:
+					log(f"[{i}] Failed to caption {img_path}: {e}", log_path)
+
+				if i % 10 == 0:
+					_flush()
+	except KeyboardInterrupt:
+		log(f"[INTERRUPTED] Captioning interrupted after {updated} images. Saving progress...", log_path)
+		write_csv_dict(csv_path, rows, rows[0].keys())
+		raise
 
 	write_csv_dict(csv_path, rows, rows[0].keys())
 	log(f"Updated {updated} rows with captions. Saved: {csv_path}", log_path)

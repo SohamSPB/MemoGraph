@@ -12,6 +12,7 @@ Includes resource checking to prevent system overload.
 
 import os
 import sys
+import signal
 import multiprocessing
 import time
 import psutil
@@ -19,6 +20,41 @@ import csv
 import subprocess
 import shutil
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
+
+# ---------------------------------------------------------------------------
+# Graceful interrupt handling
+# ---------------------------------------------------------------------------
+# First Ctrl+C  → set flag, let current step finish, flush CSV, show summary
+# Second Ctrl+C → force-kill all child processes and exit immediately
+_interrupted = False
+_ctrl_c_count = 0
+
+def _interrupt_handler(signum, frame):
+	"""Handle Ctrl+C: first press = graceful stop, second = force exit."""
+	global _interrupted, _ctrl_c_count
+	_ctrl_c_count += 1
+	_interrupted = True
+
+	if _ctrl_c_count == 1:
+		print("\n\n  [Ctrl+C] Graceful shutdown requested. Finishing current image and saving progress...")
+		print("  Press Ctrl+C again to force-quit immediately.\n")
+	else:
+		print("\n  [Ctrl+C] Force shutdown! Killing all child processes...")
+		# Kill all child processes
+		try:
+			parent = psutil.Process(os.getpid())
+			for child in parent.children(recursive=True):
+				try:
+					child.kill()
+				except psutil.NoSuchProcess:
+					pass
+		except Exception:
+			pass
+		os._exit(1)
+
+def is_interrupted():
+	"""Check if pipeline was interrupted by Ctrl+C."""
+	return _interrupted
 
 import memograph_config as CFG
 from scripts.utils.utils_log import get_logger
@@ -81,6 +117,13 @@ def get_resource_usage(p):
 
 def run_pipeline(trip_folder: str, parallel: bool, auto_yes: bool = False,
                   is_reset: bool = False):
+	global _interrupted, _ctrl_c_count
+	_interrupted = False
+	_ctrl_c_count = 0
+
+	# Install graceful interrupt handler
+	signal.signal(signal.SIGINT, _interrupt_handler)
+
 	if parallel:
 		multiprocessing.set_start_method('spawn', force=True)
 
@@ -208,6 +251,9 @@ def run_pipeline(trip_folder: str, parallel: bool, auto_yes: bool = False,
 
 		# Run GPU tasks sequentially (main thread)
 		for name, func in gpu_steps.items():
+			if _interrupted:
+				logger.warning("Pipeline interrupted before step: %s", name)
+				raise KeyboardInterrupt
 			start_time_step = time.time()
 			logger.info(f"--- Running GPU Step: {name} ---")
 			try:
@@ -219,6 +265,11 @@ def run_pipeline(trip_folder: str, parallel: bool, auto_yes: bool = False,
 				logger.info(f"GPU Step '{name}' finished in {elapsed:.2f} seconds.")
 				resource_data.append((name, *get_resource_usage(main_process)))
 				_record_step(name, "completed", elapsed)
+			except KeyboardInterrupt:
+				elapsed = time.time() - start_time_step
+				logger.warning(f"GPU Step '{name}' interrupted after {elapsed:.2f}s.")
+				_record_step(name, "interrupted", elapsed)
+				raise
 			except Exception as e:
 				elapsed = time.time() - start_time_step
 				logger.error(f"GPU Step '{name}' failed: {e}")
@@ -233,7 +284,10 @@ def run_pipeline(trip_folder: str, parallel: bool, auto_yes: bool = False,
 		}
 
 		# Run CPU tasks in parallel with each other (they don't conflict)
-		with ThreadPoolExecutor(max_workers=2, thread_name_prefix="cpu_task") as cpu_executor:
+		if _interrupted:
+			raise KeyboardInterrupt
+		cpu_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="cpu_task")
+		try:
 			logger.info("--- Running CPU tasks (Image Quality, Image Colors) ---")
 			cpu_futures = {}
 			for name, func in cpu_steps.items():
@@ -247,15 +301,26 @@ def run_pipeline(trip_folder: str, parallel: bool, auto_yes: bool = False,
 					logger.info(f"CPU Step '{name}' finished in {elapsed:.2f} seconds.")
 					resource_data.append((name, *get_resource_usage(main_process)))
 					_record_step(name, "completed", elapsed)
+				except KeyboardInterrupt:
+					elapsed = time.time() - start_time_step
+					_record_step(name, "interrupted", elapsed)
+					raise
 				except Exception as e:
 					elapsed = time.time() - start_time_step
 					logger.error(f"CPU Step '{name}' failed: {e}")
 					_record_step(name, "failed", elapsed)
+		except KeyboardInterrupt:
+			cpu_executor.shutdown(wait=False, cancel_futures=True)
+			raise
+		finally:
+			cpu_executor.shutdown(wait=False)
 
 		# --- LABEL REFINEMENT STEPS ---
 		# These steps improve detection accuracy by grouping similar images
 		# and using specialized prompts for specific subjects like birds.
 
+		if _interrupted:
+			raise KeyboardInterrupt
 		start_time = time.time()
 		logger.info("--- STEP 7a: Grouping Similar Images ---")
 		try:
@@ -269,6 +334,8 @@ def run_pipeline(trip_folder: str, parallel: bool, auto_yes: bool = False,
 			logger.error(f"Similar image grouping failed: {e}")
 			_record_step("Similar Grouping", "failed", elapsed)
 
+		if _interrupted:
+			raise KeyboardInterrupt
 		start_time = time.time()
 		logger.info("--- STEP 7b: Refining Bird Species ---")
 		try:
@@ -283,6 +350,8 @@ def run_pipeline(trip_folder: str, parallel: bool, auto_yes: bool = False,
 			_record_step("Bird Refiner", "failed", elapsed)
 
 		# --- SEQUENTIAL POST-PROCESSING ---
+		if _interrupted:
+			raise KeyboardInterrupt
 		start_time = time.time()
 		logger.info("--- STEP 9: Generating Blog ---")
 		blog_generator.generate_blog(trip_folder)
