@@ -19,7 +19,15 @@ from memograph_config import ensure_memograph_folder
 from scripts.utils.utils_log import init_log, log
 import memograph_config as CFG
 from scripts.utils.utils_image import resize_image
-from scripts.species_models import predict_bird_species
+from scripts.species_models import (
+	predict_bird_species,
+	detect_and_classify,
+	format_species_boxes,
+	_gdino_available,
+	_bioclip_available,
+	unload_grounding_dino,
+	unload_bioclip,
+)
 
 # ------------------------------
 # Species prompts - Expanded for better coverage
@@ -205,12 +213,27 @@ def detect_species(image_path, model, preprocess, device):
 	return [match for match, _ in matches]
 
 
-def process_species(csv_path, trip_folder, log_path):
-	"""Updates CSV with detected species tags.
+def _get_fieldnames(rows):
+	"""Get all unique fieldnames across all rows."""
+	seen = set()
+	fields = []
+	for row in rows:
+		for key in row.keys():
+			if key not in seen:
+				fields.append(key)
+				seen.add(key)
+	return fields
 
-	This function refines any coarse species tags that may already be present
-	(from image_labeler) but does not erase them when it cannot make a confident
-	prediction.
+
+def process_species(csv_path, trip_folder, log_path):
+	"""Updates CSV with detected species tags and bounding boxes.
+
+	Two-stage pipeline when OWLv2 + BioCLIP 2 are available:
+	  1. OWLv2 detects wildlife bounding boxes
+	  2. BioCLIP 2 classifies each crop to species level
+	  3. Results stored in species_tags + species_boxes columns
+
+	Falls back to CLIP + bird model when advanced models not available.
 	"""
 	rows = read_csv_dict(csv_path)
 	if not rows:
@@ -218,6 +241,21 @@ def process_species(csv_path, trip_folder, log_path):
 		return
 
 	device = "cuda" if torch.cuda.is_available() else "cpu"
+
+	# Check if advanced models are available
+	use_advanced = (
+		getattr(CFG, "ENABLE_SPECIES_DETECTION", False)
+		and getattr(CFG, "ENABLE_BIOCLIP", False)
+		and _bioclip_available()
+	)
+
+	if use_advanced:
+		log("Advanced species pipeline: OWLv2 + BioCLIP 2", log_path)
+	else:
+		log("Using classic CLIP + bird model pipeline", log_path)
+		if not _bioclip_available():
+			log("  BioCLIP 2 not found. Run: python -m scripts.download_species_models --model bioclip2", log_path)
+
 	model, preprocess = clip.load("ViT-B/32", device=device)
 	log(f"Using device: {device}", log_path)
 
@@ -228,7 +266,7 @@ def process_species(csv_path, trip_folder, log_path):
 		"""Incrementally flush current species tags to CSV."""
 		if not updated_rows:
 			return
-		write_csv_dict(csv_path, updated_rows, updated_rows[0].keys())
+		write_csv_dict(csv_path, updated_rows, _get_fieldnames(updated_rows))
 		log("Incremental save: species_tags flushed to CSV.", log_path)
 
 	try:
@@ -282,20 +320,56 @@ def process_species(csv_path, trip_folder, log_path):
 				updated_rows.append(row)
 				continue
 
-			# If there is no biological hint, do not run CLIP species matching;
-			# keep whatever coarse tags are already present (often astrophotography
-			# / galaxy related for space images).
+			# If there is no biological hint, do not run species matching;
+			# keep whatever coarse tags are already present.
 			if not has_bio_hint:
 				log(
 					f"{os.path.basename(image_path)} -> skipped species detection (no bio hints)",
 					log_path,
 				)
 				row["species_tags"] = row.get("species_tags", "")
+				row["species_boxes"] = row.get("species_boxes", "")
 				updated_count += 1
+			elif use_advanced:
+				# --- Advanced pipeline: OWLv2 + BioCLIP 2 ---
+				try:
+					raw_image = Image.open(image_path).convert("RGB")
+					detections = detect_and_classify(raw_image)
+					if detections:
+						# Extract unique species names
+						species_names = []
+						seen = set()
+						for det in detections:
+							name = det.get("best_species", "")
+							if name and name.lower() not in seen:
+								species_names.append(name)
+								seen.add(name.lower())
+						row["species_tags"] = ", ".join(species_names[:5])
+						row["species_boxes"] = format_species_boxes(detections)
+						log(
+							f"{os.path.basename(image_path)} -> advanced: {len(detections)} detections, "
+							f"species: {row['species_tags']}",
+							log_path,
+						)
+					else:
+						# No detections from OWLv2 - fall back to CLIP
+						tags = detect_species(image_path, model, preprocess, device)
+						species_tags = tags[:3]
+						row["species_tags"] = ", ".join(species_tags) if species_tags else row.get("species_tags", "")
+						row["species_boxes"] = ""
+						log(f"{os.path.basename(image_path)} -> CLIP fallback: {row.get('species_tags', '')}", log_path)
+					updated_count += 1
+				except Exception as e:
+					log(f"{os.path.basename(image_path)} -> advanced pipeline failed ({e}), trying CLIP", log_path)
+					try:
+						tags = detect_species(image_path, model, preprocess, device)
+						row["species_tags"] = ", ".join(tags[:3]) if tags else row.get("species_tags", "")
+					except Exception:
+						row["species_tags"] = row.get("species_tags", "")
+					row["species_boxes"] = ""
 			else:
+				# --- Classic pipeline: bird model + CLIP ---
 				bird_tags_used = False
-				# Prefer the specialist bird model when enabled and the coarse text
-				# clearly indicates a bird.
 				if CFG.ENABLE_BIRD_MODEL and has_bird_hint:
 					try:
 						raw_image = Image.open(image_path).convert("RGB")
@@ -316,15 +390,11 @@ def process_species(csv_path, trip_folder, log_path):
 							log_path,
 						)
 
-				# If bird model did not provide tags (not enabled, no hint, or failed),
-				# fall back to CLIP species prompts.
 				if not bird_tags_used:
 					try:
 						tags = detect_species(image_path, model, preprocess, device)
 						species_tags = tags[:3]
 						if species_tags:
-							# Only override if we have confident species predictions; otherwise
-							# keep whatever coarse tags were already present.
 							row["species_tags"] = ", ".join(species_tags)
 						else:
 							row["species_tags"] = row.get("species_tags", "")
@@ -343,17 +413,25 @@ def process_species(csv_path, trip_folder, log_path):
 	except KeyboardInterrupt:
 		log(f"[INTERRUPTED] Species detection interrupted after {updated_count} images. Saving progress...", log_path)
 		if updated_rows:
-			write_csv_dict(csv_path, updated_rows, updated_rows[0].keys())
+			write_csv_dict(csv_path, updated_rows, _get_fieldnames(updated_rows))
 		raise
+	finally:
+		# Free GPU memory from advanced models
+		if use_advanced:
+			try:
+				unload_grounding_dino()
+				unload_bioclip()
+			except Exception:
+				pass
 
-	write_csv_dict(csv_path, updated_rows, updated_rows[0].keys())
+	write_csv_dict(csv_path, updated_rows, _get_fieldnames(updated_rows))
 	log("Species detection complete.", log_path)
 
 
 if __name__ == "__main__":
-	import multiprocessing
+	import sys
 
-	trip_folder = "data/trips/test_trip"
+	trip_folder = sys.argv[1] if len(sys.argv) > 1 else "data/trips/test_trip"
 	memo_dir, logs_dir = ensure_memograph_folder(trip_folder)
 	csv_path = os.path.join(memo_dir, "labels.csv")
 	log_path = os.path.join(logs_dir, "species_labeler.log")

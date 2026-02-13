@@ -132,14 +132,20 @@ def build_image_entry(row: Dict[str, str], trip_name: str, trip_folder: str) -> 
     # Parse datetime
     dt = _parse_datetime(row.get("datetime_original", ""))
 
+    # Get image name and create proper thumbnail name (lowercase .jpg extension)
+    image_name = row.get("image_name", "")
+    # Thumbnail always uses lowercase .jpg extension regardless of original
+    thumb_base = os.path.splitext(image_name)[0]
+    thumb_name = f"{thumb_base}.jpg"
+
     # Build entry
     entry = {
-        "id": f"{trip_name}/{row.get('image_name', '')}",
+        "id": f"{trip_name}/{image_name}",
         "trip": trip_name,
         "trip_folder": trip_folder,
-        "filename": row.get("image_name", ""),
+        "filename": image_name,
         "local_path": row.get("local_path", ""),
-        "thumbnail": f"{trip_name}/MemoGraph/thumbnails/{row.get('image_name', '')}",
+        "thumbnail": f"{trip_name}/MemoGraph/thumbnails/{thumb_name}",
     }
 
     # Datetime fields

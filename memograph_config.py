@@ -21,7 +21,7 @@ DATA_ROOT = os.path.join("data", "trips")
 CSV_HEADERS = [
 	"image_name", "local_path", "md5sum", "datetime_original", "device_model",
 	"gps_lat", "gps_lon", "location_inferred", "day_number",
-	"detected_objects", "species_tags", "faces_detected", "faces_count", "people_tags",
+	"detected_objects", "species_tags", "species_boxes", "faces_detected", "faces_count", "face_locations", "people_tags",
 	"caption", "caption_samples", "caption_ai", "vision_caption", "notes", "image_type", "color_palette",
 	"quality_score", "exposure_score", "color_balance_score",
 	"contrast_score", "sharpness_score", "noise_score", "quality_notes"
@@ -85,6 +85,16 @@ PARALLEL_WORKERS = 4
 
 # Batch size for face detection to control memory usage.
 FACE_DETECTION_BATCH_SIZE = 4
+
+# Image size for face detection (independent of MAX_IMAGE_SIZE for AI models).
+# Faces need more pixels than object/scene detection. 1024+ recommended.
+# face_recognition runs on CPU so this won't affect GPU memory.
+FACE_DETECTION_IMAGE_SIZE = 1024
+
+# Use CNN model for face detection (more accurate, especially for sunglasses/angles).
+# CNN is slower but catches faces that HOG misses entirely.
+# Set to False to use HOG (faster but less accurate).
+FACE_DETECTION_USE_CNN = True
 
 # Maximum number of worker processes used *inside* face_detector when running
 # in parallel mode. Set to 1 to avoid nested process pools and reduce the risk
@@ -160,7 +170,7 @@ def get_dynamic_workers():
 GPS_PROPAGATION_MAX_MINUTES = 15
 
 # -----------------------------
-# Specialist species models (future-ready)
+# Specialist species models
 # -----------------------------
 # Bird classifier based on a Hugging Face image classification model.
 # The recommended starting point is:
@@ -171,6 +181,25 @@ ENABLE_BIRD_MODEL = True
 BIRD_MODEL_DIR = os.path.join("models", "birds", "Birds-Classifier-EfficientNetB2")
 # Number of bird species to keep per image when using the specialist model.
 BIRD_TOPK = 3
+
+# OWLv2 - zero-shot object detection for species bounding boxes.
+# Detects birds, butterflies, insects etc. (155M params, ~591MB VRAM).
+# Auto-downloads from HF, or use local copy at models/owlv2/
+ENABLE_SPECIES_DETECTION = True
+OWLV2_DIR = os.path.join("models", "owlv2")
+# Detection confidence threshold (lower = more detections, higher = fewer/more confident)
+SPECIES_DETECTION_THRESHOLD = 0.15
+
+# BioCLIP 2 - biology-focused species classifier (952K+ taxa).
+# Classifies cropped detections to species level.
+# Download: python -m scripts.download_species_models --model bioclip2
+ENABLE_BIOCLIP = True
+BIOCLIP2_DIR = os.path.join("models", "bioclip2")
+BIOCLIP2_ID = "imageomics/bioclip-2"
+# Number of top species predictions to keep per detection
+BIOCLIP_TOPK = 3
+# Minimum confidence to accept a species classification
+BIOCLIP_MIN_CONFIDENCE = 0.15
 
 # -----------------------------
 # Face recognition (optional)

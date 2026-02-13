@@ -31,7 +31,7 @@ AI MODELS (Powered by State-of-the-Art AI)
 13. [DONE] LLaVA Vision AI
 14. [DONE] Face Detection
 15. [PARTIAL] Face Recognition
-16. [DONE] Species Detector
+16. [DONE] Species Detector (OWLv2 + BioCLIP 2)
 17. [DONE] Bird Classifier
 18. [DONE] Quality Analyzer
 19. [DONE] Color Extractor
@@ -54,12 +54,12 @@ OBJECT & SCENE DETECTION (130+ Detectable Concepts)
 ================================================================================
 NATURE & WILDLIFE (150+ Species)
 ================================================================================
-31. [DONE] Bird Species (60+)
+31. [DONE] Bird Species (85+ with BioCLIP 2)
 32. [PARTIAL] Plant Species
 33. [PARTIAL] Flower Detection
 34. [PARTIAL] Tree Identification
-35. [PARTIAL] Insect Detection
-36. [PARTIAL] Butterfly Species
+35. [DONE] Insect Detection (45+ species)
+36. [DONE] Butterfly Species (55+ species)
 37. [DONE] Animal Detection
 38. [DONE] Wildlife Recognition
 39. [DONE] Forest Scenes
@@ -232,46 +232,82 @@ TECHNICAL FEATURES
 158. [DONE] Backup System
 159. [DONE] Log Files
 160. [DONE] Config Options
+161. [DONE] Graceful Interrupt (Ctrl+C)
+162. [DONE] Child Process Cleanup
+163. [DONE] Visual Step Banners
+164. [DONE] Pipeline Pre/Post-flight
 
 ================================================================================
 DEVELOPER FRIENDLY
 ================================================================================
-161. [DONE] Python Based
-162. [DONE] Modular Design
-163. [DONE] CLI Interface
-164. [DONE] Script Library
-165. [DONE] Easy Setup
-166. [DONE] Virtual Environment
-167. [DONE] Requirements File
-168. [DONE] Documentation
-169. [DONE] Working Notes
-170. [DONE] Task Tracking
+165. [DONE] Python Based
+166. [DONE] Modular Design
+167. [DONE] CLI Interface
+168. [DONE] Script Library
+169. [DONE] Easy Setup
+170. [DONE] Virtual Environment
+171. [DONE] Requirements File
+172. [DONE] Documentation
+173. [DONE] Working Notes
+174. [DONE] Task Tracking
+
+================================================================================
+HUB & GALLERY FEATURES
+================================================================================
+175. [DONE] Master Trip Hub
+176. [DONE] Cross-Trip Search
+177. [DONE] Slideshow Mode
+178. [DONE] Search Filters
+179. [DONE] Quick Filter Presets
+180. [DONE] Trip Cards Gallery
+181. [DONE] Grid/List/Timeline View Toggle
+182. [DONE] Timeline Day-Grouped View
+183. [DONE] Details List View
+184. [DONE] Category Title Styling
+185. [DONE] Active Filter Count Display
+186. [DONE] No-Results Filter Context
+187. [DONE] Redundant Filter Dedup
+188. [DONE] Smart Face Display (hide zero)
+189. [DONE] CNN Face Detection (1024px)
+190. [DONE] Face Bounding Box Storage
+191. [DONE] MemoLens Viewer Zoom
+192. [DONE] Face Bounding Box Overlays
+193. [DONE] Species Bounding Box Overlays
+194. [DONE] Person Detection Fallback (CLIP tags)
+195. [DONE] OWLv2 Zero-Shot Detection (155M params)
+196. [DONE] BioCLIP 2 Species Classifier (952K taxa)
+197. [DONE] Two-Stage Species Pipeline (Detect + Classify)
+198. [DONE] Detection Box Toggle Button
+199. [DONE] NMS Duplicate Box Removal
+200. [DONE] Category-Specific Species Labels (birds/butterflies/insects)
 
 ================================================================================
 FUTURE / PLANNED FEATURES
 ================================================================================
-171. [TODO] Semantic Search
-172. [TODO] Cross-Trip Search
-173. [TODO] Plant Classifier
-174. [TODO] Insect Classifier
-175. [TODO] OCR Text Extract
-176. [TODO] Video Support
-177. [TODO] Mobile App
-178. [TODO] Cloud Sync (opt-in)
-179. [TODO] Export to PDF
-180. [TODO] Sharing Options
+201. [TODO] Semantic Search (CLIP embeddings)
+202. [TODO] Plant Classifier
+203. [TODO] OCR Text Extract
+204. [TODO] Video Support
+205. [TODO] Mobile App
+206. [TODO] Cloud Sync (opt-in)
+207. [TODO] Export to PDF
+208. [TODO] Sharing Options
+209. [TODO] Upgraded Vision LLM (Qwen2.5-VL-7B or similar)
 
 ================================================================================
 SUMMARY STATS
 ================================================================================
-- 170+ Features Implemented
-- 10 Planned Features
+- 200+ Features Implemented
+- 9 Planned Features
 - 130+ Detectable Objects/Scenes
-- 150+ Species (Birds, Plants, Animals, Insects)
-- 60+ Bird Species
-- 6 AI Models (CLIP, BLIP, LLaVA, Face, Bird, Quality)
+- 185+ Species (85+ Birds, 55+ Butterflies, 45+ Insects, Animals)
+- 9 AI Models (CLIP, BLIP, LLaVA, Face, Bird, OWLv2, BioCLIP 2, Quality, Colors)
 - 100% Offline & Private
 - GPU Accelerated
+- Two-Stage Species Detection with Bounding Boxes
+- Face & Species Detection Overlay in Photo Viewer
+- Graceful Interrupt Support
+- Cross-Trip Search & Slideshow
 - Open Source
 
 ================================================================================
@@ -279,8 +315,52 @@ TAGLINES FOR SOCIAL MEDIA
 ================================================================================
 - "Your Photos. Your Privacy. Your Memories."
 - "AI-Powered Photo Management, 100% Offline"
-- "170+ Features. Zero Cloud. Complete Privacy."
+- "200+ Features. Zero Cloud. Complete Privacy."
 - "From EXIF to AI Captions - All on Your Machine"
-- "Detect 150+ Species Without Internet"
+- "Detect 185+ Species with Bounding Boxes"
 - "Turn Photo Chaos into Organized Memories"
 - "Professional Photo Analysis, Home Computer Power"
+- "9 AI Models. One Pipeline. Complete Privacy."
+
+================================================================================
+CHANGELOG (Recent Updates)
+================================================================================
+2026-02-12:
+- Replaced Grounding DINO Tiny with OWLv2 for species detection (0.72-0.93 vs 0.22-0.37 confidence)
+- Two-stage species pipeline: OWLv2 detects wildlife → BioCLIP 2 classifies to species level
+- Species bounding boxes stored and rendered as green overlays in photo viewer
+- Face bounding boxes rendered as blue overlays in photo viewer
+- Person detection fallback using CLIP tags (hiker, group, etc.) when face not visible
+- Detection box toggle button in lightbox viewer
+- NMS (non-maximum suppression) to remove duplicate overlapping boxes
+- Category-specific species label lists: 85+ birds, 55+ butterflies, 45+ insects
+- Fixed face_locations CSV persistence (_get_fieldnames helper for safe writes)
+- Fixed hub page JS crash from duplicate const declaration
+- Grid/List/Timeline view toggle in per-trip webapp
+- OWLv2 model saved locally at models/owlv2/ (155M params, 591MB VRAM)
+
+2026-02-10:
+- Added grid/list/timeline view toggle to webapp
+- Timeline view groups photos by day with sticky headers
+- List view shows compact rows with quality scores
+- CNN face detection at 1024px (catches faces HOG misses)
+- Face bounding box storage as normalized percentages
+- Category title font increase + vertical bar indicator
+- Active filter count label under clear button
+- No-results message shows active filter names
+- Redundant filter deduplication (substring matching)
+- Hide "No Faces" tag in grid cards (show only when > 0)
+- MemoLens viewer zoom controls
+- Click empty area to close photo viewer
+
+2026-02-06:
+- Added slideshow feature to hub page
+- Fixed search to work with file:// protocol (embedded index)
+- Added cross-trip search with filters
+
+2026-02-05:
+- Added graceful Ctrl+C interrupt handling
+- Added child process cleanup on interrupt
+- Added visual step banners for better readability
+- Fixed CSV race condition (sequential CPU steps)
+- Fixed color palette z-index in webapp grid

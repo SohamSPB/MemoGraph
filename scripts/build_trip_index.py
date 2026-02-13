@@ -990,6 +990,307 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       color: var(--muted);
       font-size: 20px;
     }}
+    /* Autocomplete Dropdown */
+    .autocomplete-dropdown {{
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      margin-top: 4px;
+      max-height: 300px;
+      overflow-y: auto;
+      z-index: 100;
+      display: none;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    }}
+    .autocomplete-dropdown.active {{
+      display: block;
+    }}
+    .autocomplete-item {{
+      padding: 12px 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid var(--card-border);
+      transition: background 0.1s ease;
+    }}
+    .autocomplete-item:last-child {{
+      border-bottom: none;
+    }}
+    .autocomplete-item:hover, .autocomplete-item.selected {{
+      background: var(--card-hover);
+    }}
+    .autocomplete-item .icon {{
+      font-size: 16px;
+      opacity: 0.7;
+    }}
+    .autocomplete-item .text {{
+      flex: 1;
+    }}
+    .autocomplete-item .text .match {{
+      color: var(--accent);
+      font-weight: 600;
+    }}
+    .autocomplete-item .count {{
+      font-size: 0.8rem;
+      color: var(--muted);
+      background: var(--chip-bg);
+      padding: 2px 8px;
+      border-radius: 999px;
+    }}
+    .autocomplete-section {{
+      padding: 8px 16px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      background: var(--bg-secondary);
+    }}
+    /* Spell Suggestion */
+    .spell-suggestion {{
+      display: none;
+      padding: 12px 16px;
+      margin-top: 8px;
+      background: var(--chip-bg);
+      border-radius: 10px;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }}
+    .spell-suggestion.active {{
+      display: block;
+    }}
+    .spell-suggestion a {{
+      color: var(--accent);
+      text-decoration: underline;
+      cursor: pointer;
+      font-weight: 600;
+    }}
+    .spell-suggestion a:hover {{
+      color: var(--accent-secondary);
+    }}
+    /* Search Branding */
+    .search-brand {{
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }}
+    .search-brand-icon {{
+      width: 40px;
+      height: 40px;
+      background: var(--gradient-2);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }}
+    .search-brand-name {{
+      font-family: "Playfair Display", serif;
+      font-size: 1.4rem;
+      font-weight: 600;
+      background: var(--gradient-2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }}
+    .search-brand-tagline {{
+      font-size: 0.85rem;
+      color: var(--muted);
+    }}
+    /* Results Grouping */
+    .results-groups {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 16px;
+    }}
+    .results-group-btn {{
+      padding: 8px 16px;
+      background: var(--chip-bg);
+      border: 1px solid var(--chip-border);
+      border-radius: 999px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }}
+    .results-group-btn:hover, .results-group-btn.active {{
+      background: var(--accent);
+      color: var(--bg);
+      border-color: var(--accent);
+    }}
+    .results-group-btn .count {{
+      background: rgba(255,255,255,0.2);
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+    }}
+    /* Search Lightbox */
+    .search-lightbox {{
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.95);
+      z-index: 4000;
+      display: none;
+      flex-direction: column;
+    }}
+    .search-lightbox.active {{
+      display: flex;
+    }}
+    .search-lightbox-header {{
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(0,0,0,0.5);
+    }}
+    .search-lightbox-info {{
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }}
+    .search-lightbox-trip {{
+      font-size: 0.9rem;
+      color: var(--accent);
+      font-weight: 600;
+    }}
+    .search-lightbox-caption {{
+      font-size: 1rem;
+      color: var(--text);
+      max-width: 500px;
+    }}
+    .search-lightbox-counter {{
+      font-size: 0.8rem;
+      color: var(--muted);
+    }}
+    .search-lightbox-actions {{
+      display: flex;
+      gap: 12px;
+    }}
+    .search-lightbox-btn {{
+      padding: 10px 20px;
+      border-radius: 10px;
+      border: 1px solid var(--card-border);
+      background: var(--card);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }}
+    .search-lightbox-btn:hover {{
+      background: var(--accent);
+      color: var(--bg);
+      border-color: var(--accent);
+    }}
+    .search-lightbox-btn.close {{
+      background: transparent;
+      border: none;
+      font-size: 28px;
+      padding: 8px;
+    }}
+    .search-lightbox-body {{
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px 80px;
+      position: relative;
+      overflow: hidden;
+      cursor: default;
+    }}
+    .search-lightbox-img {{
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      border-radius: 8px;
+      transition: transform 0.2s ease;
+    }}
+    .search-lightbox-zoom {{
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      display: flex;
+      gap: 8px;
+      z-index: 10;
+    }}
+    .zoom-btn {{
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(255,255,255,0.15);
+      color: white;
+      cursor: pointer;
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(10px);
+      transition: background 0.15s ease;
+    }}
+    .zoom-btn:hover {{
+      background: var(--accent);
+    }}
+    .search-lightbox-nav {{
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(255,255,255,0.1);
+      color: white;
+      cursor: pointer;
+      font-size: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      backdrop-filter: blur(10px);
+    }}
+    .search-lightbox-nav:hover {{
+      background: var(--accent);
+    }}
+    .search-lightbox-nav.prev {{ left: 20px; }}
+    .search-lightbox-nav.next {{ right: 20px; }}
+    .search-lightbox-filmstrip {{
+      padding: 16px;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      justify-content: center;
+    }}
+    .search-filmstrip-thumb {{
+      width: 60px;
+      height: 60px;
+      border-radius: 8px;
+      object-fit: cover;
+      cursor: pointer;
+      opacity: 0.5;
+      transition: all 0.2s ease;
+      border: 2px solid transparent;
+    }}
+    .search-filmstrip-thumb:hover {{
+      opacity: 0.8;
+    }}
+    .search-filmstrip-thumb.active {{
+      opacity: 1;
+      border-color: var(--accent);
+    }}
     .filter-toggle {{
       padding: 16px 24px;
       background: var(--chip-bg);
@@ -1161,24 +1462,23 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     }}
     .result-card {{
       background: var(--card);
-      border: 1px solid var(--card-border);
+      border: 2px solid var(--card-border);
       border-radius: 16px;
       overflow: hidden;
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: border-color 0.15s ease;
       text-decoration: none;
       color: inherit;
     }}
     .result-card:hover {{
       border-color: var(--accent);
-      transform: translateY(-4px);
-      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
     }}
     .result-thumb {{
       width: 100%;
       aspect-ratio: 1;
       object-fit: cover;
       background: var(--bg-secondary);
+      display: block;
     }}
     .result-info {{
       padding: 12px;
@@ -1218,6 +1518,152 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       font-size: 48px;
       margin-bottom: 16px;
       opacity: 0.5;
+    }}
+
+    /* Slideshow Modal */
+    .slideshow-overlay {{
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.95);
+      z-index: 3000;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }}
+    .slideshow-overlay.active {{
+      display: flex;
+    }}
+    .slideshow-header {{
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      padding: 20px 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: linear-gradient(180deg, rgba(0,0,0,0.8) 0%, transparent 100%);
+      z-index: 10;
+    }}
+    .slideshow-info {{
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }}
+    .slideshow-trip {{
+      font-size: 0.9rem;
+      color: var(--accent);
+      font-weight: 600;
+    }}
+    .slideshow-caption {{
+      font-size: 1rem;
+      color: var(--text);
+      max-width: 600px;
+    }}
+    .slideshow-counter {{
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }}
+    .slideshow-close {{
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: none;
+      background: var(--card);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }}
+    .slideshow-close:hover {{
+      background: var(--accent);
+      transform: scale(1.1);
+    }}
+    .slideshow-image-container {{
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 80px 60px;
+      width: 100%;
+    }}
+    .slideshow-image {{
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      border-radius: 8px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      transition: opacity 0.3s ease;
+    }}
+    .slideshow-nav {{
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(255,255,255,0.1);
+      color: white;
+      cursor: pointer;
+      font-size: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      backdrop-filter: blur(10px);
+    }}
+    .slideshow-nav:hover {{
+      background: var(--accent);
+      transform: translateY(-50%) scale(1.1);
+    }}
+    .slideshow-nav.prev {{ left: 20px; }}
+    .slideshow-nav.next {{ right: 20px; }}
+    .slideshow-controls {{
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 20px 30px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 20px;
+      background: linear-gradient(0deg, rgba(0,0,0,0.8) 0%, transparent 100%);
+    }}
+    .slideshow-btn {{
+      padding: 12px 24px;
+      border-radius: 999px;
+      border: none;
+      background: var(--card);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }}
+    .slideshow-btn:hover {{
+      background: var(--accent);
+      color: var(--bg);
+    }}
+    .slideshow-btn.active {{
+      background: var(--accent);
+      color: var(--bg);
+    }}
+    .slideshow-progress {{
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      height: 3px;
+      background: var(--accent);
+      transition: width 0.1s linear;
     }}
 
     /* Empty State */
@@ -1288,6 +1734,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         <span class="logo-text">MemoGraph</span>
       </a>
       <div class="nav-actions">
+        <button class="nav-btn" onclick="startSlideshow()" title="Start Slideshow">&#x1F3AC; Slideshow</button>
         <button class="nav-btn features-btn" onclick="toggleFeatures()" title="View All Features">&#x2728; 170+ Features</button>
         <button class="info-btn" onclick="toggleModal()" title="About MemoGraph">i</button>
       </div>
@@ -1319,18 +1766,31 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       </div>
     </div>
 
-    <!-- Global Search -->
+    <!-- Global Search - MemoLens -->
     <section class="global-search">
       <div class="search-container">
+        <div class="search-brand">
+          <div class="search-brand-icon">&#x1F50D;</div>
+          <div>
+            <div class="search-brand-name">MemoLens</div>
+            <div class="search-brand-tagline">Search across all your memories</div>
+          </div>
+        </div>
         <div class="search-header">
           <div class="search-input-wrap">
             <span class="search-icon">&#x1F50D;</span>
-            <input type="text" id="globalSearch" placeholder="Search all {total_photos} photos: butterfly, Nepal, 2025, mountain..." onkeyup="handleGlobalSearch(event)">
+            <input type="text" id="globalSearch" placeholder="Search all {total_photos} photos: butterfly, Nepal, 2025, mountain..."
+                   onkeyup="handleGlobalSearch(event)"
+                   oninput="handleAutocomplete(event)"
+                   onfocus="showAutocomplete()"
+                   autocomplete="off">
+            <div class="autocomplete-dropdown" id="autocompleteDropdown"></div>
           </div>
           <button class="filter-toggle" onclick="toggleAdvancedFilters()">
             <span>&#x2699;</span> Filters
           </button>
         </div>
+        <div class="spell-suggestion" id="spellSuggestion"></div>
         <div class="quick-filters">
           <button class="quick-filter" onclick="quickFilter('bird')">&#x1F426; Birds</button>
           <button class="quick-filter" onclick="quickFilter('mountain')">&#x26F0; Mountains</button>
@@ -1403,6 +1863,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             <button class="quick-filter" onclick="clearSearch()">&#x2715; Clear Search</button>
           </div>
         </div>
+        <div class="results-groups" id="resultsGroups"></div>
         <div class="results-grid" id="resultsGrid"></div>
         <div class="no-results" id="noResults" style="display:none;">
           <div class="no-results-icon">&#x1F50E;</div>
@@ -1410,6 +1871,34 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         </div>
       </div>
     </section>
+
+    <!-- Search Lightbox (MemoLens Viewer) -->
+    <div class="search-lightbox" id="searchLightbox">
+      <div class="search-lightbox-header">
+        <div class="search-lightbox-info">
+          <div class="search-lightbox-trip" id="searchLbTrip"></div>
+          <div class="search-lightbox-caption" id="searchLbCaption"></div>
+          <div class="search-lightbox-counter" id="searchLbCounter"></div>
+        </div>
+        <div class="search-lightbox-actions">
+          <button class="search-lightbox-btn" id="searchLbGoToTrip" onclick="goToTripFromLightbox()">
+            &#x1F4C2; Open Trip
+          </button>
+          <button class="search-lightbox-btn close" onclick="closeSearchLightbox()">&#x2715;</button>
+        </div>
+      </div>
+      <div class="search-lightbox-body" onclick="if(event.target===this) closeSearchLightbox()">
+        <button class="search-lightbox-nav prev" onclick="searchLightboxPrev()">&#x276E;</button>
+        <img class="search-lightbox-img" id="searchLbImage" src="" alt="">
+        <button class="search-lightbox-nav next" onclick="searchLightboxNext()">&#x276F;</button>
+        <div class="search-lightbox-zoom">
+          <button class="zoom-btn" onclick="zoomSearchImage(-1)" title="Zoom Out">&#x2212;</button>
+          <button class="zoom-btn" onclick="zoomSearchImage(0)" title="Reset Zoom">&#x2299;</button>
+          <button class="zoom-btn" onclick="zoomSearchImage(1)" title="Zoom In">&#x002B;</button>
+        </div>
+      </div>
+      <div class="search-lightbox-filmstrip" id="searchLbFilmstrip"></div>
+    </div>
 
     <!-- Trip Controls -->
     <div class="controls" id="tripControls">
@@ -1562,23 +2051,371 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     </div>
   </div>
 
-  <script>
-    // Search index data
-    let searchIndex = null;
-    let searchResults = [];
+  <!-- Slideshow Modal -->
+  <div class="slideshow-overlay" id="slideshowModal">
+    <div class="slideshow-header">
+      <div class="slideshow-info">
+        <div class="slideshow-trip" id="slideshowTrip"></div>
+        <div class="slideshow-caption" id="slideshowCaption"></div>
+        <div class="slideshow-counter" id="slideshowCounter"></div>
+      </div>
+      <button class="slideshow-close" onclick="stopSlideshow()">&#x2715;</button>
+    </div>
+    <button class="slideshow-nav prev" onclick="slideshowPrev()">&#x276E;</button>
+    <div class="slideshow-image-container" onclick="if(event.target===this) stopSlideshow()">
+      <img class="slideshow-image" id="slideshowImage" src="" alt="">
+    </div>
+    <button class="slideshow-nav next" onclick="slideshowNext()">&#x276F;</button>
+    <div class="slideshow-controls">
+      <button class="slideshow-btn" id="slideshowPlayBtn" onclick="toggleSlideshowPlay()">
+        <span id="playIcon">&#x25B6;</span> <span id="playText">Play</span>
+      </button>
+      <button class="slideshow-btn" onclick="shuffleSlideshow()">&#x1F500; Shuffle</button>
+      <select class="slideshow-btn" id="slideshowSpeed" onchange="updateSlideshowSpeed()" style="appearance:none;padding-right:16px;">
+        <option value="3000">3s</option>
+        <option value="5000" selected>5s</option>
+        <option value="8000">8s</option>
+        <option value="10000">10s</option>
+      </select>
+    </div>
+    <div class="slideshow-progress" id="slideshowProgress"></div>
+  </div>
 
-    // Load search index on page load
-    async function loadSearchIndex() {{
-      try {{
-        const response = await fetch('search_index.json');
-        if (response.ok) {{
-          searchIndex = await response.json();
-          populateFilters();
-          console.log('Search index loaded:', searchIndex.stats);
-        }}
-      }} catch (e) {{
-        console.log('Search index not available');
+  <script>
+    // Search index data - embedded directly to work with file:// protocol
+    let searchIndex = {search_index_json};
+    let searchResults = [];
+    let slideshowImages = [];
+    let slideshowIndex = 0;
+    let slideshowInterval = null;
+
+    // Autocomplete state
+    let autocompleteIndex = -1;
+    let autocompleteItems = [];
+    let allSearchableTerms = [];
+
+    // Load search index on page load (now just populates filters since data is embedded)
+    function loadSearchIndex() {{
+      if (searchIndex && searchIndex.images) {{
+        populateFilters();
+        // Prepare slideshow images
+        slideshowImages = searchIndex.images.filter(img => img.thumbnail);
+        // Build searchable terms for autocomplete
+        buildSearchableTerms();
+        console.log('Search index loaded:', searchIndex.stats);
       }}
+    }}
+
+    // Build list of all searchable terms for autocomplete
+    function buildSearchableTerms() {{
+      if (!searchIndex) return;
+      const termCounts = {{}};
+
+      // Add tags
+      searchIndex.facets.top_tags.forEach(tag => {{
+        termCounts[tag] = (termCounts[tag] || 0);
+      }});
+
+      // Add species
+      searchIndex.facets.top_species.forEach(sp => {{
+        termCounts[sp] = (termCounts[sp] || 0);
+      }});
+
+      // Add trips
+      searchIndex.facets.trips.forEach(trip => {{
+        const name = trip.replace(/_/g, ' ').toLowerCase();
+        termCounts[name] = (termCounts[name] || 0);
+      }});
+
+      // Add locations
+      searchIndex.facets.locations.slice(0, 20).forEach(loc => {{
+        const parts = loc.split(',');
+        parts.forEach(part => {{
+          const p = part.trim().toLowerCase();
+          if (p.length > 2) termCounts[p] = (termCounts[p] || 0);
+        }});
+      }});
+
+      // Count occurrences
+      searchIndex.images.forEach(img => {{
+        img.tags.forEach(t => {{ termCounts[t] = (termCounts[t] || 0) + 1; }});
+        img.species.forEach(s => {{ termCounts[s] = (termCounts[s] || 0) + 1; }});
+      }});
+
+      // Convert to sorted array
+      allSearchableTerms = Object.entries(termCounts)
+        .map(([term, count]) => ({{ term, count }}))
+        .sort((a, b) => b.count - a.count);
+    }}
+
+    // Handle autocomplete input
+    function handleAutocomplete(event) {{
+      const query = event.target.value.trim().toLowerCase();
+      const dropdown = document.getElementById('autocompleteDropdown');
+
+      if (query.length < 2) {{
+        dropdown.classList.remove('active');
+        return;
+      }}
+
+      // Filter matching terms
+      const matches = allSearchableTerms
+        .filter(item => item.term.includes(query))
+        .slice(0, 10);
+
+      if (matches.length === 0) {{
+        dropdown.classList.remove('active');
+        return;
+      }}
+
+      // Build dropdown HTML
+      autocompleteItems = matches;
+      autocompleteIndex = -1;
+
+      let html = '<div class="autocomplete-section">Suggestions</div>';
+      matches.forEach((item, idx) => {{
+        const highlighted = item.term.replace(
+          new RegExp(`(${{query.replace(/[.*+?^${{}}()|[\\]\\\\]/g, '\\\\$&')}})`, 'gi'),
+          '<span class="match">$1</span>'
+        );
+        html += `<div class="autocomplete-item" data-index="${{idx}}" onclick="selectAutocomplete(${{idx}})">
+          <span class="icon">&#x1F50D;</span>
+          <span class="text">${{highlighted}}</span>
+          <span class="count">${{item.count}}</span>
+        </div>`;
+      }});
+
+      dropdown.innerHTML = html;
+      dropdown.classList.add('active');
+    }}
+
+    // Show autocomplete (on focus)
+    function showAutocomplete() {{
+      const query = document.getElementById('globalSearch').value.trim();
+      if (query.length >= 2) {{
+        handleAutocomplete({{ target: {{ value: query }} }});
+      }}
+    }}
+
+    // Select autocomplete item
+    function selectAutocomplete(index) {{
+      if (index >= 0 && index < autocompleteItems.length) {{
+        const term = autocompleteItems[index].term;
+        document.getElementById('globalSearch').value = term;
+        document.getElementById('autocompleteDropdown').classList.remove('active');
+        performSearch(term);
+      }}
+    }}
+
+    // Navigate autocomplete with keyboard
+    function navigateAutocomplete(direction) {{
+      if (autocompleteItems.length === 0) return;
+
+      autocompleteIndex += direction;
+      if (autocompleteIndex < 0) autocompleteIndex = autocompleteItems.length - 1;
+      if (autocompleteIndex >= autocompleteItems.length) autocompleteIndex = 0;
+
+      // Update visual selection
+      document.querySelectorAll('.autocomplete-item').forEach((item, idx) => {{
+        item.classList.toggle('selected', idx === autocompleteIndex);
+      }});
+    }}
+
+    // Levenshtein distance for spell correction
+    function levenshtein(a, b) {{
+      const matrix = [];
+      for (let i = 0; i <= b.length; i++) {{ matrix[i] = [i]; }}
+      for (let j = 0; j <= a.length; j++) {{ matrix[0][j] = j; }}
+      for (let i = 1; i <= b.length; i++) {{
+        for (let j = 1; j <= a.length; j++) {{
+          if (b.charAt(i - 1) === a.charAt(j - 1)) {{
+            matrix[i][j] = matrix[i - 1][j - 1];
+          }} else {{
+            matrix[i][j] = Math.min(
+              matrix[i - 1][j - 1] + 1,
+              matrix[i][j - 1] + 1,
+              matrix[i - 1][j] + 1
+            );
+          }}
+        }}
+      }}
+      return matrix[b.length][a.length];
+    }}
+
+    // Find spell correction suggestions
+    function findSpellCorrection(query) {{
+      if (query.length < 3) return null;
+
+      let bestMatch = null;
+      let bestDistance = Infinity;
+      const maxDistance = Math.max(2, Math.floor(query.length / 3));
+
+      for (const item of allSearchableTerms) {{
+        if (item.term === query) return null; // Exact match, no suggestion
+        const dist = levenshtein(query, item.term);
+        if (dist < bestDistance && dist <= maxDistance && dist > 0) {{
+          bestDistance = dist;
+          bestMatch = item.term;
+        }}
+      }}
+
+      return bestMatch;
+    }}
+
+    // Show spell suggestion
+    function showSpellSuggestion(query) {{
+      const suggestion = findSpellCorrection(query);
+      const el = document.getElementById('spellSuggestion');
+
+      if (suggestion && searchResults.length === 0) {{
+        el.innerHTML = `Did you mean: <a onclick="useSpellSuggestion('${{suggestion}}')">${{suggestion}}</a>?`;
+        el.classList.add('active');
+      }} else {{
+        el.classList.remove('active');
+      }}
+    }}
+
+    // Use spell suggestion
+    function useSpellSuggestion(term) {{
+      document.getElementById('globalSearch').value = term;
+      document.getElementById('spellSuggestion').classList.remove('active');
+      performSearch(term);
+    }}
+
+    // ===== SEARCH LIGHTBOX (MemoLens Viewer) =====
+    let searchLightboxIndex = 0;
+    let currentTripFilter = null;
+
+    function openSearchLightbox(index) {{
+      searchLightboxIndex = index;
+      document.getElementById('searchLightbox').classList.add('active');
+      document.body.style.overflow = 'hidden';
+      showSearchLightboxImage();
+      buildSearchFilmstrip();
+    }}
+
+    function closeSearchLightbox() {{
+      document.getElementById('searchLightbox').classList.remove('active');
+      document.body.style.overflow = '';
+    }}
+
+    function showSearchLightboxImage() {{
+      const results = getFilteredResults();
+      if (results.length === 0) return;
+
+      // Reset zoom on navigation
+      currentZoom = 1;
+      const imgEl = document.getElementById('searchLbImage');
+      if (imgEl) imgEl.style.transform = 'scale(1)';
+
+      const img = results[searchLightboxIndex];
+
+      // Try full image first, fallback to thumbnail
+      const fullPath = img.thumbnail.replace('/MemoGraph/thumbnails/', '/');
+      imgEl.src = img.thumbnail;
+      const fullImg = new Image();
+      fullImg.onload = () => {{ imgEl.src = fullPath; }};
+      fullImg.src = fullPath;
+
+      // Update info
+      document.getElementById('searchLbTrip').textContent = img.trip.replace(/_/g, ' ');
+      document.getElementById('searchLbCaption').textContent =
+        img.captions[0] || img.tags.slice(0, 3).join(', ') || img.filename;
+      document.getElementById('searchLbCounter').textContent =
+        `${{searchLightboxIndex + 1}} / ${{results.length}} in search results`;
+
+      // Update filmstrip selection
+      document.querySelectorAll('.search-filmstrip-thumb').forEach((thumb, idx) => {{
+        thumb.classList.toggle('active', idx === searchLightboxIndex);
+      }});
+    }}
+
+    function searchLightboxNext() {{
+      const results = getFilteredResults();
+      searchLightboxIndex = (searchLightboxIndex + 1) % results.length;
+      showSearchLightboxImage();
+    }}
+
+    function searchLightboxPrev() {{
+      const results = getFilteredResults();
+      searchLightboxIndex = (searchLightboxIndex - 1 + results.length) % results.length;
+      showSearchLightboxImage();
+    }}
+
+    function buildSearchFilmstrip() {{
+      const results = getFilteredResults();
+      const filmstrip = document.getElementById('searchLbFilmstrip');
+      filmstrip.innerHTML = results.slice(0, 20).map((img, idx) =>
+        `<img class="search-filmstrip-thumb ${{idx === searchLightboxIndex ? 'active' : ''}}"
+              src="${{img.thumbnail}}" alt="" onclick="jumpToSearchImage(${{idx}})"
+              onerror="this.style.display='none'">`
+      ).join('');
+      if (results.length > 20) {{
+        filmstrip.innerHTML += `<div style="display:flex;align-items:center;padding:0 12px;color:var(--muted);font-size:0.8rem;">+${{results.length - 20}} more</div>`;
+      }}
+    }}
+
+    function jumpToSearchImage(idx) {{
+      searchLightboxIndex = idx;
+      showSearchLightboxImage();
+    }}
+
+    let currentZoom = 1;
+    function zoomSearchImage(direction) {{
+      const imgEl = document.getElementById('searchLbImage');
+      if (direction === 0) {{ currentZoom = 1; }}
+      else if (direction > 0) {{ currentZoom = Math.min(currentZoom + 0.25, 3); }}
+      else {{ currentZoom = Math.max(currentZoom - 0.25, 0.5); }}
+      imgEl.style.transform = `scale(${{currentZoom}})`;
+    }}
+
+    function goToTripFromLightbox() {{
+      const results = getFilteredResults();
+      const img = results[searchLightboxIndex];
+      window.location.href = `${{img.trip}}/MemoGraph/webapp/index.html#${{img.filename}}`;
+    }}
+
+    function getFilteredResults() {{
+      if (currentTripFilter) {{
+        return searchResults.filter(r => r.trip === currentTripFilter);
+      }}
+      return searchResults;
+    }}
+
+    // ===== RESULTS GROUPING =====
+    function buildResultsGroups() {{
+      const tripCounts = {{}};
+      searchResults.forEach(img => {{
+        tripCounts[img.trip] = (tripCounts[img.trip] || 0) + 1;
+      }});
+
+      const groupsEl = document.getElementById('resultsGroups');
+      if (Object.keys(tripCounts).length <= 1) {{
+        groupsEl.innerHTML = '';
+        return;
+      }}
+
+      let html = `<button class="results-group-btn ${{!currentTripFilter ? 'active' : ''}}" onclick="filterByTrip(null)">
+        All <span class="count">${{searchResults.length}}</span>
+      </button>`;
+
+      Object.entries(tripCounts)
+        .sort((a, b) => b[1] - a[1])
+        .forEach(([trip, count]) => {{
+          const isActive = currentTripFilter === trip ? 'active' : '';
+          const tripName = trip.replace(/_/g, ' ');
+          html += `<button class="results-group-btn ${{isActive}}" onclick="filterByTrip('${{trip}}')">
+            ${{tripName}} <span class="count">${{count}}</span>
+          </button>`;
+        }});
+
+      groupsEl.innerHTML = html;
+    }}
+
+    function filterByTrip(trip) {{
+      currentTripFilter = trip;
+      buildResultsGroups();
+      renderResultsGrid();
     }}
 
     // Populate filter dropdowns from search index
@@ -1604,10 +2441,39 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
     // Handle global search
     function handleGlobalSearch(event) {{
-      if (event.key === 'Enter' || event.type === 'input') {{
+      const dropdown = document.getElementById('autocompleteDropdown');
+
+      // Handle keyboard navigation
+      if (event.key === 'ArrowDown') {{
+        event.preventDefault();
+        if (dropdown.classList.contains('active')) {{
+          navigateAutocomplete(1);
+        }}
+        return;
+      }}
+      if (event.key === 'ArrowUp') {{
+        event.preventDefault();
+        if (dropdown.classList.contains('active')) {{
+          navigateAutocomplete(-1);
+        }}
+        return;
+      }}
+      if (event.key === 'Escape') {{
+        dropdown.classList.remove('active');
+        return;
+      }}
+
+      // Handle Enter key
+      if (event.key === 'Enter') {{
+        dropdown.classList.remove('active');
+        if (autocompleteIndex >= 0 && autocompleteItems.length > 0) {{
+          selectAutocomplete(autocompleteIndex);
+          return;
+        }}
         const query = document.getElementById('globalSearch').value.trim();
         if (query.length >= 2) {{
           performSearch(query);
+          showSpellSuggestion(query.toLowerCase());
         }} else if (query.length === 0) {{
           clearSearch();
         }}
@@ -1718,11 +2584,14 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     // Display search results
     function displayResults() {{
       const resultsSection = document.getElementById('searchResults');
-      const resultsGrid = document.getElementById('resultsGrid');
       const noResults = document.getElementById('noResults');
       const countEl = document.getElementById('resultCount');
       const tripGrid = document.getElementById('tripGrid');
       const tripControls = document.getElementById('tripControls');
+
+      // Hide autocomplete
+      document.getElementById('autocompleteDropdown').classList.remove('active');
+      currentTripFilter = null; // Reset trip filter
 
       resultsSection.classList.add('active');
       tripGrid.style.display = 'none';
@@ -1730,21 +2599,36 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
       countEl.textContent = searchResults.length;
 
+      // Show spell suggestion for no results
+      const query = document.getElementById('globalSearch').value.trim().toLowerCase();
+      showSpellSuggestion(query);
+
       if (searchResults.length === 0) {{
-        resultsGrid.style.display = 'none';
+        document.getElementById('resultsGrid').style.display = 'none';
+        document.getElementById('resultsGroups').innerHTML = '';
         noResults.style.display = 'block';
         return;
       }}
 
       noResults.style.display = 'none';
+      buildResultsGroups();
+      renderResultsGrid();
+    }}
+
+    // Render results grid (called by displayResults and filterByTrip)
+    function renderResultsGrid() {{
+      const resultsGrid = document.getElementById('resultsGrid');
+      const results = getFilteredResults();
+
       resultsGrid.style.display = 'grid';
 
       // Limit to first 100 for performance
-      const displayResults = searchResults.slice(0, 100);
+      const displayItems = results.slice(0, 100);
 
-      resultsGrid.innerHTML = displayResults.map(img => `
-        <a class="result-card" href="${{img.trip}}/MemoGraph/webapp/index.html#${{img.filename}}" title="${{img.filename}}">
-          <img class="result-thumb" src="${{img.thumbnail}}" alt="${{img.filename}}" loading="lazy" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect fill=%22%23334%22 width=%22100%22 height=%22100%22/><text x=%2250%22 y=%2255%22 text-anchor=%22middle%22 fill=%22%23666%22 font-size=%2214%22>No Thumb</text></svg>'">
+      resultsGrid.innerHTML = displayItems.map((img, idx) => `
+        <div class="result-card" onclick="openSearchLightbox(${{idx}})" title="${{img.filename}}">
+          <img class="result-thumb" src="${{img.thumbnail}}" alt="${{img.filename}}" loading="lazy"
+               onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect fill=%22%23334%22 width=%22100%22 height=%22100%22/><text x=%2250%22 y=%2255%22 text-anchor=%22middle%22 fill=%22%23666%22 font-size=%2214%22>No Thumb</text></svg>'">
           <div class="result-info">
             <div class="result-trip">${{img.trip.replace(/_/g, ' ')}}</div>
             <div class="result-name">${{img.filename}}</div>
@@ -1752,11 +2636,11 @@ HTML_TEMPLATE = """<!DOCTYPE html>
               ${{img.tags.slice(0, 3).map(t => `<span class="result-tag">${{t}}</span>`).join('')}}
             </div>
           </div>
-        </a>
+        </div>
       `).join('');
 
-      if (searchResults.length > 100) {{
-        resultsGrid.innerHTML += `<div style="grid-column: 1/-1; text-align: center; padding: 20px; color: var(--muted);">Showing first 100 of ${{searchResults.length}} results</div>`;
+      if (results.length > 100) {{
+        resultsGrid.innerHTML += `<div style="grid-column: 1/-1; text-align: center; padding: 20px; color: var(--muted);">Showing first 100 of ${{results.length}} results</div>`;
       }}
     }}
 
@@ -1841,8 +2725,148 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       cards.forEach(card => grid.appendChild(card));
     }}
 
+    // ===== SLIDESHOW FUNCTIONS =====
+    function startSlideshow() {{
+      if (!slideshowImages.length) {{
+        alert('No images available for slideshow. Process some trips first.');
+        return;
+      }}
+      slideshowIndex = 0;
+      document.getElementById('slideshowModal').classList.add('active');
+      document.body.style.overflow = 'hidden';
+      showSlideshowImage();
+    }}
+
+    function stopSlideshow() {{
+      document.getElementById('slideshowModal').classList.remove('active');
+      document.body.style.overflow = '';
+      pauseSlideshow();
+    }}
+
+    function showSlideshowImage() {{
+      if (!slideshowImages.length) return;
+      const img = slideshowImages[slideshowIndex];
+      const imgEl = document.getElementById('slideshowImage');
+
+      // Use full image path (not thumbnail) if available
+      const fullPath = img.thumbnail.replace('/MemoGraph/thumbnails/', '/');
+      imgEl.src = img.thumbnail; // Start with thumbnail for quick load
+
+      // Try to load full image
+      const fullImg = new Image();
+      fullImg.onload = () => {{ imgEl.src = fullPath; }};
+      fullImg.src = fullPath;
+
+      document.getElementById('slideshowTrip').textContent = img.trip.replace(/_/g, ' ');
+      document.getElementById('slideshowCaption').textContent = img.caption || img.tags.slice(0, 3).join(', ') || img.filename;
+      document.getElementById('slideshowCounter').textContent = `${{slideshowIndex + 1}} / ${{slideshowImages.length}}`;
+    }}
+
+    function slideshowNext() {{
+      slideshowIndex = (slideshowIndex + 1) % slideshowImages.length;
+      showSlideshowImage();
+      resetSlideshowProgress();
+    }}
+
+    function slideshowPrev() {{
+      slideshowIndex = (slideshowIndex - 1 + slideshowImages.length) % slideshowImages.length;
+      showSlideshowImage();
+      resetSlideshowProgress();
+    }}
+
+    function toggleSlideshowPlay() {{
+      if (slideshowInterval) {{
+        pauseSlideshow();
+      }} else {{
+        playSlideshow();
+      }}
+    }}
+
+    function playSlideshow() {{
+      const speed = parseInt(document.getElementById('slideshowSpeed').value);
+      slideshowInterval = setInterval(() => {{
+        slideshowNext();
+      }}, speed);
+      document.getElementById('playIcon').innerHTML = '&#x23F8;';
+      document.getElementById('playText').textContent = 'Pause';
+      document.getElementById('slideshowPlayBtn').classList.add('active');
+      startProgressBar();
+    }}
+
+    function pauseSlideshow() {{
+      if (slideshowInterval) {{
+        clearInterval(slideshowInterval);
+        slideshowInterval = null;
+      }}
+      document.getElementById('playIcon').innerHTML = '&#x25B6;';
+      document.getElementById('playText').textContent = 'Play';
+      document.getElementById('slideshowPlayBtn').classList.remove('active');
+      document.getElementById('slideshowProgress').style.width = '0%';
+    }}
+
+    function updateSlideshowSpeed() {{
+      if (slideshowInterval) {{
+        pauseSlideshow();
+        playSlideshow();
+      }}
+    }}
+
+    function shuffleSlideshow() {{
+      // Fisher-Yates shuffle
+      for (let i = slideshowImages.length - 1; i > 0; i--) {{
+        const j = Math.floor(Math.random() * (i + 1));
+        [slideshowImages[i], slideshowImages[j]] = [slideshowImages[j], slideshowImages[i]];
+      }}
+      slideshowIndex = 0;
+      showSlideshowImage();
+    }}
+
+    let progressInterval = null;
+    function startProgressBar() {{
+      if (progressInterval) clearInterval(progressInterval);
+      const speed = parseInt(document.getElementById('slideshowSpeed').value);
+      const progressEl = document.getElementById('slideshowProgress');
+      let progress = 0;
+      const step = 100 / (speed / 50);
+      progressEl.style.width = '0%';
+      progressInterval = setInterval(() => {{
+        progress += step;
+        progressEl.style.width = Math.min(progress, 100) + '%';
+        if (progress >= 100) {{
+          progress = 0;
+        }}
+      }}, 50);
+    }}
+
+    function resetSlideshowProgress() {{
+      if (progressInterval) {{
+        const progressEl = document.getElementById('slideshowProgress');
+        progressEl.style.width = '0%';
+      }}
+    }}
+
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {{
+      // Search Lightbox controls
+      const searchLightboxActive = document.getElementById('searchLightbox').classList.contains('active');
+      if (searchLightboxActive) {{
+        if (e.key === 'Escape') {{ closeSearchLightbox(); return; }}
+        if (e.key === 'ArrowRight' || e.key === ' ') {{ e.preventDefault(); searchLightboxNext(); return; }}
+        if (e.key === 'ArrowLeft') {{ e.preventDefault(); searchLightboxPrev(); return; }}
+        if (e.key === 'Enter' || e.key === 'o') {{ goToTripFromLightbox(); return; }}
+        return;
+      }}
+
+      // Slideshow controls
+      const slideshowActive = document.getElementById('slideshowModal').classList.contains('active');
+      if (slideshowActive) {{
+        if (e.key === 'Escape') {{ stopSlideshow(); return; }}
+        if (e.key === 'ArrowRight' || e.key === ' ') {{ slideshowNext(); return; }}
+        if (e.key === 'ArrowLeft') {{ slideshowPrev(); return; }}
+        if (e.key === 'p') {{ toggleSlideshowPlay(); return; }}
+        return;
+      }}
+
       if (e.key === 'Escape') {{
         document.getElementById('infoModal').classList.remove('active');
         document.getElementById('featuresModal').classList.remove('active');
@@ -1856,10 +2880,21 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       if (e.key === 'f' && e.target.tagName !== 'INPUT' && !e.ctrlKey && !e.metaKey) {{
         toggleFeatures();
       }}
+      if (e.key === 's' && e.target.tagName !== 'INPUT' && !e.ctrlKey && !e.metaKey) {{
+        startSlideshow();
+      }}
     }});
 
     // Load search index on page load
     document.addEventListener('DOMContentLoaded', loadSearchIndex);
+
+    // Close autocomplete when clicking outside
+    document.addEventListener('click', (e) => {{
+      const searchWrap = document.querySelector('.search-input-wrap');
+      if (searchWrap && !searchWrap.contains(e.target)) {{
+        document.getElementById('autocompleteDropdown').classList.remove('active');
+      }}
+    }});
   </script>
 </body>
 </html>
@@ -2035,6 +3070,20 @@ def build_trip_index(trips_root: str | None = None) -> str:
     if not os.path.isdir(root):
         raise FileNotFoundError(f"Trips root not found: {root}")
 
+    # Load search index if it exists
+    search_index_path = os.path.join(root, "search_index.json")
+    search_index_json = "null"
+    if os.path.exists(search_index_path):
+        try:
+            with open(search_index_path, "r", encoding="utf-8") as f:
+                search_data = json.load(f)
+                # Add trips facet if not present
+                if "facets" in search_data and "trips" not in search_data["facets"]:
+                    search_data["facets"]["trips"] = list(search_data.get("trip_counts", {}).keys())
+                search_index_json = json.dumps(search_data)
+        except Exception as e:
+            print(f"Warning: Could not load search index: {e}")
+
     cards_html: List[str] = []
     all_metadata: List[Dict[str, Any]] = []
 
@@ -2103,6 +3152,7 @@ def build_trip_index(trips_root: str | None = None) -> str:
         trip_suffix="s" if trip_count != 1 else "",
         total_photos=total_photos,
         total_days=total_days,
+        search_index_json=search_index_json,
     )
     out_path = os.path.join(root, "index.html")
     with open(out_path, "w", encoding="utf-8") as f:

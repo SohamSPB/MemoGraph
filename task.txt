@@ -658,10 +658,43 @@
           - Before: "A person holding a flower in their hand"
           - After:  "A hand delicately holding a vibrant orange hibiscus flower"
 
-30. Future Enhancements
-    - [ ] Add plant/insect specialist models alongside bird model
+30. Two-Stage Species Detection Pipeline (DONE - Feb 12, 2026)
+    - [x] Replaced Grounding DINO Tiny with OWLv2 (`google/owlv2-base-patch16-ensemble`)
+        - Grounding DINO had broken API (`box_threshold` → `threshold` in transformers 4.56.2)
+        - Multi-class text prompts caused label merging (all labels concatenated into one string)
+        - Detection accuracy was poor: 0.22-0.37 confidence, misclassified butterflies as birds
+    - [x] OWLv2 dramatically better: 0.72-0.93 confidence, correct species category assignment
+        - 155M parameters, 591MB VRAM (lighter than Grounding DINO)
+        - Handles multi-class queries in single forward pass without label merging
+        - Saved locally at models/owlv2/
+    - [x] BioCLIP 2 for species classification from cropped detections
+        - Category-specific label lists: 85+ Indian birds, 55+ butterflies, 45+ insects
+        - 428M parameters, uses open_clip for inference
+    - [x] Added NMS (non-maximum suppression) to remove duplicate overlapping detections
+    - [x] Updated species_detector.py to use OWLv2 + BioCLIP 2 when available, CLIP fallback otherwise
+    - [x] Updated memograph_config.py: ENABLE_SPECIES_DETECTION, OWLV2_DIR, SPECIES_DETECTION_THRESHOLD
+    - [x] Results on Annapurna trip: 23 images with species bounding boxes
+        - Birds: Blue-tailed Bee-eater, Indian Robin, Ultramarine Flycatcher, Brown-headed Barbet,
+          Red-vented Bulbul, Common Myna, White-bellied Drongo, Chestnut-bellied Nuthatch
+        - Butterflies: Common Mormon, Common Grass Yellow, Common Blue Damselfly
+        - Animals: Rhesus Macaque
+
+31. Face & Species Bounding Box Overlays in Webapp (DONE - Feb 12, 2026)
+    - [x] Fixed face_locations not persisted to CSV (_get_fieldnames helper for safe CSV writes)
+    - [x] Added face_locations and species_boxes to build_blog_context.py output
+    - [x] Added detection overlay HTML/CSS/JS in build_webapp.py:
+        - Blue boxes for face detections
+        - Green boxes with species name labels for species detections
+        - Cyan "Person" indicator when CLIP tags suggest person but no face detected
+    - [x] Added bbox toggle button in lightbox viewer
+    - [x] Person detection fallback: hasPersonTag() checks CLIP tags for person/hiker/group/crowd
+    - [x] Fixed hub page JS crash from duplicate `const imgEl` declaration in showSearchLightboxImage()
+
+32. Future Enhancements
     - [ ] Implement semantic search with CLIP embeddings
     - [x] Cross-trip search implemented (build_search_index.py + index.html)
     - [ ] Support larger VLMs (7B+) with quantization for better descriptions
+        - Researched: Qwen2.5-VL-7B-AWQ (~8-9GB VRAM), Qwen2.5-VL-3B (~4-8GB), Qwen3-VL-8B, MiniCPM-V 4.0
     - [ ] OCR text extraction from images (nameplate, sign, menu text)
     - [ ] Temporal context propagation (if nearby images have species X, check current image too)
+    - [ ] Plant classifier (specialist model for flowers/trees)

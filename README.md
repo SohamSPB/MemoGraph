@@ -124,7 +124,7 @@ the script named in parentheses):
 5. Image labels (CLIP) (`image_labeler.py`)
 6. BLIP captions (`caption_filler.py`)
 7. BLIP AI captions (`generate_ai_captions.py`)
-8. Species tags (CLIP + optional bird model) (`species_detector.py`)
+8. Species tags + bounding boxes (OWLv2 + BioCLIP 2, with CLIP fallback) (`species_detector.py`)
 9. Image type classification (CLIP prompts) (`image_type_detector.py`)
 10. Image quality scoring (histogram/exposure/sharpness/noise heuristics) (`image_quality.py`)
 11. Color palette extraction (`image_colors.py`)
@@ -149,7 +149,7 @@ Every run writes a complete `MemoGraph` folder containing `labels.csv`, `blog.md
 | 6 | `image_labeler.py` (CLIP) | ✅ required | ❌ | ❌ | No |
 | 7 | `caption_filler.py` (BLIP) | ✅ required | ❌ | ❌ | **Yes** (ThreadPool) |
 | 8 | `generate_ai_captions.py` (BLIP) | ✅ required | ❌ | ❌ | No |
-| 9 | `species_detector.py` (CLIP) | ✅ required | ❌ | ❌ | No |
+| 9 | `species_detector.py` (OWLv2+BioCLIP) | ✅ required | ❌ | ❌ | No |
 | 10 | `image_type_detector.py` (CLIP) | ✅ required | ❌ | ❌ | No |
 | 11 | `image_quality.py` | ❌ | ✅ | ❌ | No |
 | 12 | `image_colors.py` | ❌ | ✅ | ❌ | No |
@@ -206,10 +206,12 @@ image_scanner → trip_day_assigner → location_resolver → map_preview
 | `location_inferred` | location_resolver | blog_generator, webapp |
 | `day_number` | trip_day_assigner | blog_generator, webapp |
 | `faces_detected`, `faces_count` | face_detector | blog_context, webapp |
+| `face_locations` | face_detector | blog_context, webapp (bounding box overlays) |
 | `detected_objects` | image_labeler | species_detector, blog, webapp |
 | `caption`, `caption_samples` | caption_filler | blog_generator, webapp |
 | `caption_ai` | generate_ai_captions | blog_generator, webapp |
-| `species_tags` | image_labeler (coarse), species_detector (refined) | blog, webapp |
+| `species_tags` | species_detector (OWLv2+BioCLIP or CLIP fallback) | blog, webapp |
+| `species_boxes` | species_detector (OWLv2 bounding boxes) | blog_context, webapp (bounding box overlays) |
 | `image_type` | image_type_detector | species_detector, webapp |
 | `quality_score`, `exposure_score`, etc. | image_quality | webapp |
 | `color_palette` | image_colors | webapp |
@@ -294,12 +296,13 @@ This aggregates per-day times, locations, themes (mountains/roads/temples/market
   - Derives simple tags per image (e.g., people, birds, plants_flowers, insects, animals, landscapes, astro and the image_type categories).
   - Provides a chip-style filter bar so you can interactively filter sidebar photos by these tags.
 
-- **Static Leaflet gallery + map (`MemoGraph/webapp/index.html`):**  
+- **Static Leaflet gallery + map (`MemoGraph/webapp/index.html`):**
   `build_webapp.py` generates a modern, 3-column web application:
   - **Left Sidebar:** Interactive filters grouped by category (Nature, Structures, People, Tech, Food, etc.) and a "Clear Filters" button.
-  - **Main Gallery:** Scrollable grid of photos with smart thumbnails, showing color palettes, key tags, and quality scores.
+  - **Main Gallery:** Scrollable grid/list/timeline views with smart thumbnails, showing color palettes, key tags, and quality scores.
   - **Right Map Pane:** A sticky map that updates markers in real-time as you filter the gallery.
-  - **Lightbox:** A detailed full-screen view with a filmstrip, metadata panel (location, faces, camera info), a mini-map, and color swatches.
+  - **Lightbox:** A detailed full-screen view with a filmstrip, metadata panel (location, faces, camera info), a mini-map, color swatches, and detection bounding box overlays (faces in blue, species in green, person fallback in cyan).
+  - **View Modes:** Grid (default card layout), List (compact horizontal rows with metadata columns), and Timeline (photos grouped by day with sticky date headers).
   - All assets are local; no external backend is required.
 
 This static webapp replaces the earlier baked overview-only experience and makes it easy to explore each trip offline.
@@ -397,6 +400,9 @@ python -m scripts.gpu_model_manager --batch-size 8 --compare
 | CLIP ViT-B/32 | ~0.5GB | Object/scene detection |
 | BLIP | ~0.5GB | Image captioning |
 | LLaVA 0.5B | ~2GB | Detailed AI descriptions |
+| OWLv2 | ~0.6GB | Species bounding box detection |
+| BioCLIP 2 | ~1.8GB | Species classification (952K taxa) |
+| Bird Classifier | ~0.1GB | Bird species refinement |
 | Processing buffers | ~1.5GB | Tensor operations |
 
 ### New Files
@@ -479,53 +485,55 @@ You can change prompts or max tokens (`--max-new-tokens`) to explore different d
   3. Surface those richer captions in the static web app (toggle between BLIP + VLM text) and optionally in the Markdown blog.
 - Until that wiring exists, you can reproduce the study by calling `scripts/vision_llm_demo.py` repeatedly with different `--question` prompts or by adapting the inline example used for the saved study.
 
-## Bird Species Model (optional)
+## Species Detection Models
 
-MemoGraph can optionally use a specialist bird classifier (in addition to CLIP
-prompts) to improve species recognition when an image clearly contains a bird.
+MemoGraph uses a two-stage pipeline for accurate species detection with bounding boxes:
 
-- Recommended starting model:  
-  `dennisjooo/Birds-Classifier-EfficientNetB2` on Hugging Face.
+### Stage 1: OWLv2 (Object Detection)
+Google's OWLv2 (`google/owlv2-base-patch16-ensemble`) provides zero-shot object detection, identifying and localizing birds, butterflies, insects, and other wildlife in photos with bounding boxes. 155M parameters, ~591MB VRAM.
 
-- To enable it:
-  1. Install the necessary libraries (if not already installed):
+### Stage 2: BioCLIP 2 (Species Classification)
+BioCLIP 2 (`imageomics/bioclip-2`) classifies cropped detections to species level using a biology-focused CLIP model trained on 952K+ taxa. Each detected region is cropped and classified against category-specific species lists (85+ Indian birds, 55+ butterflies, 45+ insects, etc.).
 
-     ```bash
-     pip install transformers torch
-     ```
+### Setup
 
-  2. Download the model into the expected folder using the helper script:
+```bash
+# Activate venv
+source .venv/bin/activate    # Linux/macOS
 
-     ```bash
-     # Activate your venv first
-     .venv\Scripts\Activate.ps1         # Windows PowerShell
-     # or: source .venv/bin/activate    # Linux/macOS
+# OWLv2 auto-downloads from HF on first use, or save locally:
+python -c "
+from transformers import Owlv2Processor, Owlv2ForObjectDetection
+proc = Owlv2Processor.from_pretrained('google/owlv2-base-patch16-ensemble')
+model = Owlv2ForObjectDetection.from_pretrained('google/owlv2-base-patch16-ensemble')
+proc.save_pretrained('models/owlv2')
+model.save_pretrained('models/owlv2')
+"
 
-     python -m scripts.download_bird_model
-     ```
+# BioCLIP 2 downloads via open_clip on first use
+# Bird classifier (optional, for additional refinement):
+python -m scripts.download_bird_model
+```
 
-     This will download `dennisjooo/Birds-Classifier-EfficientNetB2` and save it under:
-     `models/birds/Birds-Classifier-EfficientNetB2`.
+### Configuration
 
-  3. Edit `memograph_config.py` and set:
+In `memograph_config.py`:
+```python
+ENABLE_SPECIES_DETECTION = True   # Enable OWLv2 detection
+ENABLE_BIOCLIP = True             # Enable BioCLIP 2 classification
+ENABLE_BIRD_MODEL = True          # Enable bird classifier refinement
+SPECIES_DETECTION_THRESHOLD = 0.15  # OWLv2 confidence threshold
+```
 
-     ```python
-     ENABLE_BIRD_MODEL = True
-     ```
+### Behavior
+- `species_detector.py` checks for biological hints (bird/animal/plant/insect keywords in CLIP tags and captions)
+- When advanced models are available: OWLv2 detects wildlife → BioCLIP 2 classifies each crop → results stored in `species_tags` + `species_boxes`
+- When advanced models unavailable: falls back to CLIP prompts + bird classifier
+- Bounding boxes stored as normalized percentages in `species_boxes` column: `"label:species@left%,top%,right%,bottom%"`
+- Webapp renders species boxes as green overlays with species name labels
 
-  4. Run the pipeline as usual (optionally with `--reset` to regenerate species tags):
-
-     ```bash
-     python run_all.py data/trips/my_awesome_trip --reset
-     ```
-
-- Behavior:
-  - `image_labeler.py` + BLIP captions first detect whether an image likely
-    contains birds/animals/plants/insects.
-  - `species_detector.py`:
-    - Skips species detection entirely when there are no biological hints (e.g., pure galaxy/nebula images).
-    - When bird hints are present and `ENABLE_BIRD_MODEL=True`, it uses the bird classifier to propose top bird species and writes them into `species_tags`.
-    - If the bird model is unavailable or fails, it falls back to the existing CLIP-based species prompts.
+### Bird Classifier (Legacy/Fallback)
+The specialist bird classifier (`dennisjooo/Birds-Classifier-EfficientNetB2`) is still available as a fallback and for additional refinement via the bird species refiner step.
 
 
 ## License

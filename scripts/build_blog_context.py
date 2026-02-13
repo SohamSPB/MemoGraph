@@ -527,10 +527,12 @@ def _build_day_context(
                 "caption_ai": r.get("caption_ai"),
                 "vision_caption": r.get("vision_caption"),  # Detailed AI description from Vision LLM
                 "species_tags": img_species,
+                "species_boxes": r.get("species_boxes", ""),
                 "detected_objects": detected,
                 "image_type": r.get("image_type"),
                 "faces_detected": r.get("faces_detected"),
                 "faces_count": faces_count,
+                "face_locations": r.get("face_locations", ""),
                 "gps_lat": lat,
                 "gps_lon": lon,
                 "yolo_objects": extras.get("yolo_objects", []),

@@ -237,22 +237,61 @@ Resource logging
   - Reports whether fields like faces_detected, species_tags, detected_objects,
     caption, caption_ai match across variants and where they first diverge.
 
-6. Species detection (current & future)
----------------------------------------
-- Current:
-  - Coarse labels:
-    - image_labeler uses CLIP to add "a bird", "an insect", "a dog", etc. to
-      detected_objects and species_tags.
-  - Fine-grained labels (limited):
-    - species_detector uses CLIP + species_prompts (hard-coded list of species
-      names) to optionally refine species_tags when confident.
-    - Cannot output names that are not in species_prompts.
+6. Species detection (Two-Stage: OWLv2 + BioCLIP 2)
+----------------------------------------------------
+- Architecture:
+  - Stage 1 – Detection (OWLv2, google/owlv2-base-patch16-ensemble):
+    - Zero-shot object detector, 155M params, ~591MB VRAM.
+    - Runs a single forward pass with multi-class text queries:
+      ["a bird", "a butterfly", "a moth", "an insect", "a dragonfly",
+       "a beetle", "a spider", "a lizard", "a snake", "a frog",
+       "a squirrel", "a monkey", "a deer", "a cat", "a dog"]
+    - Returns bounding boxes + confidence scores per detected wildlife.
+    - Threshold controlled by CFG.SPECIES_DETECTION_THRESHOLD (default 0.15).
+    - NMS (IoU=0.5) removes duplicate overlapping boxes.
+    - Saved locally at models/owlv2/ for offline use.
+  - Stage 2 – Classification (BioCLIP 2, imageomics/bioclip-2):
+    - Biology-focused CLIP model, 428M params, 952K+ taxa.
+    - Each detected bounding box is cropped and classified against
+      category-specific label lists:
+      - _get_bird_labels(): 85+ species (eagles, kingfishers, bee-eaters, etc.)
+      - _get_butterfly_labels(): 55+ species (monarchs, swallowtails, etc.)
+      - _get_insect_labels(): 45+ species (dragonflies, beetles, mantises, etc.)
+      - _get_default_species_labels(): mammals, reptiles, domestic animals
+    - Returns species name + confidence for each box.
+    - Loaded via open_clip: `open_clip.create_model_and_transforms("hf-hub:imageomics/bioclip-2")`
+      which auto-resolves from HF cache.
+  - Fallback – CLIP coarse detection:
+    - image_labeler adds coarse tags ("a bird", "an insect", etc.) to
+      detected_objects and species_tags using CLIP.
+    - species_detector refines these via CLIP + species_prompts when the
+      advanced pipeline is disabled.
 
-- Future (not implemented here, but planned in task.txt):
-  - Use coarse tags (bird/insect/animal/plant) as triggers to call specialist
-    models (e.g. iNaturalist-based bird classifiers) stored under models/.
-  - Merge those predictions into species_tags while preserving coarse tags as
-    fallback.
+- CSV storage:
+  - species_tags: comma-separated species names (e.g. "Blue-tailed Bee-eater, Common Hawker Dragonfly")
+  - species_boxes: semicolon-separated entries in format
+    "label:species@left%,top%,right%,bottom%" (normalized 0-100 percentages)
+    e.g. "a bird:Common Myna@12.5,8.3,45.2,67.1; a bird:Common Myna@55.0,10.1,89.3,70.5"
+
+- Gating:
+  - Only runs on images where image_type contains "natural" or is empty.
+  - Skips document scans, screenshots, memes, charts.
+  - Biological hint check uses detected_objects + caption text to confirm
+    wildlife presence before running the expensive two-stage pipeline.
+
+- Config flags:
+  - ENABLE_SPECIES_DETECTION = True (enables OWLv2 detection stage)
+  - ENABLE_BIOCLIP = True (enables BioCLIP 2 classification stage)
+  - SPECIES_DETECTION_THRESHOLD = 0.15
+  - OWLV2_DIR = "models/owlv2"
+
+- History:
+  - Originally used Grounding DINO Tiny for detection, but it produced
+    very low confidence scores (0.22-0.37) and had a breaking API change
+    in transformers 4.56.2 (box_threshold → threshold), plus multi-class
+    text prompts caused all labels to merge into one concatenated string.
+  - Replaced with OWLv2 on Feb 12, 2026. OWLv2 scores 0.72-0.93 on the
+    same wildlife images with correct label separation.
 
 7. Resetting and reprocessing trip data
 ---------------------------------------
@@ -540,7 +579,38 @@ Resource logging
     python -m scripts.gpu_model_manager --batch-size 8 --num-images 16 --compare
     ```
 
-32. TODO: Future Optimizations
+32. Two-Stage Species Detection Pipeline (Feb 12, 2026) - DONE
+    - Replaced Grounding DINO Tiny with OWLv2 (google/owlv2-base-patch16-ensemble)
+      in scripts/species_models.py for bounding box detection.
+    - OWLv2 handles multi-class text queries in a single forward pass without
+      the label-merging bug that plagued Grounding DINO.
+    - Confidence scores jumped from 0.22-0.37 (GDINO) to 0.72-0.93 (OWLv2).
+    - BioCLIP 2 loading simplified to always use `hf-hub:imageomics/bioclip-2`
+      (removed broken local-dir logic that caused "Ignoring pretrained" warnings).
+    - NMS deduplication (IoU=0.5) removes overlapping boxes from different queries.
+    - OWLv2 model saved locally at models/owlv2/ (155M params, 591MB VRAM).
+    - Results across trips: 23 species boxes in Annapurna, 1 in Home, 1 in Vengurla.
+    - Backward-compatible aliases kept: load_grounding_dino → load_owlv2,
+      unload_grounding_dino → unload_owlv2, _gdino_available → always True.
+
+33. Face & Species Bounding Box Overlays in Webapp (Feb 12, 2026) - DONE
+    - Face bounding boxes (blue) and species bounding boxes (green) rendered
+      as overlays in the MemoLens lightbox viewer.
+    - Face boxes stored in face_locations column as normalized percentages:
+      "top%,right%,bottom%,left%" (face_recognition format).
+    - Species boxes stored in species_boxes column as:
+      "label:species@left%,top%,right%,bottom%"
+    - Toggle button in lightbox to show/hide detection overlays.
+    - Person detection fallback: when face_locations is empty but CLIP tags
+      indicate a person (hiker, group, crowd, traveler, etc.), shows a
+      "Person detected (from tags)" indicator instead of bounding boxes.
+    - Grid/List/Timeline view toggle added to per-trip webapp:
+      - Grid: card-based gallery (default)
+      - List: compact rows with quality scores
+      - Timeline: day-grouped with sticky date headers
+    - CNN face detection at 1024px catches faces that HOG misses.
+
+34. TODO: Future Optimizations
     - Integrate batch processing into main pipeline (run_all.py)
     - Add pipeline parallelization (run CLIP batch while LLaVA processes)
     - Implement dynamic batch sizing based on available GPU memory

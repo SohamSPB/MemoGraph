@@ -255,10 +255,10 @@ TEMPLATE = """<!DOCTYPE html>
       margin-bottom: 16px;
     }
     .filters-group-title {
-      font-size: 0.7rem;
+      font-size: 0.95rem;
       font-weight: 700;
       color: var(--accent);
-      margin: 16px 0 8px;
+      margin: 20px 0 10px;
       text-transform: uppercase;
       letter-spacing: 0.5px;
       display: flex;
@@ -267,10 +267,10 @@ TEMPLATE = """<!DOCTYPE html>
     }
     .filters-group-title::before {
       content: '';
-      width: 4px;
-      height: 4px;
+      width: 5px;
+      height: 14px;
       background: var(--accent);
-      border-radius: 50%;
+      border-radius: 2px;
     }
     .filters {
       display: flex;
@@ -416,6 +416,164 @@ TEMPLATE = """<!DOCTYPE html>
     .tag.no-faces { color: var(--muted); border-color: rgba(100, 116, 139, 0.3); }
     .tag.pending { color: var(--warning); border-color: rgba(245, 158, 11, 0.3); }
 
+    /* View Toggle */
+    .view-toggle {
+      display: flex;
+      gap: 4px;
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 4px;
+    }
+    .view-btn {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      padding: 8px 10px;
+      border-radius: 7px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+    .view-btn:hover { color: var(--text-secondary); background: rgba(148,163,184,0.1); }
+    .view-btn.active { color: var(--accent); background: rgba(6,182,212,0.15); }
+
+    /* List/Details View */
+    .gallery.list-view {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .gallery.list-view .card {
+      display: grid;
+      grid-template-columns: 80px 1fr;
+      gap: 16px;
+      padding: 10px;
+      border-radius: 12px;
+    }
+    .gallery.list-view .card:hover {
+      transform: none;
+    }
+    .gallery.list-view .thumb {
+      width: 80px;
+      height: 60px;
+      aspect-ratio: auto;
+      border-radius: 8px;
+      flex-shrink: 0;
+    }
+    .gallery.list-view .color-bar { display: none; }
+    .gallery.list-view .quality-badge {
+      top: 4px; right: 4px;
+      padding: 2px 5px;
+      font-size: 0.6rem;
+    }
+    .gallery.list-view .card-content {
+      padding: 0;
+      display: grid;
+      grid-template-columns: minmax(180px, 1.5fr) minmax(120px, 1fr) minmax(100px, 0.8fr) minmax(80px, 0.6fr);
+      gap: 12px;
+      align-items: center;
+    }
+    .gallery.list-view .title {
+      font-size: 0.85rem;
+      margin: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .gallery.list-view .meta {
+      margin: 0;
+      font-size: 0.75rem;
+    }
+    .gallery.list-view .tags {
+      flex-wrap: nowrap;
+      overflow: hidden;
+    }
+    .gallery.list-view .list-extra {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+    .list-extra { display: none !important; }
+    .gallery.list-view .list-extra { display: flex !important; }
+    .list-quality {
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      background: rgba(16,185,129,0.15);
+      color: var(--success);
+    }
+    .list-quality.low { background: rgba(245,158,11,0.15); color: var(--warning); }
+    .list-quality.vlow { background: rgba(239,68,68,0.15); color: var(--danger); }
+
+    /* Timeline/Date View */
+    .day-section {
+      margin-bottom: 28px;
+    }
+    .day-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 0 10px;
+      margin-bottom: 14px;
+      border-bottom: 1px solid var(--card-border);
+      position: sticky;
+      top: 0;
+      background: var(--bg);
+      z-index: 5;
+    }
+    .day-badge {
+      background: var(--gradient-1);
+      color: #fff;
+      font-weight: 700;
+      font-size: 0.85rem;
+      padding: 6px 14px;
+      border-radius: 8px;
+      white-space: nowrap;
+    }
+    .day-date {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+    .day-count {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-left: auto;
+    }
+    .day-gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 20px;
+      align-content: start;
+    }
+
+    /* List view header row */
+    .list-header {
+      display: none;
+      grid-template-columns: 80px 1fr;
+      gap: 16px;
+      padding: 8px 10px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+      border-bottom: 1px solid var(--card-border);
+      margin-bottom: 4px;
+    }
+    .list-header .list-header-cols {
+      display: grid;
+      grid-template-columns: minmax(180px, 1.5fr) minmax(120px, 1fr) minmax(100px, 0.8fr) minmax(80px, 0.6fr);
+      gap: 12px;
+    }
+    .main.list-mode .list-header { display: grid; }
+
     /* Map Pane */
     .map-pane {
       border-left: 1px solid var(--card-border);
@@ -541,6 +699,73 @@ TEMPLATE = """<!DOCTYPE html>
     }
     .nav-btn.prev { left: 20px; }
     .nav-btn.next { right: 20px; }
+
+    /* Detection Bounding Boxes */
+    .detection-overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      pointer-events: none;
+    }
+    .detection-box {
+      position: absolute;
+      border: 2px solid var(--accent-tertiary);
+      border-radius: 4px;
+      pointer-events: none;
+    }
+    .detection-box.face-box {
+      border-color: var(--accent-tertiary);
+      box-shadow: 0 0 8px rgba(244, 114, 182, 0.4);
+    }
+    .detection-box.species-box {
+      border-color: var(--success);
+      box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+    }
+    .detection-box.person-box {
+      border-color: var(--accent);
+      border-style: dashed;
+      box-shadow: 0 0 8px rgba(6, 182, 212, 0.3);
+    }
+    .detection-label {
+      position: absolute;
+      top: -22px;
+      left: -2px;
+      padding: 2px 8px;
+      font-size: 0.65rem;
+      font-weight: 600;
+      border-radius: 4px 4px 0 0;
+      white-space: nowrap;
+    }
+    .face-box .detection-label {
+      background: var(--accent-tertiary);
+      color: #fff;
+    }
+    .species-box .detection-label {
+      background: var(--success);
+      color: #fff;
+    }
+    .person-box .detection-label {
+      background: var(--accent);
+      color: var(--bg);
+    }
+    .bbox-toggle {
+      position: absolute;
+      bottom: 12px;
+      left: 12px;
+      z-index: 10;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,0.15);
+      color: #fff;
+      padding: 6px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.75rem;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      display: none;
+    }
+    .bbox-toggle:hover { background: rgba(244, 114, 182, 0.6); }
+    .bbox-toggle.active { background: rgba(244, 114, 182, 0.5); border-color: var(--accent-tertiary); }
 
     .lightbox-panel {
       display: flex;
@@ -802,6 +1027,11 @@ TEMPLATE = """<!DOCTYPE html>
       .brand-text { display: none; }
       .search-box { max-width: none; }
       .gallery { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+      .gallery.list-view .card-content {
+        grid-template-columns: 1fr;
+      }
+      .gallery.list-view .list-extra { display: none !important; }
+      .list-header { display: none !important; }
     }
   </style>
 </head>
@@ -839,6 +1069,17 @@ TEMPLATE = """<!DOCTYPE html>
         <span class="search-icon">&#x1F50D;</span>
         <input id="search" type="text" placeholder="Search photos, tags, locations..." />
       </div>
+      <div class="view-toggle" id="viewToggle">
+        <button class="view-btn active" data-view="grid" title="Grid View">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        </button>
+        <button class="view-btn" data-view="list" title="Details View">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        </button>
+        <button class="view-btn" data-view="timeline" title="Timeline View">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </button>
+      </div>
     </header>
 
     <div class="app-body">
@@ -847,13 +1088,23 @@ TEMPLATE = """<!DOCTYPE html>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
           Clear All Filters
         </button>
+        <div id="filterCountLabel" style="text-align:center;font-size:0.75rem;color:var(--muted);margin-top:6px;display:none;"></div>
         <div class="sidebar-section">
           <h3>Filter by Category</h3>
           <div id="filters"></div>
         </div>
       </div>
 
-      <div class="main">
+      <div class="main" id="mainArea">
+        <div class="list-header" id="listHeader">
+          <span></span>
+          <div class="list-header-cols">
+            <span>Title</span>
+            <span>Location</span>
+            <span>Tags</span>
+            <span>Quality</span>
+          </div>
+        </div>
         <div class="gallery" id="gallery"></div>
       </div>
 
@@ -883,6 +1134,8 @@ TEMPLATE = """<!DOCTYPE html>
           <button class="lightbox-close" id="lightboxClose">&#x2715; Close</button>
           <button class="nav-btn prev" id="navPrev">&#x25C0;</button>
           <img id="lightboxImage" src="">
+          <div class="detection-overlay" id="detectionOverlay"></div>
+          <button class="bbox-toggle" id="bboxToggle">Show Boxes</button>
           <button class="nav-btn next" id="navNext">&#x25B6;</button>
         </div>
         <div class="lightbox-panel">
@@ -932,7 +1185,18 @@ TEMPLATE = """<!DOCTYPE html>
       (img.places_scenes || []).forEach(t => chipSet.add(t.split("(")[0].trim().toLowerCase()));
       (img.species_tags || []).forEach(t => chipSet.add(t.toLowerCase()));
     });
-    const chips = Array.from(chipSet).filter(Boolean).sort();
+    // Deduplicate: remove verbose tags when a shorter parent exists
+    // e.g. remove "mud-puddling butterflies" if "butterfly" exists
+    const rawChips = Array.from(chipSet).filter(Boolean).sort();
+    const chips = rawChips.filter(ch => {
+      // Check if any shorter chip is already a substring of this one
+      for (const other of rawChips) {
+        if (other !== ch && other.length < ch.length && ch.includes(other)) {
+          return false; // Skip this verbose version
+        }
+      }
+      return true;
+    });
 
     // Smart title extraction: prefer vision_caption's first sentence over caption_ai
     function getSmartTitle(img) {
@@ -959,6 +1223,10 @@ TEMPLATE = """<!DOCTYPE html>
     let markers = [], lightboxMarker;
     let filteredImages = images.slice();
     let currentLightboxIndex = 0;
+    let currentView = 'grid';
+    let bboxVisible = true;
+
+    const PERSON_TAGS = ['person', 'hiker', 'group of people', 'selfie', 'group', 'people', 'human'];
 
     const galleryEl = document.getElementById('gallery');
     const filtersEl = document.getElementById('filters');
@@ -995,6 +1263,39 @@ TEMPLATE = """<!DOCTYPE html>
       const text = Array.from(lightboxMeta.querySelectorAll('li')).map(li => li.innerText).join('\\n');
       navigator.clipboard.writeText(text).then(() => alert('Photo info copied to clipboard!'));
     };
+
+    // Bounding box toggle
+    document.getElementById('bboxToggle').onclick = (e) => {
+      e.stopPropagation();
+      bboxVisible = !bboxVisible;
+      const overlay = document.getElementById('detectionOverlay');
+      const btn = document.getElementById('bboxToggle');
+      overlay.style.display = bboxVisible ? 'block' : 'none';
+      btn.textContent = bboxVisible ? 'Hide Boxes' : 'Show Boxes';
+      btn.classList.toggle('active', bboxVisible);
+    };
+
+    // View toggle
+    document.querySelectorAll('.view-btn').forEach(btn => {
+      btn.onclick = () => {
+        const view = btn.dataset.view;
+        if (view === currentView) return;
+        currentView = view;
+        document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const mainArea = document.getElementById('mainArea');
+        const listHeader = document.getElementById('listHeader');
+        galleryEl.classList.remove('list-view');
+        mainArea.classList.remove('list-mode');
+        listHeader.style.display = 'none';
+        if (view === 'list') {
+          galleryEl.classList.add('list-view');
+          mainArea.classList.add('list-mode');
+          listHeader.style.display = 'grid';
+        }
+        renderGallery();
+      };
+    });
 
     const CATEGORIES = {
       "Nature": ["bird", "insect", "flower", "plant", "tree", "forest", "mountain", "valley", "lake", "river", "waterfall", "landscape", "wildlife", "animal", "yak", "cat", "dog", "sunrise", "sunset", "night sky", "stars", "moon", "rock", "stone"],
@@ -1042,6 +1343,17 @@ TEMPLATE = """<!DOCTYPE html>
         group.appendChild(container);
         filtersEl.appendChild(group);
       }
+
+      // Update filter count label
+      const countLabel = document.getElementById('filterCountLabel');
+      const searchVal = searchInput.value.trim();
+      const totalActive = activeChips.size + (searchVal ? 1 : 0);
+      if (totalActive > 0) {
+        countLabel.textContent = `${totalActive} filter${totalActive > 1 ? 's' : ''} selected`;
+        countLabel.style.display = 'block';
+      } else {
+        countLabel.style.display = 'none';
+      }
     }
 
     function initMap() {
@@ -1070,6 +1382,77 @@ TEMPLATE = """<!DOCTYPE html>
       if (bounds.length) map.fitBounds(bounds, { padding: [30, 30] });
     }
 
+    function buildCard(img, idx) {
+      const card = document.createElement('div');
+      card.className = 'card';
+      const thumbSrc = img.thumbnail ? MEMO_BASE + img.thumbnail : TRIP_BASE + (img.local_path||img.image_name);
+      let colorsHtml = '';
+      if (img.color_palette && img.color_palette.length) {
+        colorsHtml = `<div class="color-bar">${img.color_palette.map(c => `<div class="swatch" style="background:${c}"></div>`).join('')}</div>`;
+      }
+      let qualityBadge = '';
+      if (img.quality_score) {
+        const qs = img.quality_score * 100;
+        let qClass = '';
+        if (qs < 40) qClass = 'vlow';
+        else if (qs < 60) qClass = 'low';
+        qualityBadge = `<div class="quality-badge ${qClass}">${qs.toFixed(0)}%</div>`;
+      }
+      card.innerHTML = `
+        <div class="thumb">
+          <img src="${thumbSrc}" loading="lazy" alt="${getSmartTitle(img)}">
+          ${colorsHtml}
+          ${qualityBadge}
+        </div>
+        <div class="card-content">
+          <div class="title" title="${getSmartTitle(img)}">${getSmartTitle(img)}</div>
+          <div class="meta">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            ${img.location_short || "Unknown"} &bull; Day ${img.day_number}
+          </div>
+          <div class="tags"></div>
+        </div>
+      `;
+      const tagsDiv = card.querySelector('.tags');
+      (img.species_tags||[]).slice(0,1).forEach(t => {
+        const s = document.createElement('span');
+        s.className = 'tag species';
+        s.textContent = t;
+        tagsDiv.appendChild(s);
+      });
+      const fcVal = img.faces_count;
+      if (String(fcVal) !== "-1") {
+        const fc = Number(fcVal || 0);
+        if (fc > 0) {
+          const s = document.createElement('span');
+          s.className = 'tag faces';
+          s.textContent = `${fc} Face${fc>1?'s':''}`;
+          tagsDiv.appendChild(s);
+        } else if (hasPersonTag(img)) {
+          const s = document.createElement('span');
+          s.className = 'tag';
+          s.style.color = 'var(--accent)';
+          s.style.borderColor = 'rgba(6,182,212,0.3)';
+          s.textContent = 'Person';
+          tagsDiv.appendChild(s);
+        }
+      }
+      if (currentView === 'list') {
+        const extra = document.createElement('div');
+        extra.className = 'list-extra';
+        if (img.quality_score != null) {
+          const qs = Math.round(img.quality_score * 100);
+          let qCls = '';
+          if (qs < 40) qCls = ' vlow';
+          else if (qs < 60) qCls = ' low';
+          extra.innerHTML = `<span class="list-quality${qCls}">${qs}%</span>`;
+        }
+        card.querySelector('.card-content').appendChild(extra);
+      }
+      card.onclick = () => showLightbox(idx);
+      return card;
+    }
+
     function renderGallery() {
       const term = searchInput.value.toLowerCase();
       filteredImages = images.filter(img => {
@@ -1083,83 +1466,132 @@ TEMPLATE = """<!DOCTYPE html>
       });
 
       galleryEl.innerHTML = '';
+      if (currentView === 'list') {
+        galleryEl.classList.add('list-view');
+      } else {
+        galleryEl.classList.remove('list-view');
+      }
       if (!filteredImages.length) {
+        const activeList = Array.from(activeChips);
+        const searchVal = searchInput.value.trim();
+        let filterDesc = '';
+        if (activeList.length || searchVal) {
+          const parts = [];
+          if (searchVal) parts.push('"' + searchVal + '"');
+          parts.push(...activeList);
+          filterDesc = `<p style="margin-top:8px;color:var(--accent);font-size:0.85rem;">Active filters: ${parts.join(', ')}</p>`;
+        }
         galleryEl.innerHTML = `
           <div class="empty-state">
             <div class="empty-state-icon">&#x1F50D;</div>
             <h3>No photos found</h3>
             <p>Try adjusting your search or filters</p>
+            ${filterDesc}
           </div>`;
+      } else if (currentView === 'timeline') {
+        // Group by day
+        const dayGroups = {};
+        filteredImages.forEach((img, idx) => {
+          const dayKey = img.day_number || 0;
+          if (!dayGroups[dayKey]) dayGroups[dayKey] = { date: img.date || '', images: [] };
+          dayGroups[dayKey].images.push({ img, idx });
+        });
+        const sortedDays = Object.keys(dayGroups).sort((a, b) => Number(a) - Number(b));
+        sortedDays.forEach(dayKey => {
+          const group = dayGroups[dayKey];
+          const section = document.createElement('div');
+          section.className = 'day-section';
+          section.innerHTML = `<div class="day-header">
+            <span class="day-badge">Day ${dayKey}</span>
+            <span class="day-date">${group.date}</span>
+            <span class="day-count">${group.images.length} photo${group.images.length !== 1 ? 's' : ''}</span>
+          </div>`;
+          const grid = document.createElement('div');
+          grid.className = 'day-gallery';
+          group.images.forEach(({ img, idx }) => {
+            grid.appendChild(buildCard(img, idx));
+          });
+          section.appendChild(grid);
+          galleryEl.appendChild(section);
+        });
       } else {
         filteredImages.forEach((img, idx) => {
-          const card = document.createElement('div');
-          card.className = 'card';
-
-          const thumbSrc = img.thumbnail ? MEMO_BASE + img.thumbnail : TRIP_BASE + (img.local_path||img.image_name);
-          let colorsHtml = '';
-          if (img.color_palette && img.color_palette.length) {
-            colorsHtml = `<div class="color-bar">${img.color_palette.map(c => `<div class="swatch" style="background:${c}"></div>`).join('')}</div>`;
-          }
-
-          let qualityBadge = '';
-          if (img.quality_score) {
-            const qs = img.quality_score * 100;
-            let qClass = '';
-            if (qs < 40) qClass = 'vlow';
-            else if (qs < 60) qClass = 'low';
-            qualityBadge = `<div class="quality-badge ${qClass}">${qs.toFixed(0)}%</div>`;
-          }
-
-          card.innerHTML = `
-            <div class="thumb">
-              <img src="${thumbSrc}" loading="lazy" alt="${getSmartTitle(img)}">
-              ${colorsHtml}
-              ${qualityBadge}
-            </div>
-            <div class="card-content">
-              <div class="title" title="${getSmartTitle(img)}">${getSmartTitle(img)}</div>
-              <div class="meta">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                ${img.location_short || "Unknown"} &bull; Day ${img.day_number}
-              </div>
-              <div class="tags"></div>
-            </div>
-          `;
-
-          const tagsDiv = card.querySelector('.tags');
-          (img.species_tags||[]).slice(0,1).forEach(t => {
-            const s = document.createElement('span');
-            s.className = 'tag species';
-            s.textContent = t;
-            tagsDiv.appendChild(s);
-          });
-
-          const fcVal = img.faces_count;
-          if (String(fcVal) === "-1") {
-            const s = document.createElement('span');
-            s.className = 'tag pending';
-            s.textContent = 'Scan Pending';
-            tagsDiv.appendChild(s);
-          } else {
-            const fc = Number(fcVal || 0);
-            if (fc === 0) {
-              const s = document.createElement('span');
-              s.className = 'tag no-faces';
-              s.textContent = 'No Faces';
-              tagsDiv.appendChild(s);
-            } else {
-              const s = document.createElement('span');
-              s.className = 'tag faces';
-              s.textContent = `${fc} Face${fc>1?'s':''}`;
-              tagsDiv.appendChild(s);
-            }
-          }
-
-          card.onclick = () => showLightbox(idx);
-          galleryEl.appendChild(card);
+          galleryEl.appendChild(buildCard(img, idx));
         });
       }
       updateMap();
+    }
+
+    function renderDetectionBoxes(img) {
+      const overlay = document.getElementById('detectionOverlay');
+      const toggleBtn = document.getElementById('bboxToggle');
+      overlay.innerHTML = '';
+      let hasBoxes = false;
+
+      // Parse and render face bounding boxes
+      // Format: "top,right,bottom,left; top,right,bottom,left"
+      if (img.face_locations && typeof img.face_locations === 'string' && img.face_locations.trim()) {
+        const faces = img.face_locations.split(';').map(s => s.trim()).filter(Boolean);
+        faces.forEach((face, i) => {
+          const parts = face.split(',').map(Number);
+          if (parts.length === 4) {
+            const [top, right, bottom, left] = parts;
+            const box = document.createElement('div');
+            box.className = 'detection-box face-box';
+            box.style.top = top + '%';
+            box.style.left = left + '%';
+            box.style.width = (right - left) + '%';
+            box.style.height = (bottom - top) + '%';
+            box.innerHTML = `<span class="detection-label">Face ${faces.length > 1 ? (i+1) : ''}</span>`;
+            overlay.appendChild(box);
+            hasBoxes = true;
+          }
+        });
+      }
+
+      // Parse and render species bounding boxes
+      // Format: "label:species@left,top,right,bottom; label:species@left,top,right,bottom"
+      if (img.species_boxes && typeof img.species_boxes === 'string' && img.species_boxes.trim()) {
+        const items = img.species_boxes.split(';').map(s => s.trim()).filter(Boolean);
+        items.forEach(item => {
+          const atIdx = item.indexOf('@');
+          if (atIdx === -1) return;
+          const labelPart = item.substring(0, atIdx);
+          const coordsPart = item.substring(atIdx + 1);
+          const coords = coordsPart.split(',').map(Number);
+          if (coords.length !== 4) return;
+          const [left, top, right, bottom] = coords;
+          // Extract species name (after colon in label part)
+          const colonIdx = labelPart.indexOf(':');
+          const speciesName = colonIdx !== -1 ? labelPart.substring(colonIdx + 1) : labelPart;
+
+          const box = document.createElement('div');
+          box.className = 'detection-box species-box';
+          box.style.left = left + '%';
+          box.style.top = top + '%';
+          box.style.width = (right - left) + '%';
+          box.style.height = (bottom - top) + '%';
+          box.innerHTML = `<span class="detection-label">${speciesName}</span>`;
+          overlay.appendChild(box);
+          hasBoxes = true;
+        });
+      }
+
+      // Show/hide toggle button
+      if (hasBoxes) {
+        toggleBtn.style.display = 'block';
+        toggleBtn.textContent = bboxVisible ? 'Hide Boxes' : 'Show Boxes';
+        toggleBtn.classList.toggle('active', bboxVisible);
+        overlay.style.display = bboxVisible ? 'block' : 'none';
+      } else {
+        toggleBtn.style.display = 'none';
+        overlay.style.display = 'none';
+      }
+    }
+
+    function hasPersonTag(img) {
+      const tags = [...(img.detected_objects||[]), ...(img.species_tags||[])].map(s => s.toLowerCase());
+      return PERSON_TAGS.some(pt => tags.some(t => t.includes(pt)));
     }
 
     function showLightbox(idx) {
@@ -1193,6 +1625,8 @@ TEMPLATE = """<!DOCTYPE html>
         let names = img.face_names && img.face_names.length ? img.face_names.join(', ') : '';
         facesHtml = `<span class="meta-tag faces">${fc} face${fc > 1 ? 's' : ''}</span>`;
         if (names) facesHtml += ` <span class="meta-value">${names}</span>`;
+      } else if (hasPersonTag(img)) {
+        facesHtml = '<span class="meta-value" style="color:var(--accent);">Person detected (no visible face)</span>';
       }
 
       // Colors HTML
@@ -1342,6 +1776,7 @@ TEMPLATE = """<!DOCTYPE html>
       }
 
       lightbox.classList.add('show');
+      renderDetectionBoxes(img);
       setTimeout(() => { if(lightboxMap) lightboxMap.invalidateSize(); }, 300);
       renderFilmstrip();
     }
