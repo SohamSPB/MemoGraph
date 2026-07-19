@@ -105,6 +105,8 @@ TEMPLATE = """<!DOCTYPE html>
       font-size: 0.9rem;
       font-weight: 500;
       transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
     }
     .back-btn:hover {
       background: var(--card-hover);
@@ -288,6 +290,8 @@ TEMPLATE = """<!DOCTYPE html>
       font-size: 0.85rem;
       text-align: left;
       font-weight: 500;
+      position: relative;
+      overflow: hidden;
     }
     .chip:hover {
       background: rgba(148, 163, 184, 0.15);
@@ -310,6 +314,38 @@ TEMPLATE = """<!DOCTYPE html>
     .main::-webkit-scrollbar { width: 8px; }
     .main::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
 
+    @keyframes cardFadeIn {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    /* Material Design ripple */
+    @keyframes rippleEffect {
+      0% { transform: scale(0); opacity: 0.4; }
+      100% { transform: scale(4); opacity: 0; }
+    }
+    .ripple-host { position: relative; overflow: hidden; }
+    .ripple-host .ripple-wave {
+      position: absolute;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0) 70%);
+      transform: scale(0);
+      animation: rippleEffect 0.6s ease-out forwards;
+      pointer-events: none;
+      z-index: 1;
+    }
+    /* Shared element transition overlay */
+    .shared-element-overlay {
+      position: fixed;
+      z-index: 5000;
+      pointer-events: none;
+      will-change: transform, width, height, top, left;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow: hidden;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+    .shared-element-overlay.animating { border-radius: 0; }
+    .shared-element-overlay img { width: 100%; height: 100%; object-fit: cover; }
     .gallery {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -328,6 +364,7 @@ TEMPLATE = """<!DOCTYPE html>
                   box-shadow 0.25s ease;
       transform: translateZ(0);
       backface-visibility: hidden;
+      animation: cardFadeIn 0.35s ease both;
     }
     .card:hover {
       transform: translateY(-6px) translateZ(0);
@@ -436,6 +473,8 @@ TEMPLATE = """<!DOCTYPE html>
       align-items: center;
       justify-content: center;
       transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
     }
     .view-btn:hover { color: var(--text-secondary); background: rgba(148,163,184,0.1); }
     .view-btn.active { color: var(--accent); background: rgba(6,182,212,0.15); }
@@ -872,6 +911,17 @@ TEMPLATE = """<!DOCTYPE html>
     .meta-value a:hover { text-decoration: underline; }
     .meta-value.highlight { color: var(--accent); }
     .meta-value.muted { color: var(--muted); font-style: italic; }
+
+    .vlm-model-block { margin-bottom: 10px; }
+    .vlm-model-block:last-child { margin-bottom: 0; }
+    .vlm-model-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--accent);
+      margin-bottom: 3px;
+    }
 
     .meta-tags {
       display: flex;
@@ -1449,14 +1499,14 @@ TEMPLATE = """<!DOCTYPE html>
         }
         card.querySelector('.card-content').appendChild(extra);
       }
-      card.onclick = () => showLightbox(idx);
+      card.onclick = (e) => showLightboxAnimated(idx, card, e);
       return card;
     }
 
     function renderGallery() {
       const term = searchInput.value.toLowerCase();
       filteredImages = images.filter(img => {
-        const text = [img.caption, img.caption_ai, img.location_short, ...(img.detected_objects||[]), ...(img.species_tags||[])].join(' ').toLowerCase();
+        const text = [img.caption, img.caption_ai, img.location_short, ...(img.detected_objects||[]), ...(img.species_tags||[]), ...(img.ocr_text||[])].join(' ').toLowerCase();
         if (term && !text.includes(term)) return false;
         if (activeChips.size) {
           const imgTags = new Set([...(img.detected_objects||[]), ...(img.species_tags||[])].map(s=>s.toLowerCase()));
@@ -1673,9 +1723,32 @@ TEMPLATE = """<!DOCTYPE html>
           </div>`;
       }
 
-      // Vision caption section
+      // Vision caption section — show both models when available
       let visionHtml = '';
-      if (img.vision_caption) {
+      const hasQwen = img.vision_caption_qwen_7b && img.vision_caption_qwen_7b.trim();
+      const hasLlava = img.vision_caption_llava_05b && img.vision_caption_llava_05b.trim();
+      if (hasQwen || hasLlava) {
+        let modelsHtml = '';
+        if (hasQwen) {
+          modelsHtml += `
+            <div class="vlm-model-block">
+              <div class="vlm-model-label">Qwen 7B</div>
+              <div class="meta-value">${img.vision_caption_qwen_7b}</div>
+            </div>`;
+        }
+        if (hasLlava) {
+          modelsHtml += `
+            <div class="vlm-model-block">
+              <div class="vlm-model-label">LLaVA 0.5B</div>
+              <div class="meta-value">${img.vision_caption_llava_05b}</div>
+            </div>`;
+        }
+        visionHtml = `
+          <div class="meta-section">
+            <div class="meta-section-title">&#x1F916; AI Vision Analysis</div>
+            ${modelsHtml}
+          </div>`;
+      } else if (img.vision_caption) {
         visionHtml = `
           <div class="meta-section">
             <div class="meta-section-title">&#x1F916; AI Vision Analysis</div>
@@ -1721,6 +1794,10 @@ TEMPLATE = """<!DOCTYPE html>
               <span class="meta-label">Captured</span>
               <span class="meta-value">${img.time || "Unknown"}</span>
             </div>
+            ${img.shutter_speed ? `<div class="meta-item"><span class="meta-label">Shutter</span><span class="meta-value">${img.shutter_speed}</span></div>` : ''}
+            ${img.aperture ? `<div class="meta-item"><span class="meta-label">Aperture</span><span class="meta-value">${img.aperture}</span></div>` : ''}
+            ${img.iso ? `<div class="meta-item"><span class="meta-label">ISO</span><span class="meta-value">${img.iso}</span></div>` : ''}
+            ${img.focal_length ? `<div class="meta-item"><span class="meta-label">Focal Length</span><span class="meta-value">${img.focal_length}</span></div>` : ''}
             <div class="meta-item">
               <span class="meta-label">Type</span>
               <span class="meta-value">${img.image_type || "Unknown"}</span>
@@ -1747,6 +1824,7 @@ TEMPLATE = """<!DOCTYPE html>
               <span class="meta-label">Faces</span>
               ${facesHtml}
             </div>
+            ${img.ocr_text && img.ocr_text.length ? `<div class="meta-item"><span class="meta-label">Text (OCR)</span><span class="meta-value" style="font-style:italic;font-size:0.82rem;">${img.ocr_text.join(' · ')}</span></div>` : ''}
           </div>
         </div>
 
@@ -1811,6 +1889,68 @@ TEMPLATE = """<!DOCTYPE html>
     searchInput.oninput = renderGallery;
     renderFilters();
     renderGallery();
+
+    // ===== MATERIAL DESIGN RIPPLE EFFECT =====
+    function createRipple(event) {
+      const el = event.currentTarget;
+      const rect = el.getBoundingClientRect();
+      const size = Math.max(rect.width, rect.height) * 2;
+      const x = event.clientX - rect.left - size / 2;
+      const y = event.clientY - rect.top - size / 2;
+      const ripple = document.createElement('span');
+      ripple.className = 'ripple-wave';
+      ripple.style.cssText = `width:${size}px;height:${size}px;left:${x}px;top:${y}px;`;
+      el.appendChild(ripple);
+      ripple.addEventListener('animationend', () => ripple.remove());
+    }
+    document.querySelectorAll('.back-btn, .view-btn, .chip, .lightbox-close, .nav-btn, .bbox-toggle, .lightbox-actions button, .clear-filters-btn').forEach(btn => {
+      btn.classList.add('ripple-host');
+      btn.addEventListener('click', createRipple);
+    });
+    // Delegation for dynamically created chips
+    document.addEventListener('click', (e) => {
+      const target = e.target.closest('.chip, .lightbox-actions button');
+      if (target && !target.classList.contains('ripple-host')) {
+        target.classList.add('ripple-host');
+        createRipple({ currentTarget: target, clientX: e.clientX, clientY: e.clientY });
+      }
+    });
+
+    // ===== SHARED ELEMENT TRANSITION (card → lightbox) =====
+    function showLightboxAnimated(idx, cardEl, clickEvent) {
+      const thumbEl = cardEl.querySelector('.thumb img');
+      if (!thumbEl) { showLightbox(idx); return; }
+
+      const rect = thumbEl.getBoundingClientRect();
+      const overlay = document.createElement('div');
+      overlay.className = 'shared-element-overlay';
+      overlay.style.cssText = `top:${rect.top}px;left:${rect.left}px;width:${rect.width}px;height:${rect.height}px;`;
+      const img = document.createElement('img');
+      img.src = thumbEl.src;
+      overlay.appendChild(img);
+      document.body.appendChild(overlay);
+
+      overlay.offsetHeight; // force reflow
+
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      // Animate to roughly center of lightbox image area (left 60% minus meta panel)
+      const panelW = Math.min(400, vw * 0.35);
+      const targetW = Math.min((vw - panelW) * 0.8, vh * 0.8 * (rect.width / rect.height));
+      const targetH = targetW * (rect.height / rect.width);
+      const targetLeft = ((vw - panelW) - targetW) / 2;
+      const targetTop = (vh - targetH) / 2;
+
+      requestAnimationFrame(() => {
+        overlay.style.cssText = `top:${Math.max(0, targetTop)}px;left:${Math.max(0, targetLeft)}px;width:${Math.min(targetW, vw - panelW)}px;height:${Math.min(targetH, vh)}px;`;
+        overlay.classList.add('animating');
+      });
+
+      setTimeout(() => {
+        overlay.remove();
+        showLightbox(idx);
+      }, 420);
+    }
   </script>
 </body>
 </html>

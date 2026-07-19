@@ -10,9 +10,11 @@ Logs: <trip_folder>/MemoGraph/logs/species_labeler.log
 """
 
 import os
+import re
 import torch
 import clip
 from PIL import Image
+from datetime import datetime as _dt, timedelta as _td
 
 from scripts.utils.utils_io import read_csv_dict, write_csv_dict
 from memograph_config import ensure_memograph_folder
@@ -187,9 +189,21 @@ species_prompts = {
 all_species = [item for sublist in species_prompts.values() for item in sublist]
 
 
-def _row_has_species(row) -> bool:
-	"""Return True if this row already has species_tags populated."""
-	return bool((row.get("species_tags") or "").strip())
+def _row_has_species(row, use_advanced: bool = False) -> bool:
+	"""Return True if this row has already been processed by species_detector.
+
+	For the advanced pipeline (OWLv2 + BioCLIP), we require both species_tags
+	AND species_boxes to be present — this prevents rows that only have coarse
+	tags written by image_labeler (which never sets species_boxes) from being
+	skipped before OWLv2 has had a chance to run.
+
+	For the classic CLIP pipeline, species_tags alone is sufficient.
+	"""
+	has_tags = bool((row.get("species_tags") or "").strip())
+	if not use_advanced:
+		return has_tags
+	has_boxes = bool((row.get("species_boxes") or "").strip())
+	return has_tags and has_boxes
 
 
 def detect_species(image_path, model, preprocess, device):
@@ -223,6 +237,16 @@ def _get_fieldnames(rows):
 				fields.append(key)
 				seen.add(key)
 	return fields
+
+
+def _parse_row_dt(dt_str: str):
+	"""Parse EXIF datetime string → datetime object or None."""
+	for fmt in ("%Y:%m:%d %H:%M:%S", "%Y-%m-%d %H:%M:%S"):
+		try:
+			return _dt.strptime(dt_str.strip(), fmt)
+		except (ValueError, AttributeError):
+			pass
+	return None
 
 
 def process_species(csv_path, trip_folder, log_path):
@@ -262,6 +286,10 @@ def process_species(csv_path, trip_folder, log_path):
 	updated_rows = []
 	updated_count = 0
 
+	# Pre-compute timestamps for temporal context propagation
+	row_times = [_parse_row_dt(r.get("datetime_original", "")) for r in rows]
+	TEMPORAL_WINDOW = _td(minutes=5)
+
 	def _flush():
 		"""Incrementally flush current species tags to CSV."""
 		if not updated_rows:
@@ -270,10 +298,11 @@ def process_species(csv_path, trip_folder, log_path):
 		log("Incremental save: species_tags flushed to CSV.", log_path)
 
 	try:
-		for row in rows:
-			# Skip rows that already have species_tags so that re-running the script
-			# acts as a resume operation, only filling in missing tags.
-			if _row_has_species(row):
+		for row_index, row in enumerate(rows):
+			# Skip rows already fully processed by species_detector.
+			# For the advanced pipeline we require species_boxes too, so that
+			# rows with only coarse image_labeler tags (no boxes) get reprocessed.
+			if _row_has_species(row, use_advanced=use_advanced):
 				updated_rows.append(row)
 				continue
 
@@ -290,28 +319,52 @@ def process_species(csv_path, trip_folder, log_path):
 				continue
 
 			coarse_text = " ".join(
-				str(row.get(field, "")) for field in ("detected_objects", "caption", "caption_ai")
+				str(row.get(field, "")) for field in (
+					"detected_objects", "caption", "caption_ai",
+					"vision_caption", "vision_caption_qwen_7b", "vision_caption_llava_05b",
+				)
 			).lower()
 
 			# Tokenize for safer keyword matching (avoid "bowl" matching "owl")
-			import re
 			tokens = set(re.findall(r"\w+", coarse_text))
 
 			bio_keywords = {
+				# Animals
 				"bird", "insect", "animal", "dog", "cat", "horse", "cow", "goat",
-				"sheep", "yak", "deer", "plant", "flower", "tree", "forest",
-				"grass", "leaf", "nature", "wildlife", "butterfly", "mud", "puddling"
+				"sheep", "yak", "deer", "butterfly", "wildlife", "monkey",
+				"squirrel", "lizard", "snake", "frog", "fish", "turtle",
+				"elephant", "tiger", "leopard", "bear", "buffalo", "donkey",
+				"duck", "swan", "heron", "eagle", "hawk", "owl", "parrot",
+				"pigeon", "crow", "sparrow", "peacock", "rooster", "hen", "chicken",
+				# Plants/Nature
+				"plant", "flower", "tree", "forest", "grass", "leaf", "nature",
+				"garden", "jungle", "bush", "shrub", "moss", "fern", "bloom",
+				"petal", "blossom", "vine", "pond", "lake", "river", "stream",
+				"mountain", "trail", "meadow", "field", "park", "botanical",
+				# Behavior hints
+				"mud", "puddling", "perched", "flying", "nest", "feeding",
+				"grazing", "swimming", "basking",
 			}
 			has_bio_hint = not bio_keywords.isdisjoint(tokens)
 
-			# Bird keywords - be more strict to avoid false positives
-			# Only trigger bird model if detected_objects explicitly contains bird-related terms
-			detected_objects_text = str(row.get("detected_objects", "")).lower()
-			detected_tokens = set(re.findall(r"\w+", detected_objects_text))
-			bird_keywords = {"bird", "sparrow", "eagle", "owl", "duck", "peacock", "kingfisher", "crow",
-							 "pigeon", "parrot", "heron", "swan", "vulture", "hawk"}
-			# Only use bird model if detected_objects has bird hints (not just captions which can hallucinate)
-			has_bird_hint = not bird_keywords.isdisjoint(detected_tokens)
+			# Bird keywords - check detected_objects AND caption/caption_ai for bird hints
+			bird_keywords = {
+				"bird", "sparrow", "eagle", "owl", "duck", "peacock", "kingfisher",
+				"crow", "pigeon", "parrot", "heron", "swan", "vulture", "hawk",
+				"robin", "woodpecker", "hornbill", "stork", "pelican", "flamingo",
+				"myna", "starling", "drongo", "warbler", "sunbird", "bee-eater",
+				"barbet", "cuckoo", "koel", "bulbul", "cormorant", "egret",
+				"kite", "falcon", "pheasant", "goose", "tern", "gull",
+				"flycatcher", "wagtail", "shrike",
+			}
+			all_text = " ".join(
+				str(row.get(f, "")) for f in (
+					"detected_objects", "caption", "caption_ai",
+					"vision_caption", "vision_caption_qwen_7b", "vision_caption_llava_05b",
+				)
+			).lower()
+			all_tokens = set(re.findall(r"\w+", all_text))
+			has_bird_hint = not bird_keywords.isdisjoint(all_tokens)
 
 			if not os.path.exists(image_path):
 				log(f"Missing image: {image_path}", log_path)
@@ -334,7 +387,8 @@ def process_species(csv_path, trip_folder, log_path):
 				# --- Advanced pipeline: OWLv2 + BioCLIP 2 ---
 				try:
 					raw_image = Image.open(image_path).convert("RGB")
-					detections = detect_and_classify(raw_image)
+					ctx = " ".join(str(row.get(f, "")) for f in ("detected_objects", "caption_ai")).lower()
+					detections = detect_and_classify(raw_image, detected_objects=ctx)
 					if detections:
 						# Extract unique species names
 						species_names = []
@@ -414,15 +468,79 @@ def process_species(csv_path, trip_folder, log_path):
 		log(f"[INTERRUPTED] Species detection interrupted after {updated_count} images. Saving progress...", log_path)
 		if updated_rows:
 			write_csv_dict(csv_path, updated_rows, _get_fieldnames(updated_rows))
-		raise
-	finally:
-		# Free GPU memory from advanced models
 		if use_advanced:
 			try:
 				unload_grounding_dino()
 				unload_bioclip()
 			except Exception:
 				pass
+		raise
+
+	# --- Temporal context propagation (advanced pipeline only) ---
+	# After the main loop, images that were skipped due to no bio hints but lie
+	# within TEMPORAL_WINDOW of an image that got species boxes are re-processed
+	# through OWLv2.  This catches "transition" shots taken on the same nature
+	# walk that lacked obvious animal/plant keywords in their captions.
+	if use_advanced:
+		with_boxes_times = [
+			row_times[i]
+			for i, r in enumerate(updated_rows)
+			if (r.get("species_boxes") or "").strip() and row_times[i] is not None
+		]
+
+		if with_boxes_times:
+			propagation_count = 0
+			for i, row in enumerate(updated_rows):
+				# Only retry rows with no boxes (i.e. skipped or OWLv2 found nothing)
+				if (row.get("species_boxes") or "").strip():
+					continue
+				cur_dt = row_times[i]
+				if cur_dt is None:
+					continue
+				# Check if any neighbor with boxes is within the temporal window
+				is_neighbor = any(
+					abs((cur_dt - nb_dt).total_seconds()) <= TEMPORAL_WINDOW.total_seconds()
+					for nb_dt in with_boxes_times
+				)
+				if not is_neighbor:
+					continue
+				local_path = row.get("local_path", "")
+				image_path = os.path.join(trip_folder, local_path)
+				if not os.path.exists(image_path):
+					continue
+				# Run OWLv2 + BioCLIP on this temporally-adjacent image
+				try:
+					raw_image = Image.open(image_path).convert("RGB")
+					ctx = " ".join(str(row.get(f, "")) for f in ("detected_objects", "caption_ai")).lower()
+					detections = detect_and_classify(raw_image, detected_objects=ctx)
+					if detections:
+						species_names = []
+						seen_names = set()
+						for det in detections:
+							name = det.get("best_species", "")
+							if name and name.lower() not in seen_names:
+								species_names.append(name)
+								seen_names.add(name.lower())
+						row["species_tags"] = ", ".join(species_names[:5])
+						row["species_boxes"] = format_species_boxes(detections)
+						log(
+							f"{os.path.basename(image_path)} -> temporal propagation: "
+							f"{len(detections)} detections, species: {row['species_tags']}",
+							log_path,
+						)
+						propagation_count += 1
+				except Exception as e:
+					log(f"{os.path.basename(image_path)} -> temporal propagation failed ({e})", log_path)
+
+			if propagation_count:
+				log(f"Temporal propagation: {propagation_count} additional image(s) processed.", log_path)
+
+		# Free GPU memory from advanced models (after temporal propagation)
+		try:
+			unload_grounding_dino()
+			unload_bioclip()
+		except Exception:
+			pass
 
 	write_csv_dict(csv_path, updated_rows, _get_fieldnames(updated_rows))
 	log("Species detection complete.", log_path)

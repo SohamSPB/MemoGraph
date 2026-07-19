@@ -610,7 +610,49 @@ Resource logging
       - Timeline: day-grouped with sticky date headers
     - CNN face detection at 1024px catches faces that HOG misses.
 
-34. TODO: Future Optimizations
+34. Dual-Model Vision LLM Captioning (DONE - Feb 16, 2026)
+    - Split `vision_caption` into model-specific columns:
+        - `vision_caption_qwen_7b` — Qwen2.5-VL-7B-Instruct-AWQ (4-bit quantized)
+        - `vision_caption_llava_05b` — LLaVA OneVision 0.5B
+        - `vision_caption` — best available (7B preferred over 0.5B)
+    - Added `--model` CLI flag to `batch_vision_llm.py`:
+        - `both` (default): runs Qwen 7B first, unloads, then runs LLaVA 0.5B
+        - `auto`: uses `select_vlm_model()` to pick best single model based on VRAM
+        - `qwen-7b` / `llava-0.5b`: run a specific model only
+    - Model unloading between runs: `del model` + `torch.cuda.empty_cache()` frees VRAM
+      so both models can run sequentially even on GPUs that can't fit both simultaneously.
+    - Updated `build_blog_context.py` to include both model columns in JSON output.
+    - Updated `build_webapp.py` lightbox to show both model captions side-by-side
+      with labeled "QWEN 7B" and "LLAVA 0.5B" headers (CSS: `.vlm-model-block`).
+    - Falls back to single `vision_caption` display if model-specific columns are empty.
+    - `vision_llm_demo.py` now shows which CSV column would be populated for the model.
+
+    Benchmark Results (RTX 3060 12GB, 138 images across 3 trips):
+    ┌──────────────────────┬────────┬───────────────┬────────────────┬────────────┐
+    │ Trip                 │ Images │ Qwen 7B       │ LLaVA 0.5B     │ Total      │
+    ├──────────────────────┼────────┼───────────────┼────────────────┼────────────┤
+    │ 2025_Annapurna_Nepal │ 97     │ 21.2 min      │ 4.3 min        │ 25.5 min   │
+    │ Home                 │ 25     │ 5.8 min       │ 1.0 min        │ 6.8 min    │
+    │ Vengurla             │ 16     │ 3.3 min       │ 0.6 min        │ 3.9 min    │
+    │ TOTAL                │ 138    │ 30.2 min      │ 5.9 min        │ 36.1 min   │
+    └──────────────────────┴────────┴───────────────┴────────────────┴────────────┘
+
+    Per-image average: Qwen 7B ~13.1s, LLaVA 0.5B ~2.6s (Qwen is 5x slower).
+
+    Quality comparison (subjective observations from 138 images):
+    - Qwen 7B: More detailed, identifies specific species/objects, better spatial
+      descriptions, longer outputs (~100-200 words). Correctly identifies Nephila
+      spiders, architectural styles, mountain features.
+    - LLaVA 0.5B: More concise (~50-80 words), occasionally generic ("a serene scene"),
+      sometimes hallucinations on challenging images, but still useful for quick captions.
+    - Recommendation: Default is LLaVA 0.5B for speed (5x faster). Qwen 7B produces
+      clearly better descriptions but the time cost (~30 min vs ~6 min for 138 images)
+      is not worth it for routine pipeline runs. Use `--model qwen-7b` or `--model both`
+      when you specifically need richer descriptions or want to compare outputs.
+      The 7B model is not the default because the 0.5B model is adequate for most
+      use cases (webapp display, search indexing, blog context).
+
+35. TODO: Future Optimizations
     - Integrate batch processing into main pipeline (run_all.py)
     - Add pipeline parallelization (run CLIP batch while LLaVA processes)
     - Implement dynamic batch sizing based on available GPU memory

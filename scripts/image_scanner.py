@@ -73,6 +73,40 @@ def _convert_gps(coord, ref) -> float:
 		deg = -deg
 	return deg
 
+def get_camera_settings(exif_dict: dict) -> dict:
+	"""Extract camera exposure settings (shutter, aperture, ISO, focal length) from EXIF."""
+	result = {"shutter_speed": "", "aperture": "", "iso": "", "focal_length": ""}
+	try:
+		exif = exif_dict.get("Exif", {})
+
+		# Shutter speed (ExposureTime stored as rational e.g. (1, 200))
+		exp = exif.get(piexif.ExifIFD.ExposureTime)
+		if exp and exp[1]:
+			n, d = exp
+			if n < d:
+				result["shutter_speed"] = f"1/{round(d/n)}s"
+			else:
+				result["shutter_speed"] = f"{n/d:.1f}s"
+
+		# Aperture (FNumber stored as rational e.g. (28, 10) → f/2.8)
+		fn = exif.get(piexif.ExifIFD.FNumber)
+		if fn and fn[1]:
+			result["aperture"] = f"f/{fn[0]/fn[1]:.1f}"
+
+		# ISO (ISOSpeedRatings stored as int)
+		iso = exif.get(piexif.ExifIFD.ISOSpeedRatings)
+		if iso:
+			result["iso"] = f"ISO {iso}"
+
+		# Focal length (stored as rational e.g. (50, 1) → 50mm)
+		fl = exif.get(piexif.ExifIFD.FocalLength)
+		if fl and fl[1]:
+			result["focal_length"] = f"{round(fl[0]/fl[1])}mm"
+	except Exception:
+		pass
+	return result
+
+
 def get_gps(exif_dict: dict):
 	"""Extract GPS latitude and longitude from EXIF."""
 	try:
@@ -162,10 +196,12 @@ def scan_images(trip_folder: str) -> None:
 
 		if not exif_dict or "Exif" not in exif_dict or piexif.ExifIFD.DateTimeOriginal not in exif_dict["Exif"]:
 			datetime_original, device_model, gps_lat, gps_lon = extract_exif_fallback(full_path)
+			cam = {"shutter_speed": "", "aperture": "", "iso": "", "focal_length": ""}
 		else:
 			datetime_original = get_datetime(exif_dict)
 			device_model = get_device_model(exif_dict)
 			gps_lat, gps_lon = get_gps(exif_dict)
+			cam = get_camera_settings(exif_dict)
 
 		# Build row by field order
 		default_map = {h: "" for h in CFG.CSV_HEADERS}
@@ -175,6 +211,10 @@ def scan_images(trip_folder: str) -> None:
 			"md5sum": md5sum,
 			"datetime_original": datetime_original,
 			"device_model": device_model,
+			"shutter_speed": cam["shutter_speed"],
+			"aperture": cam["aperture"],
+			"iso": cam["iso"],
+			"focal_length": cam["focal_length"],
 			"gps_lat": gps_lat if gps_lat is not None else "",
 			"gps_lon": gps_lon if gps_lon is not None else "",
 			"faces_detected": -1,

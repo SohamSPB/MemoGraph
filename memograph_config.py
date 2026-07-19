@@ -20,9 +20,11 @@ DATA_ROOT = os.path.join("data", "trips")
 # -----------------------------
 CSV_HEADERS = [
 	"image_name", "local_path", "md5sum", "datetime_original", "device_model",
+	"shutter_speed", "aperture", "iso", "focal_length",
 	"gps_lat", "gps_lon", "location_inferred", "day_number",
 	"detected_objects", "species_tags", "species_boxes", "faces_detected", "faces_count", "face_locations", "people_tags",
-	"caption", "caption_samples", "caption_ai", "vision_caption", "notes", "image_type", "color_palette",
+	"caption", "caption_samples", "caption_ai", "vision_caption", "vision_caption_llava_05b", "vision_caption_qwen_7b", "notes", "image_type", "color_palette",
+	"ocr_text",
 	"quality_score", "exposure_score", "color_balance_score",
 	"contrast_score", "sharpness_score", "noise_score", "quality_notes"
 ]
@@ -122,6 +124,73 @@ BATCH_SAVE_INTERVAL = 5
 # Enable Vision LLM (LLaVA) for detailed image descriptions
 ENABLE_VISION_LLM = True
 
+# Vision LLM Model Selection
+VLM_LLAVA_05B_ID = "llava-hf/llava-onevision-qwen2-0.5b-ov-hf"
+VLM_QWEN_7B_ID  = "Qwen/Qwen2.5-VL-7B-Instruct-AWQ"
+VLM_LLAVA_05B_DIR = os.path.join("models", "llava_onevision_qwen2_0.5b")
+VLM_QWEN_7B_DIR  = os.path.join("models", "qwen2.5_vl_7b_awq")
+VLM_VRAM_THRESHOLD_MB = 10240   # >= 10GB total → use 7B
+VLM_MODEL_OVERRIDE = "auto"     # "auto", "qwen-7b", or "llava-0.5b"
+VLM_MAX_NEW_TOKENS_QWEN = 512
+VLM_MAX_NEW_TOKENS_LLAVA = 256
+
+
+def get_gpu_total_memory_mb():
+	"""Total GPU VRAM in MB (0 if no GPU)."""
+	try:
+		import torch
+		if not torch.cuda.is_available():
+			return 0
+		return torch.cuda.get_device_properties(0).total_memory / (1024 * 1024)
+	except Exception:
+		return 0
+
+
+def select_vlm_model():
+	"""
+	Returns (model_id_or_path, model_type) where model_type is 'qwen-7b' or 'llava-0.5b'.
+
+	Selection logic:
+	1. If VLM_MODEL_OVERRIDE is set (not "auto"), honour it directly.
+	2. If auto: check total VRAM >= threshold → try qwen-7b (local dir first, then HF).
+	3. Fallback: llava-0.5b (local dir first, then HF).
+	4. Graceful: if Qwen2_5_VLForConditionalGeneration cannot be imported → fallback to 0.5b.
+	"""
+	override = VLM_MODEL_OVERRIDE
+
+	def _llava_path():
+		if os.path.isdir(VLM_LLAVA_05B_DIR) and os.path.exists(os.path.join(VLM_LLAVA_05B_DIR, "config.json")):
+			return VLM_LLAVA_05B_DIR
+		return VLM_LLAVA_05B_ID
+
+	def _qwen_path():
+		if os.path.isdir(VLM_QWEN_7B_DIR) and os.path.exists(os.path.join(VLM_QWEN_7B_DIR, "config.json")):
+			return VLM_QWEN_7B_DIR
+		return VLM_QWEN_7B_ID
+
+	# Explicit override
+	if override == "llava-0.5b":
+		return _llava_path(), "llava-0.5b"
+	if override == "qwen-7b":
+		# Check that Qwen class is importable before committing
+		try:
+			from transformers import Qwen2_5_VLForConditionalGeneration  # noqa: F401
+			return _qwen_path(), "qwen-7b"
+		except ImportError:
+			print("[VLM] Qwen2_5_VLForConditionalGeneration not available (upgrade transformers?). Falling back to LLaVA 0.5B.")
+			return _llava_path(), "llava-0.5b"
+
+	# Auto-select based on VRAM
+	total_vram = get_gpu_total_memory_mb()
+	if total_vram >= VLM_VRAM_THRESHOLD_MB:
+		try:
+			from transformers import Qwen2_5_VLForConditionalGeneration  # noqa: F401
+			return _qwen_path(), "qwen-7b"
+		except ImportError:
+			print("[VLM] Qwen2_5_VLForConditionalGeneration not available. Falling back to LLaVA 0.5B.")
+
+	return _llava_path(), "llava-0.5b"
+
 
 def get_gpu_memory_mb():
 	"""Get available GPU memory in MB. Returns 0 if no GPU or detection fails."""
@@ -207,7 +276,7 @@ BIOCLIP_MIN_CONFIDENCE = 0.15
 # When enabled, an additional step will try to recognise known people in
 # images that contain faces, using a gallery of face encodings built from
 # reference photos under models/faces/known/ (see build_face_gallery.py).
-ENABLE_FACE_RECOGNITION = False
+ENABLE_FACE_RECOGNITION = True
 FACE_GALLERY_PATH = os.path.join("models", "faces", "face_gallery.pkl")
 # Lower threshold = stricter matches (fewer, more confident).
 FACE_RECOGNITION_THRESHOLD = 0.6

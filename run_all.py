@@ -120,6 +120,7 @@ import scripts.batch_vision_llm as batch_vision_llm
 import scripts.similar_image_grouper as similar_image_grouper
 import scripts.bird_species_refiner as bird_species_refiner
 import scripts.build_search_index as build_search_index
+import scripts.ocr_extractor as ocr_extractor
 # import scripts.uploader_gcs  # optional
 
 def get_gpu_memory_usage():
@@ -322,6 +323,7 @@ def run_pipeline(trip_folder: str, parallel: bool, auto_yes: bool = False,
 		cpu_steps = {
 			"Image Quality": image_quality.evaluate_image_quality,
 			"Image Colors": image_colors.process_colors,
+			"OCR": ocr_extractor.extract_ocr,
 		}
 
 		for name, func in cpu_steps.items():
