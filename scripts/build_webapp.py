@@ -1899,9 +1899,32 @@ TEMPLATE = """<!DOCTYPE html>
           </div>`;
       }
 
-      // Vision caption section — break long blocks into readable paragraphs
+      // Vision caption section — show both models when available
       let visionHtml = '';
-      if (img.vision_caption) {
+      const hasQwen = img.vision_caption_qwen_7b && img.vision_caption_qwen_7b.trim();
+      const hasLlava = img.vision_caption_llava_05b && img.vision_caption_llava_05b.trim();
+      if (hasQwen || hasLlava) {
+        let modelsHtml = '';
+        if (hasQwen) {
+          modelsHtml += `
+            <div class="vlm-model-block">
+              <div class="vlm-model-label">Qwen 7B</div>
+              <div class="meta-value">${formatVisionCaption(img.vision_caption_qwen_7b)}</div>
+            </div>`;
+        }
+        if (hasLlava) {
+          modelsHtml += `
+            <div class="vlm-model-block">
+              <div class="vlm-model-label">LLaVA 0.5B</div>
+              <div class="meta-value">${formatVisionCaption(img.vision_caption_llava_05b)}</div>
+            </div>`;
+        }
+        visionHtml = `
+          <div class="meta-section">
+            <div class="meta-section-title">&#x1F916; AI Vision Analysis</div>
+            ${modelsHtml}
+          </div>`;
+      } else if (img.vision_caption) {
         visionHtml = `
           <div class="meta-section">
             <div class="meta-section-title">&#x1F916; AI Vision Analysis</div>

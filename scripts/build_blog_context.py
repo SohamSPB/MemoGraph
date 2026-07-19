@@ -526,6 +526,8 @@ def _build_day_context(
                 "caption": r.get("caption"),
                 "caption_ai": r.get("caption_ai"),
                 "vision_caption": r.get("vision_caption"),  # Detailed AI description from Vision LLM
+                "vision_caption_qwen_7b": r.get("vision_caption_qwen_7b"),
+                "vision_caption_llava_05b": r.get("vision_caption_llava_05b"),
                 "species_tags": img_species,
                 "species_boxes": r.get("species_boxes", ""),
                 "detected_objects": detected,
