@@ -18,15 +18,32 @@ DATA_ROOT = os.path.join("data", "trips")
 # -----------------------------
 # CSV Configuration
 # -----------------------------
+# `duplicate_of` is set by image_scanner when two rows share an md5sum: the row
+# whose local_path sorts first is the canonical (duplicate_of=""), and the
+# others carry duplicate_of=<canonical image_name>. Analysis scripts skip rows
+# with a non-empty duplicate_of, and scripts/dedup_broadcast.py copies the
+# canonical's analysis columns to its duplicates at the end of the pipeline.
 CSV_HEADERS = [
-	"image_name", "local_path", "md5sum", "datetime_original", "device_model",
-	"shutter_speed", "aperture", "iso", "focal_length",
+	"image_name", "local_path", "md5sum", "duplicate_of",
+	"datetime_original", "device_model",
 	"gps_lat", "gps_lon", "location_inferred", "day_number",
 	"detected_objects", "species_tags", "species_boxes", "faces_detected", "faces_count", "face_locations", "people_tags",
-	"caption", "caption_samples", "caption_ai", "vision_caption", "vision_caption_llava_05b", "vision_caption_qwen_7b", "notes", "image_type", "color_palette",
-	"ocr_text",
+	"caption", "caption_samples", "caption_ai", "vision_caption", "notes", "image_type", "color_palette",
 	"quality_score", "exposure_score", "color_balance_score",
 	"contrast_score", "sharpness_score", "noise_score", "quality_notes"
+]
+
+# Columns that analysis steps populate and dedup_broadcast copies between
+# md5-siblings. Everything that's a pure function of the image bytes belongs
+# here. EXIF-derived columns (datetime, device, gps) are not in this list —
+# they're already populated by image_scanner for every row directly.
+ANALYSIS_COLUMNS = [
+	"detected_objects", "species_tags", "species_boxes",
+	"faces_detected", "faces_count", "face_locations", "people_tags",
+	"caption", "caption_samples", "caption_ai", "vision_caption",
+	"notes", "image_type", "color_palette",
+	"quality_score", "exposure_score", "color_balance_score",
+	"contrast_score", "sharpness_score", "noise_score", "quality_notes",
 ]
 
 # -----------------------------
@@ -124,73 +141,6 @@ BATCH_SAVE_INTERVAL = 5
 # Enable Vision LLM (LLaVA) for detailed image descriptions
 ENABLE_VISION_LLM = True
 
-# Vision LLM Model Selection
-VLM_LLAVA_05B_ID = "llava-hf/llava-onevision-qwen2-0.5b-ov-hf"
-VLM_QWEN_7B_ID  = "Qwen/Qwen2.5-VL-7B-Instruct-AWQ"
-VLM_LLAVA_05B_DIR = os.path.join("models", "llava_onevision_qwen2_0.5b")
-VLM_QWEN_7B_DIR  = os.path.join("models", "qwen2.5_vl_7b_awq")
-VLM_VRAM_THRESHOLD_MB = 10240   # >= 10GB total → use 7B
-VLM_MODEL_OVERRIDE = "auto"     # "auto", "qwen-7b", or "llava-0.5b"
-VLM_MAX_NEW_TOKENS_QWEN = 512
-VLM_MAX_NEW_TOKENS_LLAVA = 256
-
-
-def get_gpu_total_memory_mb():
-	"""Total GPU VRAM in MB (0 if no GPU)."""
-	try:
-		import torch
-		if not torch.cuda.is_available():
-			return 0
-		return torch.cuda.get_device_properties(0).total_memory / (1024 * 1024)
-	except Exception:
-		return 0
-
-
-def select_vlm_model():
-	"""
-	Returns (model_id_or_path, model_type) where model_type is 'qwen-7b' or 'llava-0.5b'.
-
-	Selection logic:
-	1. If VLM_MODEL_OVERRIDE is set (not "auto"), honour it directly.
-	2. If auto: check total VRAM >= threshold → try qwen-7b (local dir first, then HF).
-	3. Fallback: llava-0.5b (local dir first, then HF).
-	4. Graceful: if Qwen2_5_VLForConditionalGeneration cannot be imported → fallback to 0.5b.
-	"""
-	override = VLM_MODEL_OVERRIDE
-
-	def _llava_path():
-		if os.path.isdir(VLM_LLAVA_05B_DIR) and os.path.exists(os.path.join(VLM_LLAVA_05B_DIR, "config.json")):
-			return VLM_LLAVA_05B_DIR
-		return VLM_LLAVA_05B_ID
-
-	def _qwen_path():
-		if os.path.isdir(VLM_QWEN_7B_DIR) and os.path.exists(os.path.join(VLM_QWEN_7B_DIR, "config.json")):
-			return VLM_QWEN_7B_DIR
-		return VLM_QWEN_7B_ID
-
-	# Explicit override
-	if override == "llava-0.5b":
-		return _llava_path(), "llava-0.5b"
-	if override == "qwen-7b":
-		# Check that Qwen class is importable before committing
-		try:
-			from transformers import Qwen2_5_VLForConditionalGeneration  # noqa: F401
-			return _qwen_path(), "qwen-7b"
-		except ImportError:
-			print("[VLM] Qwen2_5_VLForConditionalGeneration not available (upgrade transformers?). Falling back to LLaVA 0.5B.")
-			return _llava_path(), "llava-0.5b"
-
-	# Auto-select based on VRAM
-	total_vram = get_gpu_total_memory_mb()
-	if total_vram >= VLM_VRAM_THRESHOLD_MB:
-		try:
-			from transformers import Qwen2_5_VLForConditionalGeneration  # noqa: F401
-			return _qwen_path(), "qwen-7b"
-		except ImportError:
-			print("[VLM] Qwen2_5_VLForConditionalGeneration not available. Falling back to LLaVA 0.5B.")
-
-	return _llava_path(), "llava-0.5b"
-
 
 def get_gpu_memory_mb():
 	"""Get available GPU memory in MB. Returns 0 if no GPU or detection fails."""
@@ -276,7 +226,7 @@ BIOCLIP_MIN_CONFIDENCE = 0.15
 # When enabled, an additional step will try to recognise known people in
 # images that contain faces, using a gallery of face encodings built from
 # reference photos under models/faces/known/ (see build_face_gallery.py).
-ENABLE_FACE_RECOGNITION = True
+ENABLE_FACE_RECOGNITION = False
 FACE_GALLERY_PATH = os.path.join("models", "faces", "face_gallery.pkl")
 # Lower threshold = stricter matches (fewer, more confident).
 FACE_RECOGNITION_THRESHOLD = 0.6
@@ -285,12 +235,41 @@ FACE_RECOGNITION_THRESHOLD = 0.6
 # Pipeline Timing Estimates
 # -----------------------------
 # Approximate seconds per image for each pipeline step (used for pre-flight estimates).
+# The vision_llm value is filled in dynamically based on the detected GPU below —
+# LLaVA varies from ~3s/image on RTX 3060-class GPUs to ~40s/image on GTX 1650 /
+# CPU fallback, which would otherwise make ETAs wrong by 10-20x.
 STEP_TIMING_PER_IMAGE = {
     "scan": 0.05, "days": 0.01, "location": 0.02,
     "faces": 0.30, "labels": 0.40, "captions": 0.15,
     "ai_captions": 0.20, "species": 0.15, "image_type": 0.10,
-    "vision_llm": 2.0, "quality": 0.05, "colors": 0.05,
+    "vision_llm": 5.0,  # placeholder, overwritten by _calibrate_vision_llm_timing()
+    "quality": 0.05, "colors": 0.05,
     "similar_grouping": 0.20, "bird_refiner": 0.10,
 }
 # Fixed-time steps (seconds, independent of image count).
 STEP_FIXED_TIME = {"blog_map_webapp": 5, "search_index": 1}
+
+
+def _calibrate_vision_llm_timing():
+    """Estimate LLaVA per-image inference time based on the available GPU.
+
+    Calibration points from working.txt and the README benchmarks:
+      - CPU fallback / <4GB VRAM (GTX 1650-class): ~40s per image
+      - 4-8GB VRAM mid-range: ~10s per image
+      - 8GB+ VRAM (RTX 3060 12GB ran the full 138-image trip at 0.29 img/s
+        across CLIP+BLIP+LLaVA combined, so LLaVA alone is ~3s/image).
+
+    Without this calibration the static 2.0s default made GTX 1650 ETAs
+    understate by 20x. Called once at import time so the dict above carries
+    the right value before pipeline_preflight reads it.
+    """
+    gpu_mb = get_gpu_memory_mb()
+    if gpu_mb < 4000:
+        STEP_TIMING_PER_IMAGE["vision_llm"] = 40.0
+    elif gpu_mb < 8000:
+        STEP_TIMING_PER_IMAGE["vision_llm"] = 10.0
+    else:
+        STEP_TIMING_PER_IMAGE["vision_llm"] = 3.0
+
+
+_calibrate_vision_llm_timing()

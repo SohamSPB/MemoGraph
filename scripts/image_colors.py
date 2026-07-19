@@ -37,6 +37,10 @@ def process_colors(trip_folder: str):
 			r["color_palette"] = ""
 
 	for i, row in enumerate(rows, 1):
+		# Content duplicate: color palette is byte-deterministic; duplicates
+		# inherit it from the canonical via dedup_broadcast.py.
+		if (row.get("duplicate_of") or "").strip():
+			continue
 		if row.get("color_palette"):
 			continue
 

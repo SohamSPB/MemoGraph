@@ -105,8 +105,6 @@ TEMPLATE = """<!DOCTYPE html>
       font-size: 0.9rem;
       font-weight: 500;
       transition: all 0.2s ease;
-      position: relative;
-      overflow: hidden;
     }
     .back-btn:hover {
       background: var(--card-hover);
@@ -290,8 +288,6 @@ TEMPLATE = """<!DOCTYPE html>
       font-size: 0.85rem;
       text-align: left;
       font-weight: 500;
-      position: relative;
-      overflow: hidden;
     }
     .chip:hover {
       background: rgba(148, 163, 184, 0.15);
@@ -314,38 +310,6 @@ TEMPLATE = """<!DOCTYPE html>
     .main::-webkit-scrollbar { width: 8px; }
     .main::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
 
-    @keyframes cardFadeIn {
-      from { opacity: 0; transform: translateY(16px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    /* Material Design ripple */
-    @keyframes rippleEffect {
-      0% { transform: scale(0); opacity: 0.4; }
-      100% { transform: scale(4); opacity: 0; }
-    }
-    .ripple-host { position: relative; overflow: hidden; }
-    .ripple-host .ripple-wave {
-      position: absolute;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0) 70%);
-      transform: scale(0);
-      animation: rippleEffect 0.6s ease-out forwards;
-      pointer-events: none;
-      z-index: 1;
-    }
-    /* Shared element transition overlay */
-    .shared-element-overlay {
-      position: fixed;
-      z-index: 5000;
-      pointer-events: none;
-      will-change: transform, width, height, top, left;
-      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-      overflow: hidden;
-      border-radius: 16px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-    }
-    .shared-element-overlay.animating { border-radius: 0; }
-    .shared-element-overlay img { width: 100%; height: 100%; object-fit: cover; }
     .gallery {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -364,7 +328,6 @@ TEMPLATE = """<!DOCTYPE html>
                   box-shadow 0.25s ease;
       transform: translateZ(0);
       backface-visibility: hidden;
-      animation: cardFadeIn 0.35s ease both;
     }
     .card:hover {
       transform: translateY(-6px) translateZ(0);
@@ -473,8 +436,6 @@ TEMPLATE = """<!DOCTYPE html>
       align-items: center;
       justify-content: center;
       transition: all 0.2s ease;
-      position: relative;
-      overflow: hidden;
     }
     .view-btn:hover { color: var(--text-secondary); background: rgba(148,163,184,0.1); }
     .view-btn.active { color: var(--accent); background: rgba(6,182,212,0.15); }
@@ -806,6 +767,49 @@ TEMPLATE = """<!DOCTYPE html>
     .bbox-toggle:hover { background: rgba(244, 114, 182, 0.6); }
     .bbox-toggle.active { background: rgba(244, 114, 182, 0.5); border-color: var(--accent-tertiary); }
 
+    .lightbox-counter {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      z-index: 10;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #fff;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      font-variant-numeric: tabular-nums;
+      pointer-events: none;
+    }
+
+    /* Toast (replaces alert()) */
+    .toast {
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--card);
+      border: 1px solid var(--accent);
+      color: var(--text);
+      padding: 12px 24px;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 200ms ease, transform 200ms ease;
+      z-index: 4000;
+      font-size: 0.85rem;
+      font-weight: 500;
+      max-width: 90vw;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
     .lightbox-panel {
       display: flex;
       flex-direction: column;
@@ -912,17 +916,6 @@ TEMPLATE = """<!DOCTYPE html>
     .meta-value.highlight { color: var(--accent); }
     .meta-value.muted { color: var(--muted); font-style: italic; }
 
-    .vlm-model-block { margin-bottom: 10px; }
-    .vlm-model-block:last-child { margin-bottom: 0; }
-    .vlm-model-label {
-      font-size: 0.7rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: var(--accent);
-      margin-bottom: 3px;
-    }
-
     .meta-tags {
       display: flex;
       flex-wrap: wrap;
@@ -938,6 +931,20 @@ TEMPLATE = """<!DOCTYPE html>
     }
     .meta-tag.species { color: var(--success); border-color: rgba(16, 185, 129, 0.3); }
     .meta-tag.faces { color: var(--accent-tertiary); border-color: rgba(244, 114, 182, 0.3); }
+    .meta-tag.clickable {
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    }
+    .meta-tag.clickable:hover {
+      background: var(--accent);
+      color: var(--bg);
+      border-color: var(--accent);
+    }
+    .meta-tag.clickable.species:hover {
+      background: var(--success);
+      color: var(--bg);
+      border-color: var(--success);
+    }
 
     .quality-meters {
       display: flex;
@@ -977,7 +984,6 @@ TEMPLATE = """<!DOCTYPE html>
     }
 
     .lightbox-actions {
-      margin-top: 20px;
       display: flex;
       gap: 12px;
     }
@@ -1006,7 +1012,7 @@ TEMPLATE = """<!DOCTYPE html>
     .lightbox-map {
       height: 160px;
       width: 100%;
-      margin-top: 20px;
+      margin-bottom: 14px;
       border-radius: 12px;
       overflow: hidden;
       border: 1px solid var(--card-border);
@@ -1181,9 +1187,10 @@ TEMPLATE = """<!DOCTYPE html>
     <div class="lightbox-shell">
       <div class="lightbox-content">
         <div class="lightbox-img-wrap">
+          <div class="lightbox-counter" id="lightboxCounter"></div>
           <button class="lightbox-close" id="lightboxClose">&#x2715; Close</button>
           <button class="nav-btn prev" id="navPrev">&#x25C0;</button>
-          <img id="lightboxImage" src="">
+          <img id="lightboxImage" src="" alt="">
           <div class="detection-overlay" id="detectionOverlay"></div>
           <button class="bbox-toggle" id="bboxToggle">Show Boxes</button>
           <button class="nav-btn next" id="navNext">&#x25B6;</button>
@@ -1193,6 +1200,7 @@ TEMPLATE = """<!DOCTYPE html>
             <!-- Content populated by JavaScript -->
           </div>
           <div class="lightbox-footer">
+            <div id="lightboxMap" class="lightbox-map"></div>
             <div class="lightbox-actions">
               <button id="openOriginalBtn">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
@@ -1203,7 +1211,6 @@ TEMPLATE = """<!DOCTYPE html>
                 Copy Info
               </button>
             </div>
-            <div id="lightboxMap" class="lightbox-map"></div>
           </div>
         </div>
       </div>
@@ -1268,6 +1275,107 @@ TEMPLATE = """<!DOCTYPE html>
       return img.caption_ai || img.caption || "Untitled";
     }
 
+    // HTML escape for any string interpolated into innerHTML.
+    // Model outputs (BLIP/LLaVA/BioCLIP) and filenames can contain <, &, ", etc.
+    function esc(s) {
+      if (s === null || s === undefined) return '';
+      return String(s).replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[c]));
+    }
+
+    // Toast: ephemeral notification that replaces alert() for non-blocking feedback.
+    let _toastTimer;
+    function showToast(message) {
+      let toast = document.getElementById('mgToast');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'mgToast';
+        toast.className = 'toast';
+        document.body.appendChild(toast);
+      }
+      toast.textContent = message;
+      // Force reflow so the transition replays if toast is already showing
+      void toast.offsetWidth;
+      toast.classList.add('show');
+      clearTimeout(_toastTimer);
+      _toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
+    }
+
+    // Format a long vision_caption into readable paragraphs by breaking at sentence ends.
+    function formatVisionCaption(text) {
+      if (!text) return '';
+      // Insert paragraph break after ". " when followed by a capital letter.
+      return esc(text).replace(/\.\s+(?=[A-Z])/g, '.<br><br>');
+    }
+
+    // Build a plain-text dump of every relevant metadata field for Copy Info.
+    function buildCopyText(img) {
+      const lines = [];
+      lines.push(`Photo: ${img.image_name || 'Unknown'}`);
+      lines.push(`Caption: ${getSmartTitle(img)}`);
+      if (img.location_full || img.location_short) lines.push(`Location: ${img.location_full || img.location_short}`);
+      if (img.gps_lat && img.gps_lon) lines.push(`GPS: ${img.gps_lat.toFixed(5)}, ${img.gps_lon.toFixed(5)}`);
+      if (img.day_number) lines.push(`Trip Day: ${img.day_number}`);
+      if (img.time) lines.push(`Captured: ${img.time}`);
+      if (img.device_model) lines.push(`Device: ${img.device_model}`);
+      if (img.image_type) lines.push(`Type: ${img.image_type}`);
+      if (img.detected_objects && img.detected_objects.length) {
+        lines.push(`Objects: ${img.detected_objects.join(', ')}`);
+      }
+      if (img.species_tags && img.species_tags.length) {
+        lines.push(`Species: ${img.species_tags.join(', ')}`);
+      }
+      if (Number(img.faces_count) > 0) {
+        lines.push(`Faces: ${img.faces_count}`);
+      }
+      if (img.quality_score !== null && img.quality_score !== undefined) {
+        lines.push(`Quality: ${Math.round(img.quality_score * 100)}%`);
+      }
+      if (img.vision_caption) {
+        lines.push('');
+        lines.push('AI Vision:');
+        lines.push(img.vision_caption);
+      }
+      return lines.join('\\n');
+    }
+
+    // Position the detection overlay over the actual displayed image area
+    // (not the wrap), so bounding boxes track correctly when object-fit:contain
+    // letterboxes the image. Called on image load and on window resize.
+    function positionDetectionOverlay() {
+      const img = lightboxImg;
+      const overlay = document.getElementById('detectionOverlay');
+      if (!img || !overlay) return;
+      const wrap = img.parentElement;
+      if (!wrap || !img.naturalWidth || !img.naturalHeight) return;
+
+      const wrapW = wrap.clientWidth;
+      const wrapH = wrap.clientHeight;
+      if (!wrapW || !wrapH) return;
+
+      const imgAR = img.naturalWidth / img.naturalHeight;
+      const wrapAR = wrapW / wrapH;
+
+      let displayedW, displayedH;
+      if (imgAR > wrapAR) {
+        displayedW = wrapW;
+        displayedH = wrapW / imgAR;
+      } else {
+        displayedH = wrapH;
+        displayedW = wrapH * imgAR;
+      }
+      const offsetX = (wrapW - displayedW) / 2;
+      const offsetY = (wrapH - displayedH) / 2;
+
+      overlay.style.left = offsetX + 'px';
+      overlay.style.top = offsetY + 'px';
+      overlay.style.width = displayedW + 'px';
+      overlay.style.height = displayedH + 'px';
+      overlay.style.right = 'auto';
+      overlay.style.bottom = 'auto';
+    }
+
     let activeChips = new Set();
     let map, lightboxMap;
     let markers = [], lightboxMarker;
@@ -1310,9 +1418,49 @@ TEMPLATE = """<!DOCTYPE html>
     };
 
     document.getElementById('copyMetaBtn').onclick = () => {
-      const text = Array.from(lightboxMeta.querySelectorAll('li')).map(li => li.innerText).join('\\n');
-      navigator.clipboard.writeText(text).then(() => alert('Photo info copied to clipboard!'));
+      const img = filteredImages[currentLightboxIndex];
+      if (!img) return;
+      const text = buildCopyText(img);
+      navigator.clipboard.writeText(text)
+        .then(() => showToast('Photo info copied to clipboard'))
+        .catch(() => showToast('Copy failed (clipboard blocked)'));
     };
+
+    // Click outside the image/panel closes the lightbox.
+    // We listen on the lightbox backdrop and on the shell container;
+    // clicks inside .lightbox-content are ignored (so panel interactions
+    // and image-wrap clicks don't close it).
+    lightbox.addEventListener('click', (e) => {
+      if (e.target === lightbox || e.target.classList.contains('lightbox-shell')) {
+        lightbox.classList.remove('show');
+      }
+    });
+
+    // Re-position the detection overlay when the viewport resizes
+    // (only matters while the lightbox is open).
+    window.addEventListener('resize', () => {
+      if (lightbox.classList.contains('show')) positionDetectionOverlay();
+    });
+
+    // Reposition the overlay once the image has loaded (we need its
+    // naturalWidth/naturalHeight to compute the displayed rect).
+    lightboxImg.addEventListener('load', () => {
+      positionDetectionOverlay();
+    });
+
+    // Clickable meta-tags inside the lightbox: clicking a tag activates
+    // it as a gallery filter chip and closes the viewer so the user can
+    // see the filtered results.
+    lightboxMeta.addEventListener('click', (e) => {
+      const tag = e.target.closest('.meta-tag.clickable');
+      if (!tag || !tag.dataset.filter) return;
+      e.stopPropagation();
+      const value = tag.dataset.filter;
+      activeChips.add(value);
+      lightbox.classList.remove('show');
+      renderFilters();
+      renderGallery();
+    });
 
     // Bounding box toggle
     document.getElementById('bboxToggle').onclick = (e) => {
@@ -1499,14 +1647,14 @@ TEMPLATE = """<!DOCTYPE html>
         }
         card.querySelector('.card-content').appendChild(extra);
       }
-      card.onclick = (e) => showLightboxAnimated(idx, card, e);
+      card.onclick = () => showLightbox(idx);
       return card;
     }
 
     function renderGallery() {
       const term = searchInput.value.toLowerCase();
       filteredImages = images.filter(img => {
-        const text = [img.caption, img.caption_ai, img.location_short, ...(img.detected_objects||[]), ...(img.species_tags||[]), ...(img.ocr_text||[])].join(' ').toLowerCase();
+        const text = [img.caption, img.caption_ai, img.location_short, ...(img.detected_objects||[]), ...(img.species_tags||[])].join(' ').toLowerCase();
         if (term && !text.includes(term)) return false;
         if (activeChips.size) {
           const imgTags = new Set([...(img.detected_objects||[]), ...(img.species_tags||[])].map(s=>s.toLowerCase()));
@@ -1621,7 +1769,7 @@ TEMPLATE = """<!DOCTYPE html>
           box.style.top = top + '%';
           box.style.width = (right - left) + '%';
           box.style.height = (bottom - top) + '%';
-          box.innerHTML = `<span class="detection-label">${speciesName}</span>`;
+          box.innerHTML = `<span class="detection-label">${esc(speciesName)}</span>`;
           overlay.appendChild(box);
           hasBoxes = true;
         });
@@ -1650,6 +1798,13 @@ TEMPLATE = """<!DOCTYPE html>
       const img = filteredImages[idx];
       const src = TRIP_BASE + (img.local_path || img.image_name);
       lightboxImg.src = src;
+      lightboxImg.alt = getSmartTitle(img);
+
+      // "Photo N / M" indicator in the top-left of the image wrap.
+      const counterEl = document.getElementById('lightboxCounter');
+      if (counterEl) {
+        counterEl.textContent = `${idx + 1} / ${filteredImages.length}`;
+      }
 
       // Helper for quality meter
       function qualityMeter(label, value) {
@@ -1660,10 +1815,22 @@ TEMPLATE = """<!DOCTYPE html>
         else if (pct < 60) cls = 'medium';
         return `
           <div class="quality-meter">
-            <span class="quality-meter-label">${label}</span>
+            <span class="quality-meter-label">${esc(label)}</span>
             <div class="quality-meter-bar"><div class="quality-meter-fill ${cls}" style="width:${pct}%"></div></div>
             <span class="quality-meter-value">${pct}%</span>
           </div>`;
+      }
+
+      // Helper: render a tag chip with optional click-to-filter wiring.
+      function tagChip(text, extraClass) {
+        const lower = String(text || '').toLowerCase();
+        const isFilterable = chipSet.has(lower);
+        const classes = ['meta-tag'];
+        if (extraClass) classes.push(extraClass);
+        if (isFilterable) classes.push('clickable');
+        const dataAttr = isFilterable ? ` data-filter="${esc(lower)}"` : '';
+        const title = isFilterable ? ` title="Click to filter by ${esc(text)}"` : '';
+        return `<span class="${classes.join(' ')}"${dataAttr}${title}>${esc(text)}</span>`;
       }
 
       // Face detection text
@@ -1672,29 +1839,37 @@ TEMPLATE = """<!DOCTYPE html>
         facesHtml = '<span class="meta-value muted">Scan pending</span>';
       } else if (Number(img.faces_count) > 0) {
         const fc = Number(img.faces_count);
-        let names = img.face_names && img.face_names.length ? img.face_names.join(', ') : '';
+        const names = img.face_names && img.face_names.length ? img.face_names.join(', ') : '';
         facesHtml = `<span class="meta-tag faces">${fc} face${fc > 1 ? 's' : ''}</span>`;
-        if (names) facesHtml += ` <span class="meta-value">${names}</span>`;
+        if (names) facesHtml += ` <span class="meta-value">${esc(names)}</span>`;
       } else if (hasPersonTag(img)) {
-        facesHtml = '<span class="meta-value" style="color:var(--accent);">Person detected (no visible face)</span>';
+        // Tell the user *which* tags triggered the fallback so the inference is auditable.
+        const tags = [...(img.detected_objects||[]), ...(img.species_tags||[])]
+          .filter(t => PERSON_TAGS.some(pt => String(t).toLowerCase().includes(pt)));
+        const hint = tags.length ? ` (from tags: ${esc(tags.slice(0,3).join(', '))})` : '';
+        facesHtml = `<span class="meta-value" style="color:var(--accent);">Person detected (no visible face)${hint}</span>`;
       }
 
-      // Colors HTML
+      // Colors HTML — palette only, no model output, so no escaping needed
       let colorsHtml = '';
       if (img.color_palette && img.color_palette.length) {
-        colorsHtml = `<div class="lightbox-colors">${img.color_palette.map(c => `<div style="flex:1;background:${c};height:100%"></div>`).join('')}</div>`;
+        colorsHtml = `<div class="lightbox-colors">${img.color_palette.map(c => {
+          // Only allow valid hex colors to be inlined as CSS background.
+          const safe = /^#[0-9a-fA-F]{3,8}$/.test(c) ? c : 'transparent';
+          return `<div title="${esc(c)}" style="flex:1;background:${safe};height:100%"></div>`;
+        }).join('')}</div>`;
       }
 
       // Tags HTML
       let tagsHtml = '<span class="meta-value muted">None detected</span>';
       if (img.detected_objects && img.detected_objects.length) {
-        tagsHtml = `<div class="meta-tags">${img.detected_objects.map(t => `<span class="meta-tag">${t}</span>`).join('')}</div>`;
+        tagsHtml = `<div class="meta-tags">${img.detected_objects.map(t => tagChip(t)).join('')}</div>`;
       }
 
       // Species HTML
       let speciesHtml = '<span class="meta-value muted">None detected</span>';
       if (img.species_tags && img.species_tags.length) {
-        speciesHtml = `<div class="meta-tags">${img.species_tags.map(t => `<span class="meta-tag species">${t}</span>`).join('')}</div>`;
+        speciesHtml = `<div class="meta-tags">${img.species_tags.map(t => tagChip(t, 'species')).join('')}</div>`;
       }
 
       // GPS coordinates
@@ -1702,7 +1877,8 @@ TEMPLATE = """<!DOCTYPE html>
       let mapLink = '';
       if (img.gps_lat && img.gps_lon) {
         coordsHtml = `<span class="meta-value">${img.gps_lat.toFixed(5)}, ${img.gps_lon.toFixed(5)}</span>`;
-        mapLink = `<a href="https://maps.google.com/?q=${img.gps_lat},${img.gps_lon}" target="_blank">Open in Google Maps &#x2197;</a>`;
+        // gps_lat/lon are numbers from JSON.parse, so they're already safe to inline as a URL.
+        mapLink = `<a href="https://maps.google.com/?q=${img.gps_lat},${img.gps_lon}" target="_blank" rel="noopener">Open in Google Maps &#x2197;</a>`;
       }
 
       // Quality section
@@ -1719,48 +1895,25 @@ TEMPLATE = """<!DOCTYPE html>
               ${qualityMeter('Noise', img.noise_score)}
               ${qualityMeter('Color', img.color_balance_score)}
             </div>
-            ${img.quality_notes ? `<div style="margin-top:8px;font-size:0.75rem;color:var(--muted);">${img.quality_notes}</div>` : ''}
+            ${img.quality_notes ? `<div style="margin-top:8px;font-size:0.75rem;color:var(--muted);">${esc(img.quality_notes)}</div>` : ''}
           </div>`;
       }
 
-      // Vision caption section — show both models when available
+      // Vision caption section — break long blocks into readable paragraphs
       let visionHtml = '';
-      const hasQwen = img.vision_caption_qwen_7b && img.vision_caption_qwen_7b.trim();
-      const hasLlava = img.vision_caption_llava_05b && img.vision_caption_llava_05b.trim();
-      if (hasQwen || hasLlava) {
-        let modelsHtml = '';
-        if (hasQwen) {
-          modelsHtml += `
-            <div class="vlm-model-block">
-              <div class="vlm-model-label">Qwen 7B</div>
-              <div class="meta-value">${img.vision_caption_qwen_7b}</div>
-            </div>`;
-        }
-        if (hasLlava) {
-          modelsHtml += `
-            <div class="vlm-model-block">
-              <div class="vlm-model-label">LLaVA 0.5B</div>
-              <div class="meta-value">${img.vision_caption_llava_05b}</div>
-            </div>`;
-        }
+      if (img.vision_caption) {
         visionHtml = `
           <div class="meta-section">
             <div class="meta-section-title">&#x1F916; AI Vision Analysis</div>
-            ${modelsHtml}
-          </div>`;
-      } else if (img.vision_caption) {
-        visionHtml = `
-          <div class="meta-section">
-            <div class="meta-section-title">&#x1F916; AI Vision Analysis</div>
-            <div class="meta-value highlight">${img.vision_caption}</div>
+            <div class="meta-value highlight">${formatVisionCaption(img.vision_caption)}</div>
           </div>`;
       }
 
       // Build the full metadata panel
       lightboxMeta.innerHTML = `
         <div class="lightbox-header">
-          <div class="lightbox-filename">${img.image_name || 'Unknown'}</div>
-          <h2 class="lightbox-caption">${getSmartTitle(img)}</h2>
+          <div class="lightbox-filename">${esc(img.image_name || 'Unknown')}</div>
+          <h2 class="lightbox-caption">${esc(getSmartTitle(img))}</h2>
           ${colorsHtml}
         </div>
 
@@ -1769,7 +1922,7 @@ TEMPLATE = """<!DOCTYPE html>
           <div class="meta-grid">
             <div class="meta-item full-width">
               <span class="meta-label">Address</span>
-              <span class="meta-value">${img.location_full || img.location_short || "Unknown"}</span>
+              <span class="meta-value">${esc(img.location_full || img.location_short || "Unknown")}</span>
             </div>
             <div class="meta-item">
               <span class="meta-label">Coordinates</span>
@@ -1777,7 +1930,7 @@ TEMPLATE = """<!DOCTYPE html>
             </div>
             <div class="meta-item">
               <span class="meta-label">Trip Day</span>
-              <span class="meta-value">Day ${img.day_number || '?'}</span>
+              <span class="meta-value">Day ${esc(img.day_number || '?')}</span>
             </div>
           </div>
           ${mapLink ? `<div style="margin-top:8px;font-size:0.8rem;">${mapLink}</div>` : ''}
@@ -1788,23 +1941,19 @@ TEMPLATE = """<!DOCTYPE html>
           <div class="meta-grid">
             <div class="meta-item">
               <span class="meta-label">Device</span>
-              <span class="meta-value">${img.device_model || "Unknown"}</span>
+              <span class="meta-value">${esc(img.device_model || "Unknown")}</span>
             </div>
             <div class="meta-item">
               <span class="meta-label">Captured</span>
-              <span class="meta-value">${img.time || "Unknown"}</span>
+              <span class="meta-value">${esc(img.time || "Unknown")}</span>
             </div>
-            ${img.shutter_speed ? `<div class="meta-item"><span class="meta-label">Shutter</span><span class="meta-value">${img.shutter_speed}</span></div>` : ''}
-            ${img.aperture ? `<div class="meta-item"><span class="meta-label">Aperture</span><span class="meta-value">${img.aperture}</span></div>` : ''}
-            ${img.iso ? `<div class="meta-item"><span class="meta-label">ISO</span><span class="meta-value">${img.iso}</span></div>` : ''}
-            ${img.focal_length ? `<div class="meta-item"><span class="meta-label">Focal Length</span><span class="meta-value">${img.focal_length}</span></div>` : ''}
             <div class="meta-item">
               <span class="meta-label">Type</span>
-              <span class="meta-value">${img.image_type || "Unknown"}</span>
+              <span class="meta-value">${esc(img.image_type || "Unknown")}</span>
             </div>
             <div class="meta-item">
               <span class="meta-label">Path</span>
-              <span class="meta-value" style="font-size:0.7rem;font-family:monospace;">${img.local_path || img.image_name}</span>
+              <span class="meta-value" style="font-size:0.7rem;font-family:monospace;">${esc(img.local_path || img.image_name)}</span>
             </div>
           </div>
         </div>
@@ -1824,7 +1973,6 @@ TEMPLATE = """<!DOCTYPE html>
               <span class="meta-label">Faces</span>
               ${facesHtml}
             </div>
-            ${img.ocr_text && img.ocr_text.length ? `<div class="meta-item"><span class="meta-label">Text (OCR)</span><span class="meta-value" style="font-style:italic;font-size:0.82rem;">${img.ocr_text.join(' · ')}</span></div>` : ''}
           </div>
         </div>
 
@@ -1855,7 +2003,13 @@ TEMPLATE = """<!DOCTYPE html>
 
       lightbox.classList.add('show');
       renderDetectionBoxes(img);
-      setTimeout(() => { if(lightboxMap) lightboxMap.invalidateSize(); }, 300);
+      // Reposition overlay once layout is settled (covers the case where
+      // the image was already cached and didn't refire the 'load' event,
+      // and the case where the lightbox just transitioned from hidden).
+      setTimeout(() => {
+        if (lightboxMap) lightboxMap.invalidateSize();
+        positionDetectionOverlay();
+      }, 300);
       renderFilmstrip();
     }
 
@@ -1889,68 +2043,6 @@ TEMPLATE = """<!DOCTYPE html>
     searchInput.oninput = renderGallery;
     renderFilters();
     renderGallery();
-
-    // ===== MATERIAL DESIGN RIPPLE EFFECT =====
-    function createRipple(event) {
-      const el = event.currentTarget;
-      const rect = el.getBoundingClientRect();
-      const size = Math.max(rect.width, rect.height) * 2;
-      const x = event.clientX - rect.left - size / 2;
-      const y = event.clientY - rect.top - size / 2;
-      const ripple = document.createElement('span');
-      ripple.className = 'ripple-wave';
-      ripple.style.cssText = `width:${size}px;height:${size}px;left:${x}px;top:${y}px;`;
-      el.appendChild(ripple);
-      ripple.addEventListener('animationend', () => ripple.remove());
-    }
-    document.querySelectorAll('.back-btn, .view-btn, .chip, .lightbox-close, .nav-btn, .bbox-toggle, .lightbox-actions button, .clear-filters-btn').forEach(btn => {
-      btn.classList.add('ripple-host');
-      btn.addEventListener('click', createRipple);
-    });
-    // Delegation for dynamically created chips
-    document.addEventListener('click', (e) => {
-      const target = e.target.closest('.chip, .lightbox-actions button');
-      if (target && !target.classList.contains('ripple-host')) {
-        target.classList.add('ripple-host');
-        createRipple({ currentTarget: target, clientX: e.clientX, clientY: e.clientY });
-      }
-    });
-
-    // ===== SHARED ELEMENT TRANSITION (card → lightbox) =====
-    function showLightboxAnimated(idx, cardEl, clickEvent) {
-      const thumbEl = cardEl.querySelector('.thumb img');
-      if (!thumbEl) { showLightbox(idx); return; }
-
-      const rect = thumbEl.getBoundingClientRect();
-      const overlay = document.createElement('div');
-      overlay.className = 'shared-element-overlay';
-      overlay.style.cssText = `top:${rect.top}px;left:${rect.left}px;width:${rect.width}px;height:${rect.height}px;`;
-      const img = document.createElement('img');
-      img.src = thumbEl.src;
-      overlay.appendChild(img);
-      document.body.appendChild(overlay);
-
-      overlay.offsetHeight; // force reflow
-
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-      // Animate to roughly center of lightbox image area (left 60% minus meta panel)
-      const panelW = Math.min(400, vw * 0.35);
-      const targetW = Math.min((vw - panelW) * 0.8, vh * 0.8 * (rect.width / rect.height));
-      const targetH = targetW * (rect.height / rect.width);
-      const targetLeft = ((vw - panelW) - targetW) / 2;
-      const targetTop = (vh - targetH) / 2;
-
-      requestAnimationFrame(() => {
-        overlay.style.cssText = `top:${Math.max(0, targetTop)}px;left:${Math.max(0, targetLeft)}px;width:${Math.min(targetW, vw - panelW)}px;height:${Math.min(targetH, vh)}px;`;
-        overlay.classList.add('animating');
-      });
-
-      setTimeout(() => {
-        overlay.remove();
-        showLightbox(idx);
-      }, 420);
-    }
   </script>
 </body>
 </html>

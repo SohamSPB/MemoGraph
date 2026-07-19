@@ -120,8 +120,7 @@ import scripts.batch_vision_llm as batch_vision_llm
 import scripts.similar_image_grouper as similar_image_grouper
 import scripts.bird_species_refiner as bird_species_refiner
 import scripts.build_search_index as build_search_index
-import scripts.ocr_extractor as ocr_extractor
-# import scripts.uploader_gcs  # optional
+import scripts.dedup_broadcast as dedup_broadcast
 
 def get_gpu_memory_usage():
     """Returns the GPU memory usage in MB."""
@@ -134,12 +133,36 @@ def get_gpu_memory_usage():
         return 0.0
 
 def get_resource_usage(p):
-    """Gets the resource usage of a process and its children."""
-    cpu_percent = p.cpu_percent(interval=None)
+    """Sample CPU/RAM/GPU usage of the parent process and its descendants.
+
+    psutil's cpu_percent(interval=None) returns 0.0 on the FIRST call to any
+    given process object because it has no prior sample to compute a delta
+    against. ProcessPoolExecutor worker children are short-lived, so they
+    almost always hit this 0.0 case — the old implementation silently
+    undercounted child CPU usage, making resource_usage.csv unreliable.
+
+    Fix: prime each process with a no-op call (returns 0 but registers a
+    baseline timestamp inside psutil), wait briefly while the work continues,
+    then re-sample to get a real percentage. One short sleep covers all
+    processes, so the per-call overhead is constant rather than O(N children).
+    """
     ram_mb = p.memory_info().rss / (1024 * 1024)
-    
     children = p.children(recursive=True)
+
+    # Prime psutil so the second call returns a meaningful delta.
+    p.cpu_percent(interval=None)
+    primed: list = []
     for child in children:
+        try:
+            child.cpu_percent(interval=None)
+            primed.append(child)
+        except psutil.NoSuchProcess:
+            continue
+
+    time.sleep(0.2)
+
+    cpu_percent = p.cpu_percent(interval=None)
+    for child in primed:
         try:
             cpu_percent += child.cpu_percent(interval=None)
             ram_mb += child.memory_info().rss / (1024 * 1024)
@@ -159,8 +182,13 @@ def run_pipeline(trip_folder: str, parallel: bool, auto_yes: bool = False,
 	# Install graceful interrupt handler
 	signal.signal(signal.SIGINT, _interrupt_handler)
 
-	if parallel:
-		multiprocessing.set_start_method('spawn', force=True)
+	# Always use 'spawn' for multiprocessing, even in sequential top-level mode.
+	# face_detector and gpu_model_manager can spawn child processes internally
+	# (when FACE_DETECTION_PARALLEL_WORKERS > 1, batch GPU work, etc.), and on
+	# Linux the default 'fork' start method is unsafe with CUDA — the GPU
+	# context can't be inherited across fork(). force=True is safe to call
+	# repeatedly within the same process.
+	multiprocessing.set_start_method('spawn', force=True)
 
 	if not os.path.isdir(trip_folder):
 		print(f"Trip folder does not exist: {trip_folder}")
@@ -323,7 +351,6 @@ def run_pipeline(trip_folder: str, parallel: bool, auto_yes: bool = False,
 		cpu_steps = {
 			"Image Quality": image_quality.evaluate_image_quality,
 			"Image Colors": image_colors.process_colors,
-			"OCR": ocr_extractor.extract_ocr,
 		}
 
 		for name, func in cpu_steps.items():
@@ -385,6 +412,28 @@ def run_pipeline(trip_folder: str, parallel: bool, auto_yes: bool = False,
 			elapsed = time.time() - start_time
 			logger.error(f"Bird species refinement failed: {e}")
 			_record_step("Bird Refiner", "failed", elapsed)
+
+		# --- DEDUP BROADCAST ---
+		# Copy analysis columns from canonical rows (one per md5 group) to
+		# their md5-identical duplicates. Must run after every analysis step
+		# is done and before blog/map/webapp build, since those consume the
+		# analysis columns and would otherwise render duplicates as blank.
+		if _interrupted:
+			raise KeyboardInterrupt
+		_step_banner("Dedup Broadcast", "OUTPUT")
+		start_time = time.time()
+		logger.info("--- STEP 8: Broadcasting analysis to duplicate rows ---")
+		try:
+			dup_count = dedup_broadcast.broadcast_dedup(trip_folder)
+			elapsed = time.time() - start_time
+			logger.info(f"STEP 8 finished in {elapsed:.2f} seconds. Duplicates filled: {dup_count}")
+			_step_done("Dedup Broadcast", elapsed)
+			resource_data.append(("STEP 8 (dedup_broadcast)", *get_resource_usage(main_process)))
+			_record_step("Dedup Broadcast", "completed", elapsed, items_processed=dup_count)
+		except Exception as e:
+			elapsed = time.time() - start_time
+			logger.error(f"Dedup broadcast failed: {e}")
+			_record_step("Dedup Broadcast", "failed", elapsed)
 
 		# --- SEQUENTIAL POST-PROCESSING ---
 		if _interrupted:

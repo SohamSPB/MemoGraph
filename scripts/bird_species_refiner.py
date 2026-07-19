@@ -103,39 +103,59 @@ def detect_bird_species(image_path: str, model, preprocess, device, topk: int = 
         return []
 
 
+_ASTRO_RE = re.compile(
+    r"\b(astrophotography|galaxy|nebula|star\s+cluster|milky\s+way|stars?)\b"
+)
+_INSECT_RE = re.compile(
+    r"\b(butterflies|butterfly|mud-puddling|insect|moth|bee|dragonfly)\b"
+)
+_BIRD_RE = re.compile(
+    r"\b(bird|sparrow|eagle|owl|kingfisher|crow|pigeon|parrot|heron|duck|swan|"
+    r"vulture|hawk|bee-eater|bulbul|drongo|myna|flycatcher|sunbird)\b"
+)
+
+
 def is_bird_image(row: Dict) -> bool:
-    """Check if this image likely contains a bird (strict mode to avoid false positives)."""
+    """Decide whether this row is a plausible bird photo before running the refiner.
+
+    Strict mode: positive bird signal is required; astro and butterfly/insect photos
+    are rejected. Order matters here — bird signal is checked before the insect
+    filter because "bee-eater" naturally contains "bee", which the insect regex
+    would otherwise match.
+    """
     detected = str(row.get("detected_objects", "")).lower()
     species = str(row.get("species_tags", "")).lower()
     caption_ai = str(row.get("vision_caption", "")).lower()
     image_type = str(row.get("image_type", "")).lower()
 
-    # Skip non-natural photos
     if image_type in ("meme_or_graphic", "document_scan", "chart_or_plot", "screenshot"):
         return False
 
-    # Skip astrophotography (galaxy, stars, etc.)
-    astro_keywords = {"astrophotography", "galaxy", "nebula", "star cluster", "milky way", "stars"}
-    detected_tokens = set(re.findall(r"\w+", detected))
-    if not astro_keywords.isdisjoint(detected_tokens):
+    combined = " ".join([detected, species, caption_ai])
+
+    # Astro photos are never birds — reject immediately. The previous tokenized
+    # check (set.isdisjoint) silently failed on multi-word phrases like
+    # "milky way" and "star cluster", so it never fired.
+    if _ASTRO_RE.search(combined):
         return False
 
-    # Skip butterfly/insect images
-    insect_keywords = {"butterfly", "butterflies", "mud-puddling", "insect", "moth", "bee", "dragonfly"}
-    if not insect_keywords.isdisjoint(detected_tokens):
+    # Positive bird signal from CLIP labels or species tags is the strongest
+    # signal we have. Captions are noisier and BLIP/VLM hallucinations are
+    # common, so use them only as a corroborating fallback.
+    has_bird_signal = bool(_BIRD_RE.search(detected) or _BIRD_RE.search(species))
+
+    # Insect/butterfly filter must run AFTER the bird check, otherwise the regex
+    # \bbee\b would match inside "bee-eater" (since "-" is a word boundary in
+    # regex) and reject legitimate bee-eater photos.
+    if _INSECT_RE.search(combined) and not has_bird_signal:
         return False
 
-    # Now check for positive bird indicators
-    bird_keywords = {"bird", "sparrow", "eagle", "owl", "kingfisher", "crow", "pigeon",
-                     "parrot", "heron", "duck", "swan", "vulture", "hawk", "bee-eater",
-                     "bulbul", "drongo", "myna", "flycatcher", "sunbird"}
-
-    # Check detected objects for bird keywords
-    if not bird_keywords.isdisjoint(detected_tokens):
+    if has_bird_signal:
         return True
 
-    # Check AI caption for bird mentions (must explicitly mention bird)
-    if "bird" in caption_ai and ("perch" in caption_ai or "branch" in caption_ai or "tree" in caption_ai):
+    # Caption fallback: only when "bird" is mentioned with a perch/branch/tree
+    # context word, to filter out hallucinations that just include "bird".
+    if "bird" in caption_ai and any(k in caption_ai for k in ("perch", "branch", "tree")):
         return True
 
     return False
@@ -163,6 +183,10 @@ def refine_bird_species(trip_folder: str):
     updated_count = 0
 
     for row in rows:
+        # Content duplicate: any bird refinement applied to the canonical is
+        # broadcast to this row later via dedup_broadcast.py.
+        if (row.get("duplicate_of") or "").strip():
+            continue
         if not is_bird_image(row):
             continue
 

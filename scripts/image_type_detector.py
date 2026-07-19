@@ -110,6 +110,10 @@ def detect_image_types(trip_folder: str) -> None:
 
     updated = 0
     for idx, row in enumerate(rows, 1):
+        # Content duplicate: image_type is copied from the canonical by
+        # dedup_broadcast.py at the end of the pipeline.
+        if (row.get("duplicate_of") or "").strip():
+            continue
         # Skip if image_type is already set (idempotent behavior)
         if row.get("image_type"):
             continue

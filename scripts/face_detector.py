@@ -70,6 +70,11 @@ def _process_batch(batch_rows, trip_folder, batch_num, log_path, use_cnn_model=F
 	updated_rows = []
 	log(f"Processing batch {batch_num} with {len(batch_rows)} images...", log_path)
 	for i, row in enumerate(batch_rows, 1):
+		# Content duplicate: face detection result will be copied from the
+		# canonical row by dedup_broadcast.py, so don't run the model on it.
+		if (row.get("duplicate_of") or "").strip():
+			updated_rows.append(row)
+			continue
 		# Skip work if this row already has a faces_detected value so that
 		# re-running the script can cheaply resume incomplete work.
 		if _row_has_face(row):
@@ -204,8 +209,12 @@ def process_faces(trip_folder):
 				faces_in_batch = sum(1 for row in processed_batch if row.get("faces_detected") == 1)
 				log(f"Batch {i} completed. Found {faces_in_batch} faces.", log_path)
 				# Periodic incremental save in sequential mode.
+				# Sequential _process_batch mutates dicts in place via batch slices
+				# of `rows`, so the full `rows` list already carries the updates.
+				# The previous version rebound `rows` to `sorted(updated_rows)`
+				# here — that narrowed it to the processed-so-far subset, so an
+				# interrupt between batches silently truncated the CSV.
 				if i % 5 == 0:
-					rows = sorted(updated_rows, key=lambda r: r.get('image_name', ''))
 					_flush()
 
 		updated_rows.sort(key=lambda r: r.get('image_name', ''))

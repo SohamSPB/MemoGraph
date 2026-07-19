@@ -690,20 +690,11 @@
     - [x] Person detection fallback: hasPersonTag() checks CLIP tags for person/hiker/group/crowd
     - [x] Fixed hub page JS crash from duplicate `const imgEl` declaration in showSearchLightboxImage()
 
-32. Dual-Model Vision LLM Captioning (DONE - Feb 16, 2026)
-    - [x] Split vision_caption into model-specific columns (vision_caption_qwen_7b, vision_caption_llava_05b)
-    - [x] Added --model CLI flag: auto/qwen-7b/llava-0.5b/both (default: llava-0.5b)
-    - [x] Sequential model execution with VRAM cleanup between models
-    - [x] Updated build_blog_context.py with both model columns
-    - [x] Updated build_webapp.py lightbox to show both model captions side-by-side
-    - [x] Benchmarked both models on 138 images: Qwen 7B ~13s/img, LLaVA 0.5B ~2.5s/img
-    - [x] Qwen 7B produces better descriptions but is 5x slower
-    - [x] Default changed to LLaVA 0.5B for speed; 7B available via --model qwen-7b or --model both
-
-33. Future Enhancements
+32. Future Enhancements
     - [ ] Implement semantic search with CLIP embeddings
     - [x] Cross-trip search implemented (build_search_index.py + index.html)
-    - [x] Support larger VLMs (7B+) with quantization — Qwen2.5-VL-7B-AWQ tested and working
+    - [ ] Support larger VLMs (7B+) with quantization for better descriptions
+        - Researched: Qwen2.5-VL-7B-AWQ (~8-9GB VRAM), Qwen2.5-VL-3B (~4-8GB), Qwen3-VL-8B, MiniCPM-V 4.0
     - [ ] OCR text extraction from images (nameplate, sign, menu text)
     - [ ] Temporal context propagation (if nearby images have species X, check current image too)
     - [ ] Plant classifier (specialist model for flowers/trees)

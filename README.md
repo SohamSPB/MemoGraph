@@ -210,9 +210,6 @@ image_scanner → trip_day_assigner → location_resolver → map_preview
 | `detected_objects` | image_labeler | species_detector, blog, webapp |
 | `caption`, `caption_samples` | caption_filler | blog_generator, webapp |
 | `caption_ai` | generate_ai_captions | blog_generator, webapp |
-| `vision_caption` | batch_vision_llm (best of 7B/0.5B) | blog_context, webapp, search_index |
-| `vision_caption_qwen_7b` | batch_vision_llm (Qwen 7B) | webapp (lightbox comparison) |
-| `vision_caption_llava_05b` | batch_vision_llm (LLaVA 0.5B) | webapp (lightbox comparison) |
 | `species_tags` | species_detector (OWLv2+BioCLIP or CLIP fallback) | blog, webapp |
 | `species_boxes` | species_detector (OWLv2 bounding boxes) | blog_context, webapp (bounding box overlays) |
 | `image_type` | image_type_detector | species_detector, webapp |
@@ -416,50 +413,16 @@ python -m scripts.gpu_model_manager --batch-size 8 --compare
 
 ## Vision LLM (Batch & Demo)
 
-MemoGraph supports two Vision LLMs for generating detailed image descriptions:
-
-| Model | Parameters | VRAM | Speed | Quality |
-|-------|-----------|------|-------|---------|
-| **Qwen2.5-VL-7B-AWQ** | 7B (4-bit) | ~8-9 GB | ~13s/image | High - detailed, accurate |
-| **LLaVA OneVision 0.5B** | 0.5B | ~2 GB | ~2.5s/image | Good - concise, occasionally generic |
+You can use a small multimodal model (LLaVA OneVision 0.5B) to get rich, detailed descriptions for your photos.
 
 ### 1. Batch Captioning (Database Integration)
-
-Each model writes to its own CSV column, and the generic `vision_caption` gets the best available (7B preferred):
+To generate detailed `vision_caption` fields for all images in a trip and save them to `labels.csv`:
 
 ```bash
-# Default: LLaVA 0.5B (fast, ~2.5s/image)
 python -m scripts.batch_vision_llm data/trips/my_awesome_trip
-
-# Qwen 7B only (richer descriptions, ~13s/image, needs >= 10 GB VRAM)
-python -m scripts.batch_vision_llm data/trips/my_awesome_trip --model qwen-7b
-
-# Both models for side-by-side comparison in webapp
-python -m scripts.batch_vision_llm data/trips/my_awesome_trip --model both
-
-# Auto-select based on available VRAM
-python -m scripts.batch_vision_llm data/trips/my_awesome_trip --model auto
 ```
 
-**CSV columns:**
-| Column | Source | Purpose |
-|--------|--------|---------|
-| `vision_caption_qwen_7b` | Qwen 7B | Detailed 7B model description |
-| `vision_caption_llava_05b` | LLaVA 0.5B | Lightweight 0.5B model description |
-| `vision_caption` | Auto-selected | Best available (7B > 0.5B), used by webapp/blog |
-
-Skips images that already have a caption in that model's column. Checkpoints every 5 images.
-
-### Dual-Model Benchmark (RTX 3060 12GB, 138 images)
-
-| Trip | Images | Qwen 7B | LLaVA 0.5B | Total |
-|------|--------|---------|------------|-------|
-| 2025_Annapurna_Nepal | 97 | 21.2 min | 4.3 min | 25.5 min |
-| Home | 25 | 5.8 min | 1.0 min | 6.8 min |
-| Vengurla | 16 | 3.3 min | 0.6 min | 3.9 min |
-| **Total** | **138** | **30.2 min** | **5.9 min** | **36.1 min** |
-
-**Recommendation:** The default is LLaVA 0.5B for speed (~5.9 min for 138 images). Use `--model qwen-7b` or `--model both` when you need richer descriptions and have time to spare (~30 min extra for 138 images). The 7B model produces noticeably better output (identifies specific species, architectural styles, spatial relationships) but the 0.5B model is adequate for most use cases.
+This runs systematically over the trip, skipping images that already have a vision caption.
 
 ### 2. Interactive Demo
 To experiment with custom prompts on a single image:

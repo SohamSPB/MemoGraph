@@ -136,6 +136,11 @@ def evaluate_image_quality(trip_folder: str) -> None:
 
 	quality_size = getattr(CFG, "QUALITY_MAX_SIZE", 512)
 	for row in rows:
+		# Content duplicate: quality metrics are pure functions of bytes, so
+		# they'll be identical to the canonical's. Skip the work; the values
+		# get copied later by dedup_broadcast.py.
+		if (row.get("duplicate_of") or "").strip():
+			continue
 		rel_path = row.get("local_path") or row.get("image_name")
 		if not rel_path:
 			continue
@@ -158,7 +163,18 @@ def evaluate_image_quality(trip_folder: str) -> None:
 		row["noise_score"] = f"{metrics['noise_score']:.3f}"
 		row["quality_notes"] = _describe_quality(metrics)
 
-	write_csv_dict(csv_path, rows, CFG.CSV_HEADERS)
+	# Preserve any columns that aren't in the canonical CSV_HEADERS list —
+	# face_detector adds face_locations dynamically, species_detector adds
+	# species_boxes, and future steps may add more. Using CFG.CSV_HEADERS
+	# directly here would silently drop them.
+	known = list(CFG.CSV_HEADERS)
+	seen = set(known)
+	for row in rows:
+		for key in row.keys():
+			if key not in seen:
+				known.append(key)
+				seen.add(key)
+	write_csv_dict(csv_path, rows, known)
 	logger.info("Image quality metrics written to %s", csv_path)
 
 

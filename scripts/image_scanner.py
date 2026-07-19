@@ -73,40 +73,6 @@ def _convert_gps(coord, ref) -> float:
 		deg = -deg
 	return deg
 
-def get_camera_settings(exif_dict: dict) -> dict:
-	"""Extract camera exposure settings (shutter, aperture, ISO, focal length) from EXIF."""
-	result = {"shutter_speed": "", "aperture": "", "iso": "", "focal_length": ""}
-	try:
-		exif = exif_dict.get("Exif", {})
-
-		# Shutter speed (ExposureTime stored as rational e.g. (1, 200))
-		exp = exif.get(piexif.ExifIFD.ExposureTime)
-		if exp and exp[1]:
-			n, d = exp
-			if n < d:
-				result["shutter_speed"] = f"1/{round(d/n)}s"
-			else:
-				result["shutter_speed"] = f"{n/d:.1f}s"
-
-		# Aperture (FNumber stored as rational e.g. (28, 10) → f/2.8)
-		fn = exif.get(piexif.ExifIFD.FNumber)
-		if fn and fn[1]:
-			result["aperture"] = f"f/{fn[0]/fn[1]:.1f}"
-
-		# ISO (ISOSpeedRatings stored as int)
-		iso = exif.get(piexif.ExifIFD.ISOSpeedRatings)
-		if iso:
-			result["iso"] = f"ISO {iso}"
-
-		# Focal length (stored as rational e.g. (50, 1) → 50mm)
-		fl = exif.get(piexif.ExifIFD.FocalLength)
-		if fl and fl[1]:
-			result["focal_length"] = f"{round(fl[0]/fl[1])}mm"
-	except Exception:
-		pass
-	return result
-
-
 def get_gps(exif_dict: dict):
 	"""Extract GPS latitude and longitude from EXIF."""
 	try:
@@ -150,15 +116,56 @@ def extract_exif_fallback(image_path: str):
 # ----------------------------------------------------------------------
 # Main
 # ----------------------------------------------------------------------
+def _extract_exif_row(full_path: str, rel_path: str, md5sum: str) -> dict:
+	"""Build a fresh CSV row dict for a single image with EXIF columns populated.
+
+	Analysis columns (faces_*, caption, species_tags, etc.) start empty/-1 and
+	will be filled in by downstream pipeline steps. Used for both brand-new
+	photos and photos whose content changed (different md5 at the same path).
+	"""
+	exif_dict = get_exif_piexif(full_path)
+	if not exif_dict or "Exif" not in exif_dict or piexif.ExifIFD.DateTimeOriginal not in exif_dict["Exif"]:
+		datetime_original, device_model, gps_lat, gps_lon = extract_exif_fallback(full_path)
+	else:
+		datetime_original = get_datetime(exif_dict)
+		device_model = get_device_model(exif_dict)
+		gps_lat, gps_lon = get_gps(exif_dict)
+
+	row = {h: "" for h in CFG.CSV_HEADERS}
+	row.update(
+		{
+			"image_name": os.path.basename(full_path),
+			"local_path": rel_path,
+			"md5sum": md5sum,
+			"datetime_original": datetime_original,
+			"device_model": device_model,
+			"gps_lat": gps_lat if gps_lat is not None else "",
+			"gps_lon": gps_lon if gps_lon is not None else "",
+			"faces_detected": -1,
+			"faces_count": -1,
+		}
+	)
+	return row
+
+
 def scan_images(trip_folder: str) -> None:
 	"""
 	Scan all images in the given folder, extract EXIF metadata,
 	and write image metadata rows to <trip_folder>/MemoGraph/labels.csv.
 
-	Notes
-	-----
-	- If an existing labels.csv exists, it is backed up first (max N backups).
-	- Uses utils_log for file + console logging.
+	Resume-safe merge behavior (the previous implementation just overwrote
+	the CSV, destroying every analysis column on every re-run):
+
+	- Photos already present in labels.csv with the same local_path AND md5
+	  are kept verbatim — including all analysis columns (faces, captions,
+	  species, quality scores, color palette, vision_caption, etc.).
+	- Photos at the same path but with a different md5 (content replaced)
+	  are re-scanned for EXIF; analysis columns reset.
+	- Photos newly present on disk get a fresh EXIF-only row.
+	- Photos that vanished from disk are dropped from the CSV.
+
+	The MemoGraph subfolder is excluded from the walk so our own generated
+	thumbnails (MemoGraph/thumbnails/*.jpg) aren't picked up as new photos.
 	"""
 	memo_dir, logs_dir = ensure_memograph_folder(trip_folder)
 
@@ -170,61 +177,109 @@ def scan_images(trip_folder: str) -> None:
 	log(f"MemoGraph dir: {memo_dir}", log_path)
 	log("Starting image scan...", log_path)
 
-	rows_out = []
-	total_files = 0
-	processed = 0
+	# Existing rows, indexed by local_path. read_csv_dict returns [] if the
+	# file doesn't exist yet, which is the natural state on a fresh trip.
+	existing_rows = read_csv_dict(labels_csv)
+	existing_by_path = {
+		r.get("local_path", ""): r for r in existing_rows if r.get("local_path")
+	}
 
-	# Collect and sort all candidate image files to ensure deterministic ordering.
+	# Collect candidate images, skipping our own MemoGraph outputs.
 	image_files = []
-	for root, _, files in os.walk(trip_folder):
+	memograph_folder = CFG.MEMOGRAPH_FOLDER_NAME
+	for root, dirs, files in os.walk(trip_folder):
+		dirs[:] = [d for d in dirs if d != memograph_folder]
 		for file in files:
 			if file.lower().endswith(CFG.IMAGE_EXTENSIONS):
 				full_path = os.path.join(root, file)
 				rel_path = os.path.relpath(full_path, trip_folder)
 				image_files.append((rel_path, full_path))
 
-	# Sort by relative path (which effectively sorts by folder + filename)
+	# Sort by relative path so the CSV row order is deterministic across runs.
 	image_files.sort(key=lambda x: x[0])
 	total_files = len(image_files)
 
-	for rel_path, full_path in image_files:
-		processed += 1
-		log(f"Scanning [{processed}/{total_files}]: {rel_path}", log_path)
+	rows_out = []
+	preserved = 0
+	rescanned = 0
+	new_count = 0
 
+	for processed, (rel_path, full_path) in enumerate(image_files, 1):
 		md5sum = get_md5(full_path)
-		exif_dict = get_exif_piexif(full_path)
+		prev = existing_by_path.get(rel_path)
 
-		if not exif_dict or "Exif" not in exif_dict or piexif.ExifIFD.DateTimeOriginal not in exif_dict["Exif"]:
-			datetime_original, device_model, gps_lat, gps_lon = extract_exif_fallback(full_path)
-			cam = {"shutter_speed": "", "aperture": "", "iso": "", "focal_length": ""}
+		if prev and prev.get("md5sum") == md5sum:
+			# Same path, same content — keep the entire prior row, including
+			# every analysis column. This is the "resume preserves work" path,
+			# which the previous implementation broke by always rebuilding
+			# from scratch.
+			rows_out.append(prev)
+			preserved += 1
+			log(f"[{processed}/{total_files}] preserved: {rel_path}", log_path)
+			continue
+
+		# New file, or the file at this path was replaced (different md5).
+		# Either way, re-extract EXIF and reset analysis columns to defaults.
+		row = _extract_exif_row(full_path, rel_path, md5sum)
+		rows_out.append(row)
+		if prev:
+			rescanned += 1
+			log(
+				f"[{processed}/{total_files}] content changed, re-scanning: {rel_path}",
+				log_path,
+			)
 		else:
-			datetime_original = get_datetime(exif_dict)
-			device_model = get_device_model(exif_dict)
-			gps_lat, gps_lon = get_gps(exif_dict)
-			cam = get_camera_settings(exif_dict)
+			new_count += 1
+			log(f"[{processed}/{total_files}] new: {rel_path}", log_path)
 
-		# Build row by field order
-		default_map = {h: "" for h in CFG.CSV_HEADERS}
-		default_map.update({
-			"image_name": os.path.basename(full_path),
-			"local_path": rel_path,
-			"md5sum": md5sum,
-			"datetime_original": datetime_original,
-			"device_model": device_model,
-			"shutter_speed": cam["shutter_speed"],
-			"aperture": cam["aperture"],
-			"iso": cam["iso"],
-			"focal_length": cam["focal_length"],
-			"gps_lat": gps_lat if gps_lat is not None else "",
-			"gps_lon": gps_lon if gps_lon is not None else "",
-			"faces_detected": -1,
-			"faces_count": -1,
-		})
-		rows_out.append(default_map)
+	dropped = len(existing_by_path) - preserved - rescanned
 
-	# write
-	write_csv_dict(labels_csv, rows_out, CFG.CSV_HEADERS)
-	log(f"Completed. Wrote {len(rows_out)} rows to {labels_csv}", log_path)
+	# Content-dedup: group rows by md5sum, pick a canonical per group, and mark
+	# the others with duplicate_of=<canonical_image_name>. Analysis scripts
+	# downstream check this column and skip duplicates; dedup_broadcast.py
+	# copies the canonical's analysis to its siblings at the end of the pipeline.
+	#
+	# Canonical = the group member whose local_path sorts first. This is
+	# deterministic so the same files always elect the same canonical across
+	# runs, which makes resume/preserve work cleanly with B1's merge logic.
+	md5_groups: dict = {}
+	for row in rows_out:
+		md5 = row.get("md5sum", "")
+		if md5:
+			md5_groups.setdefault(md5, []).append(row)
+
+	duplicate_count = 0
+	for md5, group in md5_groups.items():
+		# Reset all members first so a previously-marked duplicate becomes a
+		# canonical when its canonical is removed or the group changes.
+		for r in group:
+			r["duplicate_of"] = ""
+		if len(group) < 2:
+			continue
+		group.sort(key=lambda r: r.get("local_path", ""))
+		canonical = group[0]
+		canonical_name = canonical.get("image_name", "")
+		for r in group[1:]:
+			r["duplicate_of"] = canonical_name
+			duplicate_count += 1
+
+	# Field order: preserve whatever the existing CSV had (which may include
+	# dynamic columns like face_locations / species_boxes that aren't in
+	# CSV_HEADERS), then append any new headers introduced by CSV_HEADERS.
+	if existing_rows:
+		fieldnames = list(dict.fromkeys(list(existing_rows[0].keys()) + list(CFG.CSV_HEADERS)))
+	else:
+		fieldnames = list(CFG.CSV_HEADERS)
+
+	write_csv_dict(labels_csv, rows_out, fieldnames)
+	log(
+		(
+			f"Scan complete: {len(rows_out)} rows "
+			f"(preserved={preserved}, rescanned={rescanned}, new={new_count}, "
+			f"dropped={dropped}, duplicates={duplicate_count}). Saved: {labels_csv}"
+		),
+		log_path,
+	)
 	log("Done.", log_path)
 	return labels_csv
 

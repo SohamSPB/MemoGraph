@@ -17,7 +17,6 @@ from typing import Iterable, List, Sequence, Tuple
 import torch
 
 from scripts.vision_llm_demo import _load_image, _load_model
-import memograph_config as CFG
 
 # Core 5 prompts selected from the earlier study
 BEST_PROMPTS: Sequence[Tuple[str, str]] = [
@@ -58,56 +57,27 @@ def iter_trip_images(trip_folder: Path, limit: int) -> List[Path]:
     return images
 
 
-def run_prompt(model, processor, device, image, question: str, max_new_tokens: int, model_type: str = "llava-0.5b") -> Tuple[str, float]:
+def run_prompt(model, processor, device, image, question: str, max_new_tokens: int) -> Tuple[str, float]:
+    messages = [
+        {
+            "role": "user",
+            "content": [
+                {"type": "image"},
+                {"type": "text", "text": question},
+            ],
+        }
+    ]
+    prompt = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+    inputs = processor(text=prompt, images=image, return_tensors="pt").to(device)
     start = time.perf_counter()
-
-    if model_type == "qwen-7b":
-        messages = [
-            {
-                "role": "user",
-                "content": [
-                    {"type": "image", "image": image},
-                    {"type": "text", "text": question},
-                ],
-            }
-        ]
-        prompt = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-        inputs = processor(text=[prompt], images=[image], return_tensors="pt", padding=True)
-        model_device = next(model.parameters()).device
-        inputs = inputs.to(model_device)
-
-        with torch.inference_mode():
-            output_ids = model.generate(
-                **inputs,
-                max_new_tokens=max_new_tokens,
-                temperature=0.1,
-            )
-
-        generated_ids = output_ids[:, inputs.input_ids.shape[1]:]
-        generated = processor.batch_decode(generated_ids, skip_special_tokens=True)[0].strip()
-    else:
-        messages = [
-            {
-                "role": "user",
-                "content": [
-                    {"type": "image"},
-                    {"type": "text", "text": question},
-                ],
-            }
-        ]
-        prompt = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-        inputs = processor(text=prompt, images=image, return_tensors="pt").to(device)
-
-        with torch.inference_mode():
-            output_ids = model.generate(
-                **inputs,
-                max_new_tokens=max_new_tokens,
-                temperature=0.1,
-            )
-
-        generated = processor.decode(output_ids[0], skip_special_tokens=True)
-
+    with torch.inference_mode():
+        output_ids = model.generate(
+            **inputs,
+            max_new_tokens=max_new_tokens,
+            temperature=0.1,
+        )
     elapsed = time.perf_counter() - start
+    generated = processor.decode(output_ids[0], skip_special_tokens=True)
     return generated, elapsed
 
 
@@ -119,7 +89,6 @@ def process_trip(
     template_prompt: str,
     images_per_trip: int,
     max_new_tokens: int,
-    model_type: str = "llava-0.5b",
 ) -> None:
     images = iter_trip_images(trip_folder, images_per_trip)
     if not images:
@@ -135,7 +104,7 @@ def process_trip(
         image = _load_image(image_path)
         parts = [f"Image: {image_path}", ""]
         for prompt_id, question in prompt_suite:
-            response, elapsed = run_prompt(model, processor, device, image, question, max_new_tokens, model_type)
+            response, elapsed = run_prompt(model, processor, device, image, question, max_new_tokens)
             parts.extend(
                 [
                     f"Prompt {prompt_id}: {question}",
@@ -152,7 +121,7 @@ def process_trip(
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run a suite of prompts on multiple MemoGraph trips/images.")
     parser.add_argument("trips", nargs="+", help="Trip folders (e.g. data/trips/2025_Annapurna_Nepal)")
-    parser.add_argument("--model-id", default="auto", help="Model: 'auto', HF model ID, or local path (default: auto).")
+    parser.add_argument("--model-id", default="models/llava_onevision_qwen2_0.5b", help="Local or HF model ID.")
     parser.add_argument("--images-per-trip", type=int, default=5, help="How many images per trip to process.")
     parser.add_argument("--max-new-tokens", type=int, default=512, help="Max tokens for generation.")
     parser.add_argument(
@@ -167,7 +136,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     template_prompt = Path(args.template_prompt).read_text(encoding="utf-8")
-    model, processor, device, model_type = _load_model(args.model_id)
+    model, processor, device = _load_model(args.model_id)
     for trip in args.trips:
         trip_path = Path(trip)
         if not trip_path.is_dir():
@@ -181,7 +150,6 @@ def main() -> None:
             template_prompt=template_prompt,
             images_per_trip=args.images_per_trip,
             max_new_tokens=args.max_new_tokens,
-            model_type=model_type,
         )
 
 

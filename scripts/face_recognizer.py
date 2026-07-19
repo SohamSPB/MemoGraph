@@ -20,10 +20,11 @@ This script is optional and controlled via memograph_config:
 
 import os
 import pickle
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Tuple
 
 import numpy as np
 import face_recognition
+from PIL import Image, ImageOps
 
 import memograph_config as CFG
 from memograph_config import ensure_memograph_folder
@@ -41,6 +42,38 @@ def _load_gallery(path: str):
     if not encodings or not labels or len(encodings) != len(labels):
         raise RuntimeError("Face gallery is invalid or empty.")
     return encodings, labels
+
+
+def _parse_cached_face_locations(
+    face_locations_str: str, img_height: int, img_width: int
+) -> List[Tuple[int, int, int, int]]:
+    """Parse the face_locations CSV column back into (top, right, bottom, left) pixel tuples.
+
+    face_detector.py writes these as "top%,right%,bottom%,left%" percentages
+    separated by '; ', normalized against the image's EXIF-corrected
+    dimensions. Re-multiplying by the same EXIF-corrected dimensions here
+    gives pixel coordinates that face_encodings can consume directly.
+    """
+    out: List[Tuple[int, int, int, int]] = []
+    if not face_locations_str or not face_locations_str.strip():
+        return out
+    for face_str in face_locations_str.split(";"):
+        parts = face_str.strip().split(",")
+        if len(parts) != 4:
+            continue
+        try:
+            t_pct, r_pct, b_pct, l_pct = (float(p) for p in parts)
+        except ValueError:
+            continue
+        out.append(
+            (
+                max(0, int(round(t_pct / 100.0 * img_height))),
+                max(0, int(round(r_pct / 100.0 * img_width))),
+                max(0, int(round(b_pct / 100.0 * img_height))),
+                max(0, int(round(l_pct / 100.0 * img_width))),
+            )
+        )
+    return out
 
 
 def recognise_faces(trip_folder: str) -> None:
@@ -74,6 +107,10 @@ def recognise_faces(trip_folder: str) -> None:
 
     updated = 0
     for idx, row in enumerate(rows, start=1):
+        # Content duplicate: people_tags will be copied from the canonical
+        # row by dedup_broadcast.py at the end of the pipeline.
+        if (row.get("duplicate_of") or "").strip():
+            continue
         faces_flag = str(row.get("faces_detected", "")).strip()
         if faces_flag not in {"1"}:
             # Skip images with no faces_detected or unknown flag.
@@ -86,11 +123,30 @@ def recognise_faces(trip_folder: str) -> None:
             continue
 
         try:
-            image = face_recognition.load_image_file(img_path)
-            locations = face_recognition.face_locations(image, model="hog")
+            # Apply EXIF transpose so coordinates from face_detector (which also
+            # transposes before detection) line up with the array we feed to
+            # face_recognition here.
+            with Image.open(img_path) as pil_img:
+                pil_img = ImageOps.exif_transpose(pil_img).convert("RGB")
+                img_w, img_h = pil_img.size
+                image = np.array(pil_img)
+
+            # Reuse the boxes face_detector already wrote to the CSV, instead of
+            # paying for a second detection pass per photo.
+            cached_locations = _parse_cached_face_locations(
+                row.get("face_locations", ""), img_h, img_w
+            )
+            if cached_locations:
+                locations = cached_locations
+            else:
+                # Fallback: face_detector didn't persist boxes for this row
+                # (older CSVs, or face_locations column wasn't populated).
+                locations = face_recognition.face_locations(image, model="hog")
             if not locations:
                 continue
-            encodings = face_recognition.face_encodings(image, known_face_locations=locations)
+            encodings = face_recognition.face_encodings(
+                image, known_face_locations=locations
+            )
         except Exception as e:
             log(f"[{idx}] Failed to process {img_path} for recognition: {e}", log_path)
             continue

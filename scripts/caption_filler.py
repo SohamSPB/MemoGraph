@@ -11,8 +11,6 @@ Logs progress to <trip_folder>/MemoGraph/logs/caption_filler.log
 
 import os
 from PIL import Image
-from transformers import BlipProcessor, BlipForConditionalGeneration
-import torch
 import concurrent.futures
 
 from scripts.utils.utils_io import (
@@ -24,6 +22,7 @@ from scripts.utils.utils_log import init_log, log
 import memograph_config as CFG
 from scripts.utils.utils_image import resize_image
 from scripts.utils.utils_text import clean_caption, clean_caption_list
+from scripts.blip_loader import get_blip
 
 def generate_multiple_captions(image, processor, model, num_variations=3):
 	"""Generate multiple captions using top-k sampling."""
@@ -75,16 +74,16 @@ def fill_captions(trip_folder):
 		log("No rows found. Exiting.", log_path)
 		return
 
-	log("Loading BLIP model...", log_path)
-	device = "cuda" if torch.cuda.is_available() else "cpu"
-	processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base", use_fast=True)
-	model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base").to(device)
-	model.eval()
+	log("Loading BLIP model (shared with generate_ai_captions if it runs next)...", log_path)
+	processor, model, device = get_blip()
 
 	updated = 0
 
-	# Helper to decide if a row already has captions.
+	# Helper to decide if a row already has captions OR is a content duplicate
+	# (whose caption will be copied from the canonical by dedup_broadcast.py).
 	def _row_has_caption(row):
+		if (row.get("duplicate_of") or "").strip():
+			return True
 		return bool(row.get("caption"))
 
 	# Helper to flush current rows to CSV (for incremental saving).

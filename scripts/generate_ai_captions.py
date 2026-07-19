@@ -12,7 +12,6 @@ Logs are saved to <trip_folder>/MemoGraph/logs/generate_ai_captions.log
 import os
 import torch
 from PIL import Image
-from transformers import BlipProcessor, BlipForConditionalGeneration
 
 from scripts.utils.utils_io import (
 	read_csv_dict,
@@ -23,6 +22,7 @@ from scripts.utils.utils_log import init_log, log
 import memograph_config as CFG
 from scripts.utils.utils_image import resize_image
 from scripts.utils.utils_text import clean_caption
+from scripts.blip_loader import get_blip
 
 def generate_ai_captions(trip_folder):
 	memo_dir, logs_dir = CFG.ensure_memograph_folder(trip_folder)
@@ -40,16 +40,16 @@ def generate_ai_captions(trip_folder):
 		log("No rows found in CSV.", log_path)
 		return
 
-	device = "cuda" if torch.cuda.is_available() else "cpu"
+	processor, model, device = get_blip()
 	log(f"Using device: {device}", log_path)
-
-	processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base", use_fast=True)
-	model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base").to(device)
-	model.eval()
 
 	updated = 0
 
 	def _row_has_ai_caption(row):
+		# Content duplicates inherit caption_ai from the canonical via
+		# dedup_broadcast.py — treat them as "done" so this script skips them.
+		if (row.get("duplicate_of") or "").strip():
+			return True
 		return bool(row.get("caption_ai"))
 
 	def _flush():

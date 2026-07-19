@@ -54,91 +54,71 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     }}
     body {{
       font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background-color: var(--bg);
-      background-image:
-        radial-gradient(ellipse 600px 600px at 20% 20%, rgba(6, 182, 212, 0.06), transparent),
-        radial-gradient(ellipse 500px 500px at 80% 10%, rgba(139, 92, 246, 0.06), transparent),
-        radial-gradient(ellipse 400px 400px at 60% 80%, rgba(244, 114, 182, 0.04), transparent);
+      background: var(--bg);
       color: var(--text);
       min-height: 100vh;
       overflow-x: hidden;
     }}
 
-    /* Smooth Entrance Animations */
-    @keyframes fadeInUp {{
-      from {{ opacity: 0; transform: translateY(30px); }}
-      to {{ opacity: 1; transform: translateY(0); }}
-    }}
-    @keyframes fadeIn {{
-      from {{ opacity: 0; }}
-      to {{ opacity: 1; }}
-    }}
-    @keyframes scaleIn {{
-      from {{ opacity: 0; transform: scale(0.92); }}
-      to {{ opacity: 1; transform: scale(1); }}
-    }}
-    @keyframes heroTextReveal {{
-      0% {{ clip-path: inset(0 100% 0 0); opacity: 0; }}
-      100% {{ clip-path: inset(0 0% 0 0); opacity: 1; }}
-    }}
-    /* Material Design ripple */
-    @keyframes rippleEffect {{
-      0% {{ transform: scale(0); opacity: 0.4; }}
-      100% {{ transform: scale(4); opacity: 0; }}
-    }}
-    /* Page entry animation (opacity only — transforms on body break fixed overlays) */
-    @keyframes pageSlideIn {{
-      from {{ opacity: 0; }}
-      to {{ opacity: 1; }}
-    }}
-    /* Ripple effect for buttons */
-    .ripple-host {{
-      position: relative;
+    /* Animated Background */
+    .bg-effects {{
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
       overflow: hidden;
     }}
-    .ripple-host .ripple-wave {{
+    .bg-effects::before {{
+      content: '';
       position: absolute;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0) 70%);
-      transform: scale(0);
-      animation: rippleEffect 0.6s ease-out forwards;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background:
+        radial-gradient(ellipse 600px 600px at 20% 20%, rgba(6, 182, 212, 0.08), transparent),
+        radial-gradient(ellipse 500px 500px at 80% 10%, rgba(139, 92, 246, 0.08), transparent),
+        radial-gradient(ellipse 400px 400px at 60% 80%, rgba(244, 114, 182, 0.05), transparent);
+      animation: bgFloat 20s ease-in-out infinite;
+    }}
+    @keyframes bgFloat {{
+      0%, 100% {{ transform: translate(0, 0) rotate(0deg); }}
+      25% {{ transform: translate(2%, 2%) rotate(1deg); }}
+      50% {{ transform: translate(-1%, 3%) rotate(-1deg); }}
+      75% {{ transform: translate(1%, -2%) rotate(0.5deg); }}
+    }}
+
+    /* Floating Particles */
+    .particles {{
+      position: fixed;
+      inset: 0;
       pointer-events: none;
-      z-index: 1;
+      z-index: 0;
     }}
-    /* Back-navigation highlight */
-    .trip-card.returning {{
-      animation: returnHighlight 1.2s ease-out;
+    .particle {{
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      background: var(--accent);
+      border-radius: 50%;
+      opacity: 0.3;
+      animation: float 15s infinite ease-in-out;
     }}
-    @keyframes returnHighlight {{
-      0% {{ transform: scale(0.85); opacity: 0.5; box-shadow: 0 0 0 4px var(--accent); }}
-      50% {{ transform: scale(1.03); opacity: 1; box-shadow: 0 0 30px var(--accent-glow); }}
-      100% {{ transform: scale(1); opacity: 1; box-shadow: none; }}
+    .particle:nth-child(1) {{ left: 10%; top: 20%; animation-delay: 0s; animation-duration: 18s; }}
+    .particle:nth-child(2) {{ left: 20%; top: 60%; animation-delay: -2s; animation-duration: 22s; }}
+    .particle:nth-child(3) {{ left: 40%; top: 30%; animation-delay: -4s; animation-duration: 16s; }}
+    .particle:nth-child(4) {{ left: 60%; top: 70%; animation-delay: -6s; animation-duration: 20s; }}
+    .particle:nth-child(5) {{ left: 80%; top: 40%; animation-delay: -8s; animation-duration: 24s; }}
+    .particle:nth-child(6) {{ left: 90%; top: 80%; animation-delay: -10s; animation-duration: 19s; }}
+    @keyframes float {{
+      0%, 100% {{ transform: translateY(0) scale(1); opacity: 0.3; }}
+      50% {{ transform: translateY(-100px) scale(1.5); opacity: 0.6; }}
     }}
-    /* Page entry when returning from trip */
-    body.page-enter {{
-      animation: pageSlideIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
-    }}
-    .animate-on-scroll {{
-      opacity: 0;
-      transform: translateY(30px);
-      transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-    }}
-    .animate-on-scroll.visible {{
-      opacity: 1;
-      transform: translateY(0);
-    }}
-    .stagger-1 {{ transition-delay: 0.05s; }}
-    .stagger-2 {{ transition-delay: 0.1s; }}
-    .stagger-3 {{ transition-delay: 0.15s; }}
-    .stagger-4 {{ transition-delay: 0.2s; }}
-    .stagger-5 {{ transition-delay: 0.25s; }}
-    .stagger-6 {{ transition-delay: 0.3s; }}
 
     /* Main Content */
     .main-content {{
       position: relative;
       z-index: 1;
-      transform: translateZ(0);
     }}
 
     /* Navigation Bar */
@@ -150,7 +130,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       display: flex;
       justify-content: space-between;
       align-items: center;
-      background: rgba(3, 7, 17, 0.95);
+      background: rgba(3, 7, 17, 0.8);
+      backdrop-filter: blur(20px);
       border-bottom: 1px solid var(--card-border);
     }}
     .logo {{
@@ -199,8 +180,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       font-size: 14px;
       font-weight: 500;
       transition: all 0.2s ease;
-      position: relative;
-      overflow: hidden;
     }}
     .nav-btn:hover {{
       background: var(--card-hover);
@@ -232,8 +211,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       font-size: 18px;
       font-weight: 600;
       transition: all 0.2s ease;
-      position: relative;
-      overflow: hidden;
     }}
     .info-btn:hover {{
       background: var(--card-hover);
@@ -258,7 +235,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       font-size: 0.85rem;
       color: var(--text-secondary);
       margin-bottom: 24px;
-      animation: fadeInUp 0.6s ease-out 0.1s both;
     }}
     .hero-badge-dot {{
       width: 8px;
@@ -277,7 +253,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       font-weight: 700;
       line-height: 1.1;
       margin-bottom: 16px;
-      animation: heroTextReveal 1.2s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both;
     }}
     .hero h1 span {{
       background: var(--gradient-1);
@@ -291,7 +266,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       max-width: 600px;
       margin: 0 auto 40px;
       line-height: 1.6;
-      animation: fadeInUp 0.8s ease-out 0.6s both;
     }}
 
     /* Stats Bar */
@@ -379,8 +353,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       align-items: center;
       gap: 8px;
       transition: all 0.2s ease;
-      position: relative;
-      overflow: hidden;
     }}
     .view-btn:hover, .view-btn.active {{
       background: var(--card-hover);
@@ -406,7 +378,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       padding: 0 5vw 60px;
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-      transform: translateZ(0);
       gap: 24px;
     }}
 
@@ -424,12 +395,27 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       position: relative;
       overflow: hidden;
-      backface-visibility: hidden;
+    }}
+    .trip-card::before {{
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--gradient-1);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      z-index: 0;
     }}
     .trip-card:hover {{
       transform: translateY(-8px);
       border-color: var(--accent);
       box-shadow: 0 20px 50px rgba(6, 182, 212, 0.15), 0 10px 30px rgba(0, 0, 0, 0.3);
+    }}
+    .trip-card:hover::before {{
+      opacity: 0.03;
+    }}
+    .trip-card > * {{
+      position: relative;
+      z-index: 1;
     }}
 
     /* Thumbnail Gallery */
@@ -459,7 +445,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       bottom: 12px;
       right: 12px;
       padding: 6px 12px;
-      background: rgba(0, 0, 0, 0.8);
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(10px);
       border-radius: 999px;
       font-size: 0.85rem;
       font-weight: 500;
@@ -614,12 +601,13 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     .modal-overlay {{
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.92);
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(8px);
       z-index: 1000;
+      display: none;
       align-items: center;
       justify-content: center;
       padding: 20px;
-      display: none;
     }}
     .modal-overlay.active {{
       display: flex;
@@ -725,11 +713,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     .features-overlay {{
       position: fixed;
       inset: 0;
-      background: rgba(3, 7, 17, 0.98);
+      background: rgba(3, 7, 17, 0.95);
+      backdrop-filter: blur(20px);
       z-index: 2000;
+      display: none;
       overflow-y: auto;
       padding: 20px;
-      display: none;
     }}
     .features-overlay.active {{
       display: block;
@@ -1151,235 +1140,139 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       inset: 0;
       background: rgba(0, 0, 0, 0.95);
       z-index: 4000;
-      flex-direction: column;
       display: none;
-      transform: translateZ(0);
+      flex-direction: column;
     }}
     .search-lightbox.active {{
       display: flex;
-      height: 100vh;
-      width: 100vw;
     }}
-    .search-lightbox-shell {{
+    .search-lightbox-header {{
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(0,0,0,0.5);
+    }}
+    .search-lightbox-info {{
       display: flex;
       flex-direction: column;
-      flex: 1;
-      min-height: 0;
-      overflow: hidden;
+      gap: 4px;
     }}
-    .search-lightbox-content {{
-      flex: 1;
-      min-height: 0;
-      display: grid;
-      grid-template-columns: 1fr 360px;
-      overflow: hidden;
+    .search-lightbox-trip {{
+      font-size: 0.9rem;
+      color: var(--accent);
+      font-weight: 600;
     }}
-    .search-lightbox-img-wrap {{
-      position: relative;
+    .search-lightbox-caption {{
+      font-size: 1rem;
+      color: var(--text);
+      max-width: 500px;
+    }}
+    .search-lightbox-counter {{
+      font-size: 0.8rem;
+      color: var(--muted);
+    }}
+    .search-lightbox-actions {{
+      display: flex;
+      gap: 12px;
+    }}
+    .search-lightbox-btn {{
+      padding: 10px 20px;
+      border-radius: 10px;
+      border: 1px solid var(--card-border);
+      background: var(--card);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }}
+    .search-lightbox-btn:hover {{
+      background: var(--accent);
+      color: var(--bg);
+      border-color: var(--accent);
+    }}
+    .search-lightbox-btn.close {{
+      background: transparent;
+      border: none;
+      font-size: 28px;
+      padding: 8px;
+    }}
+    .search-lightbox-body {{
+      flex: 1;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: #000;
+      padding: 20px 80px;
+      position: relative;
       overflow: hidden;
-      min-height: 0;
-      backface-visibility: hidden;
+      cursor: default;
     }}
     .search-lightbox-img {{
       max-width: 100%;
       max-height: 100%;
-      height: auto;
       object-fit: contain;
+      border-radius: 8px;
       transition: transform 0.2s ease;
     }}
-    .search-lightbox-close-btn {{
+    .search-lightbox-zoom {{
       position: absolute;
-      top: 16px;
-      right: 16px;
-      padding: 8px 16px;
-      background: rgba(0,0,0,0.8);
-      border: 1px solid rgba(255,255,255,0.2);
-      border-radius: 8px;
-      color: #fff;
-      cursor: pointer;
-      font-size: 0.9rem;
+      bottom: 20px;
+      right: 20px;
+      display: flex;
+      gap: 8px;
       z-index: 10;
-      transition: background 0.2s ease;
     }}
-    .search-lightbox-close-btn:hover {{
-      background: rgba(239,68,68,0.8);
-    }}
-    .search-lightbox-nav {{
-      position: absolute;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 48px;
-      height: 48px;
+    .zoom-btn {{
+      width: 40px;
+      height: 40px;
       border-radius: 50%;
       border: none;
       background: rgba(255,255,255,0.15);
       color: white;
       cursor: pointer;
-      font-size: 22px;
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(10px);
+      transition: background 0.15s ease;
+    }}
+    .zoom-btn:hover {{
+      background: var(--accent);
+    }}
+    .search-lightbox-nav {{
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(255,255,255,0.1);
+      color: white;
+      cursor: pointer;
+      font-size: 24px;
       display: flex;
       align-items: center;
       justify-content: center;
       transition: all 0.2s ease;
-      z-index: 10;
+      backdrop-filter: blur(10px);
     }}
     .search-lightbox-nav:hover {{
       background: var(--accent);
     }}
-    .search-lightbox-nav.prev {{ left: 16px; }}
-    .search-lightbox-nav.next {{ right: 16px; }}
-    .search-lightbox-panel {{
-      background: var(--card);
-      border-left: 1px solid var(--card-border);
-      display: flex;
-      flex-direction: column;
-    }}
-    .search-lightbox-meta {{
-      flex: 1;
-      overflow-y: auto;
-      padding: 24px;
-    }}
-    .search-lightbox-meta::-webkit-scrollbar {{ width: 4px; }}
-    .search-lightbox-meta::-webkit-scrollbar-thumb {{ background: rgba(255,255,255,0.1); border-radius: 4px; }}
-    .search-lb-header {{
-      margin-bottom: 20px;
-    }}
-    .search-lb-filename {{
-      font-size: 0.75rem;
-      color: var(--muted);
-      font-family: monospace;
-      margin-bottom: 4px;
-    }}
-    .search-lb-caption {{
-      font-size: 1.1rem;
-      font-weight: 600;
-      line-height: 1.4;
-      color: var(--text);
-      margin-bottom: 8px;
-    }}
-    .search-lb-trip-badge {{
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 4px 12px;
-      background: var(--chip-bg);
-      border: 1px solid var(--chip-border);
-      border-radius: 8px;
-      font-size: 0.8rem;
-      color: var(--accent);
-      font-weight: 600;
-    }}
-    .search-lb-colors {{
-      display: flex;
-      height: 6px;
-      border-radius: 3px;
-      overflow: hidden;
-      margin-top: 12px;
-    }}
-    .search-lb-section {{
-      padding: 16px 0;
-      border-top: 1px solid var(--card-border);
-    }}
-    .search-lb-section-title {{
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: var(--text-secondary);
-      margin-bottom: 10px;
-    }}
-    .search-lb-grid {{
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-    }}
-    .search-lb-item {{
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }}
-    .search-lb-item.full-width {{
-      grid-column: 1 / -1;
-    }}
-    .search-lb-label {{
-      font-size: 0.7rem;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }}
-    .search-lb-value {{
-      font-size: 0.85rem;
-      color: var(--text);
-    }}
-    .search-lb-tags {{
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-    }}
-    .search-lb-tag {{
-      padding: 3px 10px;
-      background: var(--chip-bg);
-      border: 1px solid var(--chip-border);
-      border-radius: 6px;
-      font-size: 0.75rem;
-      color: var(--text-secondary);
-    }}
-    .search-lb-counter {{
-      font-size: 0.8rem;
-      color: var(--muted);
-      margin-top: 8px;
-    }}
-    .search-lightbox-footer {{
-      padding: 16px 24px;
-      border-top: 1px solid var(--card-border);
-    }}
-    .search-lightbox-actions {{
-      display: flex;
-      gap: 8px;
-    }}
-    .search-lb-action-btn {{
-      flex: 1;
-      padding: 10px;
-      background: var(--chip-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 8px;
-      color: var(--text-secondary);
-      cursor: pointer;
-      font-size: 0.8rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      transition: all 0.2s ease;
-      position: relative;
-      overflow: hidden;
-    }}
-    .search-lb-action-btn:hover {{
-      background: var(--accent);
-      color: var(--bg);
-      border-color: var(--accent);
-    }}
-    .search-lb-action-btn svg {{
-      flex-shrink: 0;
-    }}
+    .search-lightbox-nav.prev {{ left: 20px; }}
+    .search-lightbox-nav.next {{ right: 20px; }}
     .search-lightbox-filmstrip {{
-      padding: 12px 16px;
+      padding: 16px;
       background: rgba(0,0,0,0.5);
       display: flex;
       gap: 8px;
       overflow-x: auto;
       justify-content: center;
-    }}
-    @media (max-width: 800px) {{
-      .search-lightbox-content {{
-        grid-template-columns: 1fr;
-      }}
-      .search-lightbox-panel {{
-        max-height: 300px;
-        border-left: none;
-        border-top: 1px solid var(--card-border);
-      }}
     }}
     .search-filmstrip-thumb {{
       width: 60px;
@@ -1410,8 +1303,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       align-items: center;
       gap: 8px;
       transition: all 0.2s ease;
-      position: relative;
-      overflow: hidden;
     }}
     .filter-toggle:hover {{
       background: var(--card-hover);
@@ -1441,8 +1332,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       align-items: center;
       gap: 6px;
       transition: all 0.2s ease;
-      position: relative;
-      overflow: hidden;
     }}
     .quick-filter:hover {{
       background: var(--card-hover);
@@ -1567,6 +1456,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
       gap: 16px;
+      max-height: 600px;
+      overflow-y: auto;
       padding: 4px;
     }}
     .result-card {{
@@ -1575,16 +1466,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       border-radius: 16px;
       overflow: hidden;
       cursor: pointer;
-      transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+      transition: border-color 0.15s ease;
       text-decoration: none;
       color: inherit;
-      animation: fadeInUp 0.4s ease both;
-      backface-visibility: hidden;
     }}
     .result-card:hover {{
       border-color: var(--accent);
-      transform: translateY(-4px);
-      box-shadow: 0 8px 24px rgba(6, 182, 212, 0.12);
     }}
     .result-thumb {{
       width: 100%;
@@ -1643,7 +1530,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      transform: translateZ(0);
     }}
     .slideshow-overlay.active {{
       display: flex;
@@ -1722,7 +1608,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       height: 60px;
       border-radius: 50%;
       border: none;
-      background: rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.1);
       color: white;
       cursor: pointer;
       font-size: 28px;
@@ -1730,6 +1616,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       align-items: center;
       justify-content: center;
       transition: all 0.2s ease;
+      backdrop-filter: blur(10px);
     }}
     .slideshow-nav:hover {{
       background: var(--accent);
@@ -1761,8 +1648,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       align-items: center;
       gap: 8px;
       transition: all 0.2s ease;
-      position: relative;
-      overflow: hidden;
     }}
     .slideshow-btn:hover {{
       background: var(--accent);
@@ -1830,6 +1715,17 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   </style>
 </head>
 <body>
+  <!-- Background Effects -->
+  <div class="bg-effects"></div>
+  <div class="particles">
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+  </div>
+
   <div class="main-content">
     <!-- Navigation -->
     <nav class="navbar">
@@ -1838,23 +1734,40 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         <span class="logo-text">MemoGraph</span>
       </a>
       <div class="nav-actions">
-        <button class="nav-btn features-btn" onclick="toggleFeatures()" title="View All Features">&#x2728; Features</button>
+        <button class="nav-btn" onclick="startSlideshow()" title="Start Slideshow">&#x1F3AC; Slideshow</button>
+        <button class="nav-btn features-btn" onclick="toggleFeatures()" title="View All Features">&#x2728; 170+ Features</button>
         <button class="info-btn" onclick="toggleModal()" title="About MemoGraph">i</button>
       </div>
     </nav>
 
-    <!-- Hero Section (Compact) -->
-    <section class="hero animate-on-scroll" style="padding-bottom: 20px;">
+    <!-- Hero Section -->
+    <section class="hero">
       <div class="hero-badge">
         <span class="hero-badge-dot"></span>
-        <span>{total_photos} Photos &middot; {trip_count} Trip{trip_suffix} &middot; {total_days} Days</span>
+        <span>{trip_count} Trip{trip_suffix} Documented</span>
       </div>
       <h1>Your Travel <span>Memories</span></h1>
-      <p class="hero-subtitle">AI-powered photo galleries with smart captions, species detection, and interactive maps &mdash; all processed locally on your machine.</p>
+      <p class="hero-subtitle">Explore your journeys through AI-powered photo galleries. Each trip is automatically organized with locations, themes, and smart captions.</p>
     </section>
 
-    <!-- Global Search - MemoLens (Primary Feature) -->
-    <section class="global-search animate-on-scroll">
+    <!-- Stats Bar -->
+    <div class="stats-bar">
+      <div class="stat-item">
+        <div class="stat-value">{total_photos}</div>
+        <div class="stat-label">Photos</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value">{total_days}</div>
+        <div class="stat-label">Days</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value">{trip_count}</div>
+        <div class="stat-label">Trips</div>
+      </div>
+    </div>
+
+    <!-- Global Search - MemoLens -->
+    <section class="global-search">
       <div class="search-container">
         <div class="search-brand">
           <div class="search-brand-icon">&#x1F50D;</div>
@@ -1961,43 +1874,30 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
     <!-- Search Lightbox (MemoLens Viewer) -->
     <div class="search-lightbox" id="searchLightbox">
-      <div class="search-lightbox-shell">
-        <div class="search-lightbox-content">
-          <div class="search-lightbox-img-wrap">
-            <button class="search-lightbox-close-btn" onclick="closeSearchLightbox()">&#x2715; Close</button>
-            <button class="search-lightbox-nav prev" onclick="searchLightboxPrev()">&#x276E;</button>
-            <img class="search-lightbox-img" id="searchLbImage" src="" alt="">
-            <button class="search-lightbox-nav next" onclick="searchLightboxNext()">&#x276F;</button>
-          </div>
-          <div class="search-lightbox-panel">
-            <div class="search-lightbox-meta" id="searchLbMeta">
-              <!-- Populated by JS -->
-            </div>
-            <div class="search-lightbox-footer">
-              <div class="search-lightbox-actions">
-                <button class="search-lb-action-btn" onclick="goToTripFromLightbox()">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                  Open Trip
-                </button>
-                <button class="search-lb-action-btn" onclick="copySearchMeta()">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                  Copy Info
-                </button>
-              </div>
-            </div>
-          </div>
+      <div class="search-lightbox-header">
+        <div class="search-lightbox-info">
+          <div class="search-lightbox-trip" id="searchLbTrip"></div>
+          <div class="search-lightbox-caption" id="searchLbCaption"></div>
+          <div class="search-lightbox-counter" id="searchLbCounter"></div>
         </div>
-        <div class="search-lightbox-filmstrip" id="searchLbFilmstrip"></div>
+        <div class="search-lightbox-actions">
+          <button class="search-lightbox-btn" id="searchLbGoToTrip" onclick="goToTripFromLightbox()">
+            &#x1F4C2; Open Trip
+          </button>
+          <button class="search-lightbox-btn close" onclick="closeSearchLightbox()">&#x2715;</button>
+        </div>
       </div>
-    </div>
-
-    <!-- Trips Section Header -->
-    <div class="animate-on-scroll" style="padding: 40px 5vw 0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
-      <div>
-        <h2 style="font-family:'Playfair Display',serif; font-size:1.8rem; font-weight:700; margin-bottom:4px;">Your Trips</h2>
-        <p style="color:var(--muted); font-size:0.95rem;">{trip_count} trip{trip_suffix} documented</p>
+      <div class="search-lightbox-body" onclick="if(event.target===this) closeSearchLightbox()">
+        <button class="search-lightbox-nav prev" onclick="searchLightboxPrev()">&#x276E;</button>
+        <img class="search-lightbox-img" id="searchLbImage" src="" alt="">
+        <button class="search-lightbox-nav next" onclick="searchLightboxNext()">&#x276F;</button>
+        <div class="search-lightbox-zoom">
+          <button class="zoom-btn" onclick="zoomSearchImage(-1)" title="Zoom Out">&#x2212;</button>
+          <button class="zoom-btn" onclick="zoomSearchImage(0)" title="Reset Zoom">&#x2299;</button>
+          <button class="zoom-btn" onclick="zoomSearchImage(1)" title="Zoom In">&#x002B;</button>
+        </div>
       </div>
-      <button class="nav-btn" onclick="startSlideshow()" title="Start Slideshow" style="gap:8px;">&#x1F3AC; Slideshow</button>
+      <div class="search-lightbox-filmstrip" id="searchLbFilmstrip"></div>
     </div>
 
     <!-- Trip Controls -->
@@ -2017,7 +1917,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     </div>
 
     <!-- Trip Grid -->
-    <section class="grid animate-on-scroll" id="tripGrid">
+    <section class="grid" id="tripGrid">
       {cards}
     </section>
 
@@ -2037,39 +1937,29 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       <button class="modal-close" onclick="toggleModal()">&#x2715;</button>
       <div class="modal-icon">&#x1F4F7;</div>
       <h2>MemoGraph</h2>
-      <p class="modal-subtitle">AI-Powered Photo Memory Organizer</p>
-      <p style="color:var(--text-secondary); font-size:0.9rem; margin-bottom:20px; line-height:1.6;">
-        An offline-first pipeline that scans your photos, extracts metadata, runs 7 AI models for captions, tags, species, and face detection, then builds interactive web galleries &mdash; all on your own machine.
-      </p>
+      <p class="modal-subtitle">AI-Powered Travel Memory Organizer</p>
       <ul class="modal-features">
         <li>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-          GPS location extraction &amp; address resolution
+          Auto-detect locations from GPS data
         </li>
         <li>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path><circle cx="12" cy="13" r="3"></circle></svg>
-          Multi-model AI captions (BLIP + Vision LLM)
+          AI-generated captions for every photo
         </li>
         <li>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-          Face detection with bounding boxes
+          Face detection & recognition
         </li>
         <li>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M8 12l2 2 4-4"></path></svg>
-          OWLv2 + BioCLIP 2 species identification
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M3 12h18"></path></svg>
+          Species & wildlife identification
         </li>
         <li>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><path d="M3 9h18M9 21V9"></path></svg>
-          Static web galleries, maps &amp; MemoLens search
+          Interactive web galleries
         </li>
       </ul>
-      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px;">
-        <span style="padding:4px 12px; background:var(--chip-bg); border:1px solid var(--chip-border); border-radius:8px; font-size:0.75rem; color:var(--text-secondary);">Python</span>
-        <span style="padding:4px 12px; background:var(--chip-bg); border:1px solid var(--chip-border); border-radius:8px; font-size:0.75rem; color:var(--text-secondary);">PyTorch</span>
-        <span style="padding:4px 12px; background:var(--chip-bg); border:1px solid var(--chip-border); border-radius:8px; font-size:0.75rem; color:var(--text-secondary);">Transformers</span>
-        <span style="padding:4px 12px; background:var(--chip-bg); border:1px solid var(--chip-border); border-radius:8px; font-size:0.75rem; color:var(--text-secondary);">Leaflet.js</span>
-        <span style="padding:4px 12px; background:var(--chip-bg); border:1px solid var(--chip-border); border-radius:8px; font-size:0.75rem; color:var(--text-secondary);">CUDA</span>
-      </div>
       <div class="modal-author">
         <div class="modal-author-label">Created By</div>
         <div class="modal-author-name">Soham Bagayatkar</div>
@@ -2095,55 +1985,55 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       <div class="features-section">
         <div class="features-section-title"><div class="features-section-icon privacy">&#x1F512;</div>Privacy & Security</div>
         <div class="features-grid">
-          <div class="feature-chip"><span class="status-dot done"></span>100% Offline Processing</div><div class="feature-chip"><span class="status-dot done"></span>Zero Cloud Uploads</div><div class="feature-chip"><span class="status-dot done"></span>No Tracking or Analytics</div><div class="feature-chip"><span class="status-dot done"></span>Self-Hosted on Your Machine</div><div class="feature-chip"><span class="status-dot done"></span>Open Source Codebase</div><div class="feature-chip"><span class="status-dot done"></span>Works Without Internet</div>
+          <div class="feature-chip"><span class="status-dot done"></span>100% Offline</div><div class="feature-chip"><span class="status-dot done"></span>No Cloud Upload</div><div class="feature-chip"><span class="status-dot done"></span>Local Processing</div><div class="feature-chip"><span class="status-dot done"></span>Privacy First</div><div class="feature-chip"><span class="status-dot done"></span>No Internet</div><div class="feature-chip"><span class="status-dot done"></span>Data Stays Local</div><div class="feature-chip"><span class="status-dot done"></span>No Tracking</div><div class="feature-chip"><span class="status-dot done"></span>Self-Hosted</div><div class="feature-chip"><span class="status-dot done"></span>Open Source</div><div class="feature-chip"><span class="status-dot done"></span>No Analytics</div>
         </div>
       </div>
       <div class="features-section">
-        <div class="features-section-title"><div class="features-section-icon ai">&#x1F916;</div>AI Pipeline (7 Models)</div>
+        <div class="features-section-title"><div class="features-section-icon ai">&#x1F916;</div>AI Models (6 Integrated)</div>
         <div class="features-grid">
-          <div class="feature-chip"><span class="status-dot done"></span>CLIP Object Detection</div><div class="feature-chip"><span class="status-dot done"></span>BLIP Auto-Captioning</div><div class="feature-chip"><span class="status-dot done"></span>Vision LLM Descriptions</div><div class="feature-chip"><span class="status-dot done"></span>OWLv2 Species Detector</div><div class="feature-chip"><span class="status-dot done"></span>BioCLIP 2 Classifier</div><div class="feature-chip"><span class="status-dot done"></span>Bird Species Identifier</div><div class="feature-chip"><span class="status-dot done"></span>Face Detection (CNN)</div><div class="feature-chip"><span class="status-dot partial"></span>Face Recognition</div><div class="feature-chip"><span class="status-dot done"></span>Auto Model Selection</div>
+          <div class="feature-chip"><span class="status-dot done"></span>CLIP Detection</div><div class="feature-chip"><span class="status-dot done"></span>BLIP Captioning</div><div class="feature-chip"><span class="status-dot done"></span>LLaVA Vision AI</div><div class="feature-chip"><span class="status-dot done"></span>Face Detection</div><div class="feature-chip"><span class="status-dot partial"></span>Face Recognition</div><div class="feature-chip"><span class="status-dot done"></span>Bird Classifier</div><div class="feature-chip"><span class="status-dot done"></span>Species Detector</div><div class="feature-chip"><span class="status-dot done"></span>Quality Analyzer</div><div class="feature-chip"><span class="status-dot done"></span>Color Extractor</div><div class="feature-chip"><span class="status-dot done"></span>Type Classifier</div>
         </div>
       </div>
       <div class="features-section">
-        <div class="features-section-title"><div class="features-section-icon nature">&#x1F33F;</div>Nature & Wildlife</div>
+        <div class="features-section-title"><div class="features-section-icon nature">&#x1F33F;</div>Nature & Wildlife (150+ Species)</div>
         <div class="features-grid">
-          <div class="feature-chip"><span class="status-dot done"></span>952K+ Species Database</div><div class="feature-chip"><span class="status-dot done"></span>Bird Identification</div><div class="feature-chip"><span class="status-dot done"></span>Bounding Box Detection</div><div class="feature-chip"><span class="status-dot partial"></span>Butterfly Classification</div><div class="feature-chip"><span class="status-dot partial"></span>Insect Detection</div><div class="feature-chip"><span class="status-dot partial"></span>Plant &amp; Flower ID</div><div class="feature-chip"><span class="status-dot done"></span>Confidence Scoring</div>
+          <div class="feature-chip"><span class="status-dot done"></span>60+ Bird Species</div><div class="feature-chip"><span class="status-dot partial"></span>Plant Detection</div><div class="feature-chip"><span class="status-dot partial"></span>Flower Species</div><div class="feature-chip"><span class="status-dot partial"></span>Tree Detection</div><div class="feature-chip"><span class="status-dot partial"></span>Insect Detection</div><div class="feature-chip"><span class="status-dot partial"></span>Butterfly Species</div><div class="feature-chip"><span class="status-dot done"></span>Animal Detection</div><div class="feature-chip"><span class="status-dot done"></span>Wildlife ID</div><div class="feature-chip"><span class="status-dot done"></span>Forest Scenes</div><div class="feature-chip"><span class="status-dot done"></span>Garden Detection</div>
         </div>
       </div>
       <div class="features-section">
         <div class="features-section-title"><div class="features-section-icon scene">&#x1F3D4;</div>Scenes & Objects (130+ Concepts)</div>
         <div class="features-grid">
-          <div class="feature-chip"><span class="status-dot done"></span>Mountains &amp; Landscapes</div><div class="feature-chip"><span class="status-dot done"></span>Beaches &amp; Water</div><div class="feature-chip"><span class="status-dot done"></span>Temples &amp; Monuments</div><div class="feature-chip"><span class="status-dot done"></span>Urban &amp; Markets</div><div class="feature-chip"><span class="status-dot done"></span>Food &amp; Cuisine</div><div class="feature-chip"><span class="status-dot done"></span>Vehicles &amp; Transport</div><div class="feature-chip"><span class="status-dot done"></span>Night Sky &amp; Astro</div><div class="feature-chip"><span class="status-dot done"></span>Sunrise &amp; Sunset</div><div class="feature-chip"><span class="status-dot done"></span>Trails &amp; Roads</div><div class="feature-chip"><span class="status-dot done"></span>Indoor Scenes</div>
+          <div class="feature-chip"><span class="status-dot done"></span>Mountains</div><div class="feature-chip"><span class="status-dot done"></span>Beaches</div><div class="feature-chip"><span class="status-dot done"></span>Temples</div><div class="feature-chip"><span class="status-dot done"></span>Monuments</div><div class="feature-chip"><span class="status-dot done"></span>Cities</div><div class="feature-chip"><span class="status-dot done"></span>Markets</div><div class="feature-chip"><span class="status-dot done"></span>Food</div><div class="feature-chip"><span class="status-dot done"></span>Vehicles</div><div class="feature-chip"><span class="status-dot done"></span>Night Sky</div><div class="feature-chip"><span class="status-dot done"></span>Astrophotography</div><div class="feature-chip"><span class="status-dot done"></span>Sunsets</div><div class="feature-chip"><span class="status-dot done"></span>Golden Hour</div><div class="feature-chip"><span class="status-dot done"></span>Indoor Scenes</div><div class="feature-chip"><span class="status-dot done"></span>Road Trips</div><div class="feature-chip"><span class="status-dot done"></span>Hiking Trails</div>
         </div>
       </div>
       <div class="features-section">
         <div class="features-section-title"><div class="features-section-icon people">&#x1F464;</div>People & Portraits</div>
         <div class="features-grid">
-          <div class="feature-chip"><span class="status-dot done"></span>Face Detection &amp; Counting</div><div class="feature-chip"><span class="status-dot done"></span>Bounding Box Overlay</div><div class="feature-chip"><span class="status-dot partial"></span>Named Recognition</div><div class="feature-chip"><span class="status-dot done"></span>Group Photo Tagging</div><div class="feature-chip"><span class="status-dot done"></span>Person Fallback (CLIP)</div>
+          <div class="feature-chip"><span class="status-dot done"></span>Face Detection</div><div class="feature-chip"><span class="status-dot done"></span>Face Counting</div><div class="feature-chip"><span class="status-dot partial"></span>People Recognition</div><div class="feature-chip"><span class="status-dot done"></span>Group Photos</div><div class="feature-chip"><span class="status-dot done"></span>Selfie Detection</div><div class="feature-chip"><span class="status-dot partial"></span>Portrait Mode</div><div class="feature-chip"><span class="status-dot done"></span>Family Photos</div><div class="feature-chip"><span class="status-dot done"></span>Crowd Detection</div>
         </div>
       </div>
       <div class="features-section">
         <div class="features-section-title"><div class="features-section-icon quality">&#x2728;</div>Image Quality Analysis</div>
         <div class="features-grid">
-          <div class="feature-chip"><span class="status-dot done"></span>Overall Quality Score</div><div class="feature-chip"><span class="status-dot done"></span>Sharpness Analysis</div><div class="feature-chip"><span class="status-dot done"></span>Exposure &amp; Lighting</div><div class="feature-chip"><span class="status-dot done"></span>Contrast Evaluation</div><div class="feature-chip"><span class="status-dot done"></span>Noise Level Detection</div><div class="feature-chip"><span class="status-dot done"></span>Color Balance Check</div><div class="feature-chip"><span class="status-dot done"></span>Dominant Color Extraction</div><div class="feature-chip"><span class="status-dot done"></span>Best Photo Ranking</div>
+          <div class="feature-chip"><span class="status-dot done"></span>Quality Scoring</div><div class="feature-chip"><span class="status-dot done"></span>Sharpness Check</div><div class="feature-chip"><span class="status-dot done"></span>Exposure Analysis</div><div class="feature-chip"><span class="status-dot done"></span>Contrast Check</div><div class="feature-chip"><span class="status-dot done"></span>Noise Detection</div><div class="feature-chip"><span class="status-dot done"></span>Color Balance</div><div class="feature-chip"><span class="status-dot done"></span>Best Photo Filter</div><div class="feature-chip"><span class="status-dot done"></span>Dominant Colors</div><div class="feature-chip"><span class="status-dot done"></span>Color Palettes</div>
         </div>
       </div>
       <div class="features-section">
         <div class="features-section-title"><div class="features-section-icon output">&#x1F4CA;</div>Output & Visualization</div>
         <div class="features-grid">
-          <div class="feature-chip"><span class="status-dot done"></span>Interactive Leaflet Maps</div><div class="feature-chip"><span class="status-dot done"></span>3-Column Photo Gallery</div><div class="feature-chip"><span class="status-dot done"></span>Full-Screen Lightbox</div><div class="feature-chip"><span class="status-dot done"></span>Filmstrip Navigation</div><div class="feature-chip"><span class="status-dot done"></span>MemoLens Cross-Trip Search</div><div class="feature-chip"><span class="status-dot done"></span>Markdown Blog Generator</div><div class="feature-chip"><span class="status-dot done"></span>JSON &amp; CSV Export</div><div class="feature-chip"><span class="status-dot done"></span>Slideshow Mode</div><div class="feature-chip"><span class="status-dot done"></span>Thumbnail Generation</div><div class="feature-chip"><span class="status-dot done"></span>Trip Hub Dashboard</div>
+          <div class="feature-chip"><span class="status-dot done"></span>Interactive Maps</div><div class="feature-chip"><span class="status-dot done"></span>Photo Gallery</div><div class="feature-chip"><span class="status-dot done"></span>Lightbox Viewer</div><div class="feature-chip"><span class="status-dot done"></span>Filmstrip Nav</div><div class="feature-chip"><span class="status-dot done"></span>Filter System</div><div class="feature-chip"><span class="status-dot done"></span>Search Function</div><div class="feature-chip"><span class="status-dot done"></span>Blog Generation</div><div class="feature-chip"><span class="status-dot done"></span>JSON Export</div><div class="feature-chip"><span class="status-dot done"></span>CSV Database</div><div class="feature-chip"><span class="status-dot done"></span>Trip Overview</div><div class="feature-chip"><span class="status-dot done"></span>Thumbnails</div><div class="feature-chip"><span class="status-dot done"></span>Quality Meters</div>
         </div>
       </div>
       <div class="features-section">
-        <div class="features-section-title"><div class="features-section-icon tech">&#x2699;</div>Technical</div>
+        <div class="features-section-title"><div class="features-section-icon tech">&#x2699;</div>Technical Features</div>
         <div class="features-grid">
-          <div class="feature-chip"><span class="status-dot done"></span>GPU Acceleration</div><div class="feature-chip"><span class="status-dot done"></span>Batch Processing</div><div class="feature-chip"><span class="status-dot done"></span>Parallel Execution</div><div class="feature-chip"><span class="status-dot done"></span>Incremental Saves</div><div class="feature-chip"><span class="status-dot done"></span>Graceful Interrupts</div><div class="feature-chip"><span class="status-dot done"></span>Resource Monitoring</div><div class="feature-chip"><span class="status-dot done"></span>CSV Backup Rotation</div><div class="feature-chip"><span class="status-dot done"></span>EXIF &amp; GPS Extraction</div><div class="feature-chip"><span class="status-dot done"></span>Day Grouping</div><div class="feature-chip"><span class="status-dot done"></span>Image Type Detection</div>
+          <div class="feature-chip"><span class="status-dot done"></span>GPU Accelerated</div><div class="feature-chip"><span class="status-dot done"></span>Batch Processing</div><div class="feature-chip"><span class="status-dot done"></span>Parallel Execution</div><div class="feature-chip"><span class="status-dot done"></span>Incremental Saves</div><div class="feature-chip"><span class="status-dot done"></span>Resume Support</div><div class="feature-chip"><span class="status-dot done"></span>Resource Monitor</div><div class="feature-chip"><span class="status-dot done"></span>Error Recovery</div><div class="feature-chip"><span class="status-dot done"></span>Backup System</div><div class="feature-chip"><span class="status-dot done"></span>EXIF Extraction</div><div class="feature-chip"><span class="status-dot done"></span>GPS Mapping</div><div class="feature-chip"><span class="status-dot done"></span>Day Grouping</div><div class="feature-chip"><span class="status-dot done"></span>Auto Tagging</div>
         </div>
       </div>
       <div class="features-section">
         <div class="features-section-title"><div class="features-section-icon tech" style="background: linear-gradient(135deg, #ef4444, #dc2626);">&#x1F680;</div>Coming Soon</div>
         <div class="features-grid">
-          <div class="feature-chip"><span class="status-dot todo"></span>Semantic Image Search</div><div class="feature-chip"><span class="status-dot todo"></span>OCR Text Extraction</div><div class="feature-chip"><span class="status-dot todo"></span>Video Clip Support</div><div class="feature-chip"><span class="status-dot todo"></span>Trip Comparison</div><div class="feature-chip"><span class="status-dot todo"></span>Photo Deduplication</div>
+          <div class="feature-chip"><span class="status-dot todo"></span>Semantic Search</div><div class="feature-chip"><span class="status-dot todo"></span>Cross-Trip Search</div><div class="feature-chip"><span class="status-dot todo"></span>Plant Classifier</div><div class="feature-chip"><span class="status-dot todo"></span>Insect Classifier</div><div class="feature-chip"><span class="status-dot todo"></span>OCR Text Extract</div><div class="feature-chip"><span class="status-dot todo"></span>Video Support</div>
         </div>
       </div>
       <div class="features-footer">
@@ -2152,7 +2042,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
           <div class="legend-item"><span class="status-dot partial"></span>In Progress</div>
           <div class="legend-item"><span class="status-dot todo"></span>Planned</div>
         </div>
-        <p class="features-footer-text">Zero Cloud. Complete Privacy. All AI runs on your machine.</p>
+        <p class="features-footer-text">170+ Features. Zero Cloud. Complete Privacy.</p>
         <div class="features-footer-brand">
           <div class="features-footer-logo">&#x1F4F7;</div>
           <span class="features-footer-name">MemoGraph</span>
@@ -2213,8 +2103,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         // Build searchable terms for autocomplete
         buildSearchableTerms();
         console.log('Search index loaded:', searchIndex.stats);
-        // Restore previous MemoLens search if returning from a trip page
-        _restoreSearchState();
       }}
     }}
 
@@ -2394,39 +2282,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       performSearch(term);
     }}
 
-    // ===== SEARCH STATE PERSISTENCE =====
-    function _saveSearchState() {{
-      try {{
-        const query = document.getElementById('globalSearch').value;
-        if (query) {{
-          sessionStorage.setItem('memolens_query', query);
-          sessionStorage.setItem('memolens_timestamp', Date.now().toString());
-        }}
-      }} catch (e) {{}}
-    }}
-
-    function _restoreSearchState() {{
-      try {{
-        const query = sessionStorage.getItem('memolens_query');
-        const ts = sessionStorage.getItem('memolens_timestamp');
-        if (query && ts) {{
-          // Only restore if saved within the last 30 minutes
-          const age = Date.now() - parseInt(ts);
-          if (age < 30 * 60 * 1000) {{
-            sessionStorage.removeItem('memolens_query');
-            sessionStorage.removeItem('memolens_timestamp');
-            document.getElementById('globalSearch').value = query;
-            // Delay search to ensure index is loaded
-            setTimeout(() => {{ performSearch(query); }}, 100);
-            return true;
-          }}
-        }}
-        sessionStorage.removeItem('memolens_query');
-        sessionStorage.removeItem('memolens_timestamp');
-      }} catch (e) {{}}
-      return false;
-    }}
-
     // ===== SEARCH LIGHTBOX (MemoLens Viewer) =====
     let searchLightboxIndex = 0;
     let currentTripFilter = null;
@@ -2448,109 +2303,26 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       const results = getFilteredResults();
       if (results.length === 0) return;
 
+      // Reset zoom on navigation
+      currentZoom = 1;
       const imgEl = document.getElementById('searchLbImage');
+      if (imgEl) imgEl.style.transform = 'scale(1)';
+
       const img = results[searchLightboxIndex];
 
-      // Load full-res image (use local_path for correct filename case), fallback to thumbnail
-      const fullPath = img.local_path ? (img.trip + '/' + img.local_path) : img.thumbnail.replace('/MemoGraph/thumbnails/', '/');
+      // Try full image first, fallback to thumbnail
+      const fullPath = img.thumbnail.replace('/MemoGraph/thumbnails/', '/');
       imgEl.src = img.thumbnail;
       const fullImg = new Image();
       fullImg.onload = () => {{ imgEl.src = fullPath; }};
       fullImg.src = fullPath;
 
-      // Build metadata panel
-      const caption = img.captions && img.captions[0] ? img.captions[0] : (img.tags ? img.tags.slice(0, 3).join(', ') : img.filename);
-      const tripName = img.trip.replace(/_/g, ' ');
-
-      const colorsHtml = img.colors && img.colors.length > 0
-        ? `<div class="search-lb-colors">${{img.colors.map(c => `<div style="flex:1;background:${{c}};height:100%"></div>`).join('')}}</div>`
-        : '';
-
-      const tagsHtml = img.tags && img.tags.length > 0
-        ? `<div class="search-lb-tags">${{img.tags.map(t => `<span class="search-lb-tag">${{t}}</span>`).join('')}}</div>`
-        : '<span class="search-lb-value" style="color:var(--muted)">None detected</span>';
-
-      const speciesHtml = img.species && img.species.length > 0
-        ? `<div class="search-lb-tags">${{img.species.map(s => `<span class="search-lb-tag" style="border-color:rgba(16,185,129,0.3);color:var(--success)">${{s}}</span>`).join('')}}</div>`
-        : '<span class="search-lb-value" style="color:var(--muted)">None</span>';
-
-      const qualityHtml = img.quality > 0
-        ? `<div class="search-lb-section">
-            <div class="search-lb-section-title">&#x2728; Quality</div>
-            <div style="display:flex;align-items:center;gap:12px;">
-              <div style="flex:1;height:6px;background:var(--bg-secondary);border-radius:3px;overflow:hidden;">
-                <div style="height:100%;width:${{img.quality}}%;background:${{img.quality >= 70 ? 'var(--success)' : img.quality >= 40 ? 'var(--accent)' : '#ef4444'}};border-radius:3px;"></div>
-              </div>
-              <span class="search-lb-value" style="font-weight:600;">${{img.quality}}%</span>
-            </div>
-          </div>`
-        : '';
-
-      const locationHtml = img.location
-        ? `<div class="search-lb-item full-width">
-            <span class="search-lb-label">Location</span>
-            <span class="search-lb-value">${{img.location}}</span>
-          </div>`
-        : '';
-
-      const gpsHtml = img.gps
-        ? `<div class="search-lb-item">
-            <span class="search-lb-label">GPS</span>
-            <span class="search-lb-value" style="font-size:0.75rem;font-family:monospace">${{img.gps[0].toFixed(4)}}, ${{img.gps[1].toFixed(4)}}</span>
-          </div>`
-        : '';
-
-      document.getElementById('searchLbMeta').innerHTML = `
-        <div class="search-lb-header">
-          <div class="search-lb-filename">${{img.filename}}</div>
-          <div class="search-lb-caption">${{caption}}</div>
-          <span class="search-lb-trip-badge">&#x1F4C2; ${{tripName}}</span>
-          ${{colorsHtml}}
-          <div class="search-lb-counter">${{searchLightboxIndex + 1}} / ${{results.length}} in search results</div>
-        </div>
-
-        <div class="search-lb-section">
-          <div class="search-lb-section-title">&#x1F4CD; Location & Time</div>
-          <div class="search-lb-grid">
-            ${{locationHtml}}
-            <div class="search-lb-item">
-              <span class="search-lb-label">Day</span>
-              <span class="search-lb-value">${{img.day_number ? 'Day ' + img.day_number : 'N/A'}}</span>
-            </div>
-            <div class="search-lb-item">
-              <span class="search-lb-label">Time</span>
-              <span class="search-lb-value">${{img.time || 'Unknown'}}</span>
-            </div>
-            ${{gpsHtml}}
-            <div class="search-lb-item">
-              <span class="search-lb-label">Device</span>
-              <span class="search-lb-value">${{img.device || 'Unknown'}}</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="search-lb-section">
-          <div class="search-lb-section-title">&#x1F3F7; Tags</div>
-          ${{tagsHtml}}
-        </div>
-
-        <div class="search-lb-section">
-          <div class="search-lb-section-title">&#x1F33F; Species</div>
-          ${{speciesHtml}}
-        </div>
-
-        ${{img.faces_count > 0 ? `<div class="search-lb-section">
-          <div class="search-lb-section-title">&#x1F464; People</div>
-          <span class="search-lb-value">${{img.faces_count}} face${{img.faces_count > 1 ? 's' : ''}} detected</span>
-        </div>` : ''}}
-
-        ${{qualityHtml}}
-
-        ${{img.captions && img.captions.length > 1 ? `<div class="search-lb-section">
-          <div class="search-lb-section-title">&#x1F4AC; AI Description</div>
-          <p style="font-size:0.85rem;color:var(--text-secondary);line-height:1.5;margin:0;">${{img.captions[img.captions.length - 1]}}</p>
-        </div>` : ''}}
-      `;
+      // Update info
+      document.getElementById('searchLbTrip').textContent = img.trip.replace(/_/g, ' ');
+      document.getElementById('searchLbCaption').textContent =
+        img.captions[0] || img.tags.slice(0, 3).join(', ') || img.filename;
+      document.getElementById('searchLbCounter').textContent =
+        `${{searchLightboxIndex + 1}} / ${{results.length}} in search results`;
 
       // Update filmstrip selection
       document.querySelectorAll('.search-filmstrip-thumb').forEach((thumb, idx) => {{
@@ -2600,20 +2372,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     function goToTripFromLightbox() {{
       const results = getFilteredResults();
       const img = results[searchLightboxIndex];
-      // Save search state before navigating
-      _saveSearchState();
       window.location.href = `${{img.trip}}/MemoGraph/webapp/index.html#${{img.filename}}`;
-    }}
-
-    function copySearchMeta() {{
-      const meta = document.getElementById('searchLbMeta');
-      if (!meta) return;
-      const text = Array.from(meta.querySelectorAll('.search-lb-label, .search-lb-value, .search-lb-caption, .search-lb-tag'))
-        .map(el => el.innerText).join('\\n');
-      navigator.clipboard.writeText(text).then(() => {{
-        const btn = document.querySelector('.search-lb-action-btn:last-child');
-        if (btn) {{ const orig = btn.innerHTML; btn.textContent = 'Copied!'; setTimeout(() => btn.innerHTML = orig, 1500); }}
-      }});
     }}
 
     function getFilteredResults() {{
@@ -2727,9 +2486,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         alert('Search index not loaded. Process trips first.');
         return;
       }}
-
-      // Save search state for back-navigation
-      _saveSearchState();
 
       const lowerQuery = query.toLowerCase();
       const tokens = lowerQuery.split(/\s+/);
@@ -2905,12 +2661,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       document.querySelectorAll('.quick-filter').forEach(btn => btn.classList.remove('active'));
 
       searchResults = [];
-
-      // Clear saved search state so it doesn't restore on page reload
-      try {{
-        sessionStorage.removeItem('memolens_query');
-        sessionStorage.removeItem('memolens_timestamp');
-      }} catch (e) {{}}
     }}
 
     // Toggle advanced filters
@@ -2998,24 +2748,13 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       const img = slideshowImages[slideshowIndex];
       const imgEl = document.getElementById('slideshowImage');
 
-      // Derive full-res path from local_path (same logic as search lightbox)
-      const fullPath = img.local_path
-        ? (img.trip + '/' + img.local_path)
-        : img.thumbnail.replace('/MemoGraph/thumbnails/', '/');
+      // Use full image path (not thumbnail) if available
+      const fullPath = img.thumbnail.replace('/MemoGraph/thumbnails/', '/');
       imgEl.src = img.thumbnail; // Start with thumbnail for quick load
 
-      // Upgrade to full-res image
+      // Try to load full image
       const fullImg = new Image();
       fullImg.onload = () => {{ imgEl.src = fullPath; }};
-      fullImg.onerror = () => {{
-        // local_path-based path failed; try the thumbnail-replace fallback
-        const fallback = img.thumbnail.replace('/MemoGraph/thumbnails/', '/');
-        if (fallback !== fullPath) {{
-          const fb = new Image();
-          fb.onload = () => {{ imgEl.src = fallback; }};
-          fb.src = fallback;
-        }}
-      }};
       fullImg.src = fullPath;
 
       document.getElementById('slideshowTrip').textContent = img.trip.replace(/_/g, ' ');
@@ -3146,19 +2885,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       }}
     }});
 
-    // ===== SCROLL ANIMATIONS =====
-    document.addEventListener('DOMContentLoaded', () => {{
-      const observer = new IntersectionObserver((entries) => {{
-        entries.forEach(entry => {{
-          if (entry.isIntersecting) {{
-            entry.target.classList.add('visible');
-            observer.unobserve(entry.target);
-          }}
-        }});
-      }}, {{ threshold: 0.08, rootMargin: '0px 0px -40px 0px' }});
-      document.querySelectorAll('.animate-on-scroll').forEach(el => observer.observe(el));
-    }});
-
     // Load search index on page load
     document.addEventListener('DOMContentLoaded', loadSearchIndex);
 
@@ -3168,76 +2894,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       if (searchWrap && !searchWrap.contains(e.target)) {{
         document.getElementById('autocompleteDropdown').classList.remove('active');
       }}
-    }});
-
-    // ===== MATERIAL DESIGN RIPPLE EFFECT =====
-    function createRipple(event) {{
-      const el = event.currentTarget;
-      const rect = el.getBoundingClientRect();
-      const size = Math.max(rect.width, rect.height) * 2;
-      const x = event.clientX - rect.left - size / 2;
-      const y = event.clientY - rect.top - size / 2;
-      const ripple = document.createElement('span');
-      ripple.className = 'ripple-wave';
-      ripple.style.cssText = `width:${{size}}px;height:${{size}}px;left:${{x}}px;top:${{y}}px;`;
-      el.appendChild(ripple);
-      ripple.addEventListener('animationend', () => ripple.remove());
-    }}
-
-    document.addEventListener('DOMContentLoaded', () => {{
-      const rippleSelectors = '.nav-btn, .info-btn, .quick-filter, .search-lb-action-btn, .results-group-btn, .slideshow-btn, .slideshow-close, .slideshow-nav, .search-lightbox-close-btn, .search-lightbox-nav, .filter-toggle, .view-btn';
-      document.querySelectorAll(rippleSelectors).forEach(btn => {{
-        btn.classList.add('ripple-host');
-        btn.addEventListener('click', createRipple);
-      }});
-      // Also attach to dynamically created elements via delegation
-      document.addEventListener('click', (e) => {{
-        const target = e.target.closest('.quick-filter, .results-group-btn, .search-lb-action-btn');
-        if (target && !target.classList.contains('ripple-host')) {{
-          target.classList.add('ripple-host');
-          createRipple({{ currentTarget: target, clientX: e.clientX, clientY: e.clientY }});
-        }}
-      }});
-    }});
-
-    // ===== BACK-NAVIGATION ANIMATION =====
-    // Store trip name when clicking a trip card (for return highlight)
-    document.addEventListener('DOMContentLoaded', () => {{
-      document.querySelectorAll('.trip-card').forEach(card => {{
-        card.addEventListener('click', () => {{
-          try {{
-            sessionStorage.setItem('memograph_last_trip', card.getAttribute('data-name') || '');
-            sessionStorage.setItem('memograph_last_trip_ts', Date.now().toString());
-          }} catch(e) {{}}
-        }});
-      }});
-
-      // Check if returning from a trip → highlight the card
-      try {{
-        const lastTrip = sessionStorage.getItem('memograph_last_trip');
-        const ts = sessionStorage.getItem('memograph_last_trip_ts');
-        if (lastTrip && ts) {{
-          const age = Date.now() - parseInt(ts);
-          if (age < 10 * 60 * 1000) {{
-            document.body.classList.add('page-enter');
-            // Remove class after animation to avoid stacking context issues with fixed overlays
-            setTimeout(() => document.body.classList.remove('page-enter'), 600);
-            const cards = document.querySelectorAll('.trip-card');
-            for (const card of cards) {{
-              if (card.getAttribute('data-name') === lastTrip) {{
-                setTimeout(() => {{
-                  card.scrollIntoView({{ behavior: 'smooth', block: 'center' }});
-                  card.classList.add('returning');
-                  card.addEventListener('animationend', () => card.classList.remove('returning'), {{ once: true }});
-                }}, 300);
-                break;
-              }}
-            }}
-          }}
-          sessionStorage.removeItem('memograph_last_trip');
-          sessionStorage.removeItem('memograph_last_trip_ts');
-        }}
-      }} catch(e) {{}}
     }});
   </script>
 </body>

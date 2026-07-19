@@ -174,6 +174,10 @@ def label_images(trip_folder):
 
 	try:
 		for i, r in enumerate(rows, 1):
+			# Duplicates inherit detected_objects/species_tags from the canonical
+			# via dedup_broadcast.py — don't run CLIP on them.
+			if (r.get("duplicate_of") or "").strip():
+				continue
 			# Skip rows that already have labels so re-running the script naturally
 			# resumes only on missing entries.
 			if _row_has_labels(r):

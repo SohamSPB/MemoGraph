@@ -9,15 +9,16 @@ Supports batch processing of multiple images through CLIP and BLIP for higher th
 Features:
 - Batch CLIP processing (2-8 images simultaneously)
 - Batch BLIP captioning (2-8 images simultaneously)
-- Vision LLM processing (auto-selects Qwen 7B AWQ or LLaVA 0.5B based on VRAM)
+- LLaVA processing (sequential, complex chat template)
 - Resource monitoring and statistics
 - Automatic fallback to sequential on batch errors
 
 GPU Memory Budget (RTX 3060 12GB):
 - CLIP ViT-B/32: ~1GB
 - BLIP: ~2GB
-- Vision LLM: ~2GB (LLaVA 0.5B) or ~8-9GB (Qwen 7B AWQ)
+- LLaVA OneVision 0.5B: ~2GB
 - Face Detection (dlib): ~0.5GB
+- Base total: ~5.5GB
 - Batch processing buffers: ~2-4GB (depends on batch_size)
 - Recommended batch_size for RTX 3060: 4
 
@@ -204,7 +205,6 @@ class GPUModelManager:
         self._processors: Dict[str, Any] = {}
         self._loaded = set()
         self._lock = threading.Lock()
-        self._vlm_model_type: Optional[str] = None  # "qwen-7b" or "llava-0.5b"
 
         self.resource_monitor = ResourceMonitor(interval=0.5)
         self.stats = ProcessingStats()
@@ -247,10 +247,7 @@ class GPUModelManager:
                 self._loaded.add(model_name)
                 elapsed = time.time() - start
                 snapshot = self.resource_monitor.get_current()
-                extra = ""
-                if model_name == 'llava' and self._vlm_model_type:
-                    extra = f" [{self._vlm_model_type}]"
-                log_func(f"  {model_name}{extra}: loaded in {elapsed:.1f}s | GPU: {snapshot.gpu_mb:.0f}MB")
+                log_func(f"  {model_name}: loaded in {elapsed:.1f}s | GPU: {snapshot.gpu_mb:.0f}MB")
 
             except Exception as e:
                 log_func(f"  {model_name}: FAILED to load - {e}")
@@ -277,47 +274,16 @@ class GPUModelManager:
         self._processors['blip'] = processor
 
     def _load_llava(self):
-        """Load Vision LLM (auto-selects Qwen 7B AWQ or LLaVA 0.5B based on VRAM)."""
-        import memograph_config as CFG
-        model_path, model_type = CFG.select_vlm_model()
-        self._vlm_model_type = model_type
-
-        try:
-            if model_type == "qwen-7b":
-                from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor
-                model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-                    model_path,
-                    torch_dtype=self.dtype,
-                    trust_remote_code=True,
-                    device_map="auto",
-                )
-                processor = AutoProcessor.from_pretrained(model_path, trust_remote_code=True)
-            else:
-                from transformers import AutoProcessor, AutoModelForVision2Seq
-                processor = AutoProcessor.from_pretrained(model_path, trust_remote_code=True)
-                model = AutoModelForVision2Seq.from_pretrained(
-                    model_path,
-                    torch_dtype=self.dtype,
-                    trust_remote_code=True,
-                    low_cpu_mem_usage=True
-                ).to(self.device)
-        except Exception:
-            # If Qwen failed, fall back to LLaVA 0.5B
-            if model_type == "qwen-7b":
-                import os
-                self._vlm_model_type = "llava-0.5b"
-                fallback = CFG.VLM_LLAVA_05B_DIR if os.path.isdir(CFG.VLM_LLAVA_05B_DIR) else CFG.VLM_LLAVA_05B_ID
-                from transformers import AutoProcessor, AutoModelForVision2Seq
-                processor = AutoProcessor.from_pretrained(fallback, trust_remote_code=True)
-                model = AutoModelForVision2Seq.from_pretrained(
-                    fallback,
-                    torch_dtype=self.dtype,
-                    trust_remote_code=True,
-                    low_cpu_mem_usage=True
-                ).to(self.device)
-            else:
-                raise
-
+        """Load LLaVA OneVision model."""
+        from transformers import AutoProcessor, AutoModelForVision2Seq
+        MODEL_ID = "llava-hf/llava-onevision-qwen2-0.5b-ov-hf"
+        processor = AutoProcessor.from_pretrained(MODEL_ID, trust_remote_code=True)
+        model = AutoModelForVision2Seq.from_pretrained(
+            MODEL_ID,
+            torch_dtype=self.dtype,
+            trust_remote_code=True,
+            low_cpu_mem_usage=True
+        ).to(self.device)
         self._models['llava'] = model
         self._processors['llava'] = processor
 
@@ -486,73 +452,43 @@ class GPUModelManager:
         captions = [processor.decode(output, skip_special_tokens=True) for output in outputs]
         return captions
 
-    def process_llava(self, image: Image.Image, prompt: str = None, max_tokens: int = None) -> str:
-        """Generate detailed description using the loaded Vision LLM (Qwen 7B or LLaVA 0.5B)."""
+    def process_llava(self, image: Image.Image, prompt: str = None, max_tokens: int = 256) -> str:
+        """Generate detailed description using LLaVA."""
         if 'llava' not in self._loaded:
             return ""
 
         if prompt is None:
             prompt = "Describe this image in detail, covering subject, setting, lighting, and mood."
 
-        import memograph_config as CFG
         model = self._models['llava']
         processor = self._processors['llava']
 
-        if self._vlm_model_type == "qwen-7b":
-            if max_tokens is None:
-                max_tokens = CFG.VLM_MAX_NEW_TOKENS_QWEN
-            messages = [
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "image", "image": image},
-                        {"type": "text", "text": prompt},
-                    ],
-                }
-            ]
-            text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-            inputs = processor(text=[text], images=[image], return_tensors="pt", padding=True)
-            model_device = next(model.parameters()).device
-            inputs = inputs.to(model_device)
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "image"},
+                    {"type": "text", "text": prompt},
+                ],
+            }
+        ]
 
-            with torch.inference_mode():
-                output_ids = model.generate(
-                    **inputs,
-                    max_new_tokens=max_tokens,
-                    temperature=0.1,
-                    do_sample=False
-                )
+        text_prompt = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        inputs = processor(text=text_prompt, images=image, return_tensors="pt").to(self.device)
 
-            generated_ids = output_ids[:, inputs.input_ids.shape[1]:]
-            generated_text = processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
-            return generated_text.strip()
-        else:
-            if max_tokens is None:
-                max_tokens = CFG.VLM_MAX_NEW_TOKENS_LLAVA
-            messages = [
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "image"},
-                        {"type": "text", "text": prompt},
-                    ],
-                }
-            ]
-            text_prompt = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-            inputs = processor(text=text_prompt, images=image, return_tensors="pt").to(self.device)
+        with torch.inference_mode():
+            output_ids = model.generate(
+                **inputs,
+                max_new_tokens=max_tokens,
+                temperature=0.1,
+                do_sample=False
+            )
 
-            with torch.inference_mode():
-                output_ids = model.generate(
-                    **inputs,
-                    max_new_tokens=max_tokens,
-                    temperature=0.1,
-                    do_sample=False
-                )
+        generated_text = processor.decode(output_ids[0], skip_special_tokens=True)
+        if "assistant\n" in generated_text:
+            generated_text = generated_text.split("assistant\n")[-1].strip()
 
-            generated_text = processor.decode(output_ids[0], skip_special_tokens=True)
-            if "assistant\n" in generated_text:
-                generated_text = generated_text.split("assistant\n")[-1].strip()
-            return generated_text
+        return generated_text
 
     def process_image_all(self, image_path: str, concepts: List[str] = None) -> Dict[str, Any]:
         """

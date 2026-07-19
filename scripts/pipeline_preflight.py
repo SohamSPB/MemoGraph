@@ -72,15 +72,20 @@ def count_images(trip_folder: str) -> Tuple[int, Dict[str, int]]:
 def get_resume_progress(csv_path: str) -> Dict[str, Tuple[int, int]]:
     """Check how many images already have each analysis column filled.
 
-    Returns {step_name: (done_count, total_count)}.
+    Returns {step_name: (done_count, total_count)}, where `total` excludes
+    md5-duplicates (rows with duplicate_of set) — those are filled in by
+    dedup_broadcast.py, not by the individual analysis steps, so counting
+    them as "pending" would understate progress.
     """
     rows = read_csv_dict(csv_path)
     if not rows:
         return {}
-    total = len(rows)
+    # Treat duplicates as already-accounted-for by dedup_broadcast.
+    non_dup_rows = [r for r in rows if not (r.get("duplicate_of") or "").strip()]
+    total = len(non_dup_rows)
     progress: Dict[str, Tuple[int, int]] = {}
     for step_name, (col, predicate) in STEP_SKIP_CONDITIONS.items():
-        done = sum(1 for r in rows if predicate(r.get(col, "")))
+        done = sum(1 for r in non_dup_rows if predicate(r.get(col, "")))
         progress[step_name] = (done, total)
     return progress
 

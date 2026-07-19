@@ -60,22 +60,30 @@ def compute_image_embedding(image_path: str, model, preprocess, device) -> torch
 
 
 def find_time_neighbors(rows: List[Dict], time_window: int = TIME_WINDOW_SECONDS) -> Dict[int, List[int]]:
-    """Find indices of images within time window of each image."""
+    """Find indices of images within time window of each image.
+
+    Content-duplicate rows (duplicate_of set) are excluded from grouping —
+    they share bytes with their canonical so any "similarity" relation is
+    trivially true, and dedup_broadcast.py already copies analysis between
+    them. Including them would just clutter the groups.
+    """
     neighbors = {}
     datetimes = []
+    is_duplicate: List[bool] = []
 
     for row in rows:
         dt = parse_datetime(row.get("datetime_original", ""))
         datetimes.append(dt)
+        is_duplicate.append(bool((row.get("duplicate_of") or "").strip()))
 
     for i, dt_i in enumerate(datetimes):
-        if dt_i is None:
+        if dt_i is None or is_duplicate[i]:
             neighbors[i] = []
             continue
 
         nearby = []
         for j, dt_j in enumerate(datetimes):
-            if i == j or dt_j is None:
+            if i == j or dt_j is None or is_duplicate[j]:
                 continue
             if abs((dt_i - dt_j).total_seconds()) <= time_window:
                 nearby.append(j)

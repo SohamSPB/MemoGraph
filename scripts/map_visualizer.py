@@ -11,6 +11,7 @@ Outputs:
 - Logs in <trip_folder>/MemoGraph/logs/map_visualizer.log
 """
 
+import html
 import os
 import shutil
 import folium
@@ -35,18 +36,30 @@ def load_geo_points(csv_path, trip_folder):
 			if lat == 0 or lon == 0:
 				continue
 			caption = clean_caption(r.get("caption_ai") or r.get("caption") or "Untitled")
-			img_path = os.path.join(trip_folder, r.get("local_path", ""))
-			img_tag = f"<br/><img src='{img_path}' width='150'/>" if os.path.exists(img_path) else ""
+			# trip_map.html lives at <trip>/MemoGraph/trip_map.html, so the
+			# image needs to be referenced one directory up. Absolute filesystem
+			# paths break the moment the map is shared, moved, or served.
+			local_path = r.get("local_path", "")
+			img_full = os.path.join(trip_folder, local_path)
+			rel_img = ("../" + local_path).replace("\\", "/") if local_path else ""
+			# Escape every model- or CSV-derived string before interpolating into
+			# Folium's popup HTML — captions, locations, and day numbers can all
+			# legitimately contain characters that would break or inject HTML.
+			img_tag = (
+				f"<br/><img src='{html.escape(rel_img, quote=True)}' width='150'/>"
+				if rel_img and os.path.exists(img_full)
+				else ""
+			)
 			day = str(r.get("day_number") or "").strip()
 			loc = (r.get("location_inferred") or "").strip()
 			meta_parts = []
 			if day:
-				meta_parts.append(f"Day {day}")
+				meta_parts.append(f"Day {html.escape(day)}")
 			if loc:
-				meta_parts.append(loc)
+				meta_parts.append(html.escape(loc))
 			meta = " – ".join(meta_parts)
 			meta_html = f"<br/><small>{meta}</small>" if meta else ""
-			popup = f"<b>{caption}</b>{meta_html}{img_tag}"
+			popup = f"<b>{html.escape(caption)}</b>{meta_html}{img_tag}"
 			points.append((lat, lon, popup))
 		except:
 			continue

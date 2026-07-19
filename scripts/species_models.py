@@ -167,10 +167,6 @@ def detect_wildlife_boxes(
 			"a bird", "a butterfly", "a moth", "an insect", "a dragonfly",
 			"a beetle", "a spider", "a lizard", "a snake", "a frog",
 			"a squirrel", "a monkey", "a deer", "a cat", "a dog",
-			"a flower", "a cow", "a goat", "a horse", "a yak",
-			"a turtle",
-			"a bee", "a wasp", "an ant",
-			"a flowering plant", "a potted plant", "a tree with flowers",
 		]
 
 	w, h = image.size
@@ -190,18 +186,15 @@ def detect_wildlife_boxes(
 		result = results[0]
 		for box, score, label_idx in zip(result["boxes"], result["scores"], result["labels"]):
 			x1, y1, x2, y2 = box.tolist()
-			left_pct = round(x1 / w * 100, 1)
-			top_pct = round(y1 / h * 100, 1)
-			right_pct = round(x2 / w * 100, 1)
-			bottom_pct = round(y2 / h * 100, 1)
-			# Skip boxes that cover less than 0.5% of the image area (false positives)
-			box_area = (right_pct - left_pct) * (bottom_pct - top_pct)
-			if box_area < 50:  # 50 in (0-100)^2 units = 0.5% of image
-				continue
 			label = queries[int(label_idx)]
 			detections.append({
 				"box": (x1, y1, x2, y2),
-				"box_norm": (left_pct, top_pct, right_pct, bottom_pct),
+				"box_norm": (
+					round(x1 / w * 100, 1),
+					round(y1 / h * 100, 1),
+					round(x2 / w * 100, 1),
+					round(y2 / h * 100, 1),
+				),
 				"label": label,
 				"score": float(score),
 			})
@@ -373,39 +366,9 @@ def unload_bioclip():
 # Two-stage pipeline: Detect + Classify
 # -------------------------------------------------------
 
-def _crop_color_hint(crop: Image.Image) -> str:
-	"""Return a color hint string based on the dominant hue of a crop.
-
-	Used to select the right butterfly candidate sub-list before BioCLIP
-	classification, since BioCLIP's embedding space can confuse morphologically
-	similar species of different colours (e.g. orange Tawny Rajah vs. black
-	Common Mormon).
-	"""
-	from PIL import ImageStat
-	try:
-		stat = ImageStat.Stat(crop.convert("RGB"))
-		r, g, b = stat.mean[:3]
-		# Orange: red channel dominant, clearly above green and blue
-		if r > 140 and r > g + 30 and r > b + 50:
-			return "orange"
-		# Yellow: high red AND green, low blue
-		if r > 160 and g > 140 and b < r - 40 and b < g - 30:
-			return "yellow"
-		# White / pale: all channels high
-		if r > 180 and g > 180 and b > 180:
-			return "white"
-		# Dark / black-dominant: all channels low
-		if r < 80 and g < 80 and b < 80:
-			return "dark"
-	except Exception:
-		pass
-	return ""
-
-
 def detect_and_classify(
 	image: Image.Image,
 	text_prompt: Optional[str] = None,
-	detected_objects: str = "",
 ) -> List[Dict[str, Any]]:
 	"""
 	Full two-stage pipeline:
@@ -444,20 +407,14 @@ def detect_and_classify(
 
 		crop = image.crop((cx1, cy1, cx2, cy2))
 
-		# Choose candidate labels based on detection category + coarse context
+		# Choose candidate labels based on detection category
 		label_lower = det["label"].lower()
 		if "bird" in label_lower:
 			candidates = _get_bird_labels()
 		elif "butterfly" in label_lower or "moth" in label_lower:
-			# Combine coarse text context with direct crop colour analysis
-			color_hint = _crop_color_hint(crop)
-			candidates = _get_butterfly_labels(detected_objects + " " + color_hint)
-		elif any(k in label_lower for k in ("insect", "dragonfly", "beetle", "spider", "bee", "wasp", "ant")):
+			candidates = _get_butterfly_labels()
+		elif "insect" in label_lower or "dragonfly" in label_lower or "beetle" in label_lower:
 			candidates = _get_insect_labels()
-		elif any(k in label_lower for k in ("flower", "plant")):
-			candidates = _get_flower_labels()
-		elif "fish" in label_lower:
-			candidates = _get_fish_labels()
 		else:
 			candidates = _get_default_species_labels()
 
@@ -471,64 +428,40 @@ def detect_and_classify(
 def _get_bird_labels() -> List[str]:
 	"""Common Indian + global bird species for BioCLIP classification."""
 	return [
-		# Very common Indian urban/suburban birds (listed first for faster matching)
-		"Common Myna", "Jungle Myna", "Bank Myna", "Hill Myna",
-		"House Crow", "Large-billed Crow", "Jungle Crow",
-		"Rock Pigeon", "Spotted Dove", "Laughing Dove", "Eurasian Collared Dove",
-		"House Sparrow", "Eurasian Tree Sparrow",
-		"Rose-ringed Parakeet", "Plum-headed Parakeet", "Alexandrine Parakeet",
-		# Kingfishers
+		# Indian subcontinent birds
+		"Indian Peafowl", "Asian Green Bee-eater", "Blue-tailed Bee-eater",
 		"White-throated Kingfisher", "Common Kingfisher", "Pied Kingfisher",
-		"Stork-billed Kingfisher",
-		# Bee-eaters
-		"Asian Green Bee-eater", "Blue-tailed Bee-eater", "Chestnut-headed Bee-eater",
-		# Rollers, bulbuls, drongos
 		"Indian Roller", "Red-vented Bulbul", "Red-whiskered Bulbul",
-		"Black Drongo", "Greater Racket-tailed Drongo", "Ashy Drongo",
-		# Sunbirds
-		"Purple Sunbird", "Crimson Sunbird", "Loten's Sunbird",
-		# Barbets and woodpeckers (on trees)
-		"Coppersmith Barbet", "Blue-throated Barbet", "Brown-headed Barbet",
-		"Lineated Barbet", "Great Barbet",
-		"Golden-backed Woodpecker", "Greater Flameback", "Lesser Flameback",
-		"Rufous Woodpecker", "Brown-capped Pygmy Woodpecker",
-		"Yellow-crowned Woodpecker", "Streak-throated Woodpecker",
-		"Grey-headed Woodpecker", "Himalayan Woodpecker",
-		# Flycatchers and robins
 		"Asian Paradise Flycatcher", "Indian Robin", "Oriental Magpie Robin",
-		"Verditer Flycatcher", "Ultramarine Flycatcher",
-		"White-rumped Shama", "Pied Bushchat",
-		# Cuckoos and koels
-		"Asian Koel", "Greater Coucal", "Common Hawk-Cuckoo", "Pied Cuckoo",
-		# Tailorbirds, warblers, prinias
-		"Common Tailorbird", "Plain Prinia", "Jungle Prinia",
-		# Wagtails and shrikes
-		"White Wagtail", "Grey Wagtail", "Citrine Wagtail", "Yellow Wagtail",
-		"Long-tailed Shrike", "Brown Shrike", "Bay-backed Shrike",
-		# Raptors
-		"Black Kite", "Brahminy Kite", "Shikra", "White-eyed Buzzard",
-		"Crested Serpent Eagle",
-		# Hornbills
+		"Black Drongo", "Greater Racket-tailed Drongo", "White-bellied Drongo",
+		"Common Myna", "Jungle Myna", "Hill Myna",
+		"Purple Sunbird", "Crimson Sunbird",
+		"Rose-ringed Parakeet", "Plum-headed Parakeet",
+		"Coppersmith Barbet", "Blue-throated Barbet", "Brown-headed Barbet",
+		"Asian Koel", "Greater Coucal", "Common Hawk-Cuckoo",
+		"White-crested Laughingthrush", "Rufous Sibia",
+		"Scarlet Minivet", "Long-tailed Minivet",
+		"Black Kite", "Brahminy Kite", "Shikra",
 		"Indian Grey Hornbill", "Great Hornbill", "Malabar Pied Hornbill",
-		# Owls
-		"Spotted Owlet", "Barn Owl", "Indian Scops Owl", "Jungle Owlet",
-		# Waterbirds
-		"Grey Heron", "Indian Pond Heron", "Cattle Egret", "Great Egret",
-		"Little Egret", "Purple Heron",
+		"Spotted Owlet", "Barn Owl", "Indian Scops Owl",
 		"Painted Stork", "Asian Openbill", "Black-necked Stork",
-		"Little Cormorant", "Indian Cormorant", "Great Cormorant",
+		"Grey Heron", "Indian Pond Heron", "Cattle Egret", "Great Egret",
+		"Little Cormorant", "Indian Cormorant",
 		"Bar-headed Goose", "Spot-billed Duck", "Lesser Whistling Duck",
-		# Peacock
-		"Indian Peafowl",
-		# Tits and nuthatches
+		"House Sparrow", "Eurasian Tree Sparrow",
+		"House Crow", "Large-billed Crow", "Jungle Crow",
+		"Rock Pigeon", "Spotted Dove", "Laughing Dove",
+		"White Wagtail", "Grey Wagtail", "Citrine Wagtail",
+		"Long-tailed Shrike", "Brown Shrike",
+		"Golden-backed Woodpecker", "Greater Flameback",
+		"Common Tailorbird", "Plain Prinia",
 		"Great Tit", "Green-backed Tit",
 		"Chestnut-bellied Nuthatch", "Velvet-fronted Nuthatch",
 		# Himalayan specialties
 		"Himalayan Monal", "Kalij Pheasant", "Blood Pheasant",
 		"Fire-tailed Sunbird", "Mrs. Gould's Sunbird",
+		"Verditer Flycatcher", "Ultramarine Flycatcher",
 		"Blue Whistling Thrush", "Chestnut Thrush",
-		"White-crested Laughingthrush", "Rufous Sibia",
-		"Scarlet Minivet", "Long-tailed Minivet",
 		"Spiny Babbler", "Nepal Wren-Babbler",
 		"Yellow-billed Blue Magpie", "Red-billed Blue Magpie",
 		"Wallcreeper", "White-capped Redstart",
@@ -539,102 +472,42 @@ def _get_bird_labels() -> List[str]:
 	]
 
 
-def _get_fish_labels() -> List[str]:
-	"""Common fish and aquatic species for BioCLIP classification."""
+def _get_butterfly_labels() -> List[str]:
+	"""Common butterfly and moth species."""
 	return [
-		"Common Carp", "Rohu", "Catla", "Tilapia",
-		"Goldfish", "Koi", "Betta Fish",
-		"Mahseer", "Golden Mahseer",
-		"Trout", "Salmon",
-		"Clownfish", "Angelfish",
-		"Eel", "Moray Eel",
-		"Catfish", "Snakehead",
-	]
-
-
-def _get_butterfly_labels(context: str = "") -> List[str]:
-	"""Common butterfly and moth species.
-
-	When coarse detection context (detected_objects / caption text) is provided,
-	re-orders candidates so colour-matched species come first, improving BioCLIP
-	accuracy for orange/yellow vs. dark/patterned butterflies.
-	"""
-	ctx = context.lower()
-
-	# Orange / tawny / rusty-coloured butterflies
-	orange_labels = [
-		"Tawny Rajah", "Common Rajah",          # Charaxes - orange with dark striping
-		"Plain Tiger", "Striped Tiger",           # Danaid tigers - orange/black
-		"Tawny Coster",                           # Orange/tawny with black
-		"Indian Fritillary", "Acraea Butterfly",
-		"Common Sailer",                          # Brown/rusty tones
-		"Tamil Yeoman", "Common Yeoman",
-		"Rustic", "Common Rustic",
-		"Orange Oakleaf",                         # Dead-leaf mimic, orange inside
-		"Autumn Leaf",                            # Bright orange
-		"Orange Tip", "Great Orange Tip",
-	]
-
-	# Yellow / sulphur / grass-yellow butterflies
-	yellow_labels = [
-		"Common Grass Yellow", "Three-spot Grass Yellow",
-		"Common Emigrant", "Mottled Emigrant", "Lemon Emigrant",
-		"Small Grass Yellow", "Spotless Grass Yellow",
-		"Psyche", "Common Albatross",
-		"Common Gull", "Pioneer",
-		"Common Jezebel", "Painted Jezebel",
-	]
-
-	# Dark / black / patterned swallowtails and crows
-	dark_labels = [
+		# Swallowtails
 		"Common Mormon", "Blue Mormon", "Lime Butterfly",
 		"Common Rose", "Crimson Rose", "Krishna Peacock",
 		"Common Mime", "Common Bluebottle", "Tailed Jay",
 		"Golden Birdwing", "Southern Birdwing", "Common Birdwing",
-		"Common Crow", "Blue Tiger", "Common Indian Crow",
+		# Whites and Yellows
+		"Common Grass Yellow", "Three-spot Grass Yellow",
+		"Common Emigrant", "Mottled Emigrant", "Lemon Emigrant",
+		"Common Jezebel", "Painted Jezebel",
+		"Common Gull", "Pioneer",
+		"Psyche", "Common Albatross",
+		# Brush-footed
+		"Painted Lady", "Red Admiral", "Common Leopard",
+		"Common Crow", "Blue Tiger", "Striped Tiger",
+		"Plain Tiger", "Common Indian Crow",
 		"Blue Pansy", "Lemon Pansy", "Chocolate Pansy", "Grey Pansy",
+		"Common Castor", "Common Baron", "Common Sergeant",
+		"Tawny Coster", "Common Lacewing",
 		"Commander", "Clipper",
-		"Common Leopard", "Common Baron", "Common Sergeant",
-		"Common Castor", "Common Lacewing",
-		"Painted Lady", "Red Admiral",
-	]
-
-	# Blues and small butterflies
-	small_labels = [
+		# Blues
 		"Common Cerulean", "Gram Blue", "Plains Cupid",
 		"Common Pierrot", "Zebra Blue",
 		"Pale Grass Blue", "Dark Grass Blue",
+		# Skippers
 		"Common Dartlet", "Rice Swift",
-	]
-
-	# Moths
-	moth_labels = [
+		# Moths
 		"Atlas Moth", "Luna Moth", "Oleander Hawk-Moth",
 		"Hummingbird Hawk-Moth", "Death's-head Hawkmoth",
 		"Indian Moon Moth", "Tussar Silk Moth",
+		# General
+		"Monarch Butterfly", "Swallowtail Butterfly",
+		"Cabbage White", "Orange Tip",
 	]
-
-	# General fallback labels
-	general_labels = ["Monarch Butterfly", "Swallowtail Butterfly", "Cabbage White"]
-
-	# Context-aware candidate FILTERING (not just reordering) for better BioCLIP accuracy.
-	# When we have a clear colour signal, return ONLY that colour group so BioCLIP
-	# cannot confuse e.g. an orange Tawny Rajah with the black Common Mormon.
-	if any(k in ctx for k in ("orange", "tawny", "rusty", "brown butterfly", "rajah", "coster", "autumn")):
-		# Strong orange signal → restrict to orange/warm candidates only
-		return orange_labels + dark_labels + yellow_labels + small_labels + moth_labels + general_labels
-	elif any(k in ctx for k in ("yellow", "sulphur", "grass yellow", "emigrant", "lemon")):
-		# Strong yellow/sulphur signal
-		return yellow_labels + orange_labels + dark_labels + small_labels + moth_labels + general_labels
-	elif any(k in ctx for k in ("dark", "black", "white")):
-		# Dark or white butterfly → swallowtails and whites first
-		return dark_labels + small_labels + orange_labels + yellow_labels + moth_labels + general_labels
-	elif any(k in ctx for k in ("mud-puddling", "mud puddling")):
-		# Mud-puddling shots often contain yellows and tigers mixed together
-		return yellow_labels + orange_labels + dark_labels + small_labels + moth_labels + general_labels
-	else:
-		# No clear colour signal: use full list, dark/patterned first
-		return dark_labels + orange_labels + yellow_labels + small_labels + moth_labels + general_labels
 
 
 def _get_insect_labels() -> List[str]:
@@ -667,44 +540,6 @@ def _get_insect_labels() -> List[str]:
 		# Spiders (technically arachnids)
 		"Orb Weaver Spider", "Jumping Spider", "Wolf Spider",
 		"Garden Spider", "Crab Spider", "Lynx Spider",
-	]
-
-
-def _get_flower_labels() -> List[str]:
-	"""Common Indian and global flower species for BioCLIP classification."""
-	return [
-		# Indian garden flowers
-		"Marigold", "Hibiscus", "Jasmine", "Mogra Jasmine",
-		"Bougainvillea", "Gulmohar", "Plumeria", "Frangipani",
-		"Night-blooming Jasmine", "Parijat",
-		"Champa", "Champaka",
-		# Lotus & water flowers
-		"Indian Lotus", "Sacred Lotus", "Water Lily",
-		# Roses
-		"Red Rose", "White Rose", "Yellow Rose", "Pink Rose",
-		"Rose", "Climbing Rose",
-		# Common garden flowers
-		"Sunflower", "Dahlia", "Chrysanthemum",
-		"Lily", "Asiatic Lily", "Spider Lily",
-		"Orchid", "Dendrobium Orchid", "Vanda Orchid",
-		"Tulip", "Daisy", "Lavender",
-		"Zinnia", "Petunia", "Cosmos",
-		"Periwinkle", "Sadabahar",
-		"Ixora", "Lantana", "Crossandra",
-		"Canna Lily", "Bird of Paradise",
-		# Indian wildflowers
-		"Rhododendron", "Neelakurinji",
-		"Indian Blanket Flower", "Gaillardia",
-		"Allamanda", "Golden Trumpet",
-		"Oleander", "Kaner",
-		"Crown Flower", "Aak", "Calotropis",
-		# Temple flowers
-		"Tuberose", "Rajnigandha",
-		"Palash", "Flame of the Forest",
-		"Indian Cork Tree", "Millingtonia",
-		# Trees in bloom
-		"Gulmohar Flower", "Amaltas", "Golden Shower Tree",
-		"Jacaranda", "Bauhinia", "Kachnar",
 	]
 
 
